@@ -16,6 +16,8 @@ import wave
 import struct
 import sys
 from io import StringIO
+from functools import reduce
+import operator
 
 # Utilize XML to read/write animatronics files
 import xml.etree.ElementTree as ET
@@ -240,6 +242,15 @@ class ChannelPane(qwt.QwtPlot):
 
         def metadata_action(self):
             """ Perform metadata action"""
+            tname = self.channel.name
+            td = ChannelMetadataWidget(channel=self.channel, parent=self, editable=False)
+            code = td.exec_()
+
+            if code == QDialog.Accepted:
+                # Need to trigger redraw
+                self.parent.holder.setAnimatronics(self.parent.holder.animatronics)
+                pass
+                
             pass
 
         def invert_action(self):
@@ -285,8 +296,9 @@ class ChannelPane(qwt.QwtPlot):
         self.channel = inchannel
         self.holder = mainwindow
         self.curve = None
+        self.curve2 = None
 
-        # Set initial values to avoid dta race
+        # Set initial values to avoid data race
         self.minTime = 0.0
         self.maxTime = 1.0
         self.minVal = -1.0
@@ -304,13 +316,13 @@ class ChannelPane(qwt.QwtPlot):
         self.minTime = mintime
         self.maxTime = maxtime
         self.setAxisScale(self.X_BOTTOM_AXIS_ID, self.minTime, self.maxTime)
-        self.replot()
+        self.redrawme()
 
     def setDataRange(self, minval, maxval):
         self.minVal = minval
         self.maxVal = maxval
         self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal, self.maxVal)
-        self.replot()
+        self.redrawme()
 
     def resetDataRange(self):
         self.minVal = 1.0e34
@@ -350,13 +362,16 @@ class ChannelPane(qwt.QwtPlot):
         grid.attach(self)
         grid.setPen(QPen(Qt.black, 0, Qt.DotLine))
 
-        # Create the data plot
+        # Create the data plot for the curve and another just for the knots
         xdata = sorted(self.channel.knots)
         ydata = [self.channel.knots[key] for key in xdata]
-        self.curve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self,
+        self.curve2 = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self,
             symbol=qwt.symbol.QwtSymbol(qwt.symbol.QwtSymbol.Rect,
                 QBrush(), QPen(Qt.green), QSize(self.BoxSize, self.BoxSize))
         )
+        self.curve2.setStyle(qwt.QwtPlotCurve.NoCurve)
+        self.curve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self)
+        
         if len(ydata) <= 0:
             self.setDataRange(0.0, 1.0)
         else:
@@ -458,20 +473,105 @@ class ChannelPane(qwt.QwtPlot):
             self.replot()
         
     def redrawme(self):
-        # Create the data plot
-        xdata = sorted(self.channel.knots)
-        ydata = [self.channel.knots[key] for key in xdata]
-        if self.curve is not None:
+        # Recreate the data plot
+        xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 100)
+        if self.curve is not None and xdata is not None and ydata is not None:
             self.curve.setData(xdata, ydata)
+        # Recreate the knot plot
+        xdata,ydata = self.channel.getKnotData(self.minTime, self.maxTime, 100)
+        if self.curve2 is not None and xdata is not None and ydata is not None:
+            self.curve2.setData(xdata, ydata)
+            if len(xdata) > 1:
+                self.minVal = min(ydata)
+                self.maxVal = max(ydata)
+                margin = (self.maxVal - self.minVal) * 0.05
+                self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal-margin, self.maxVal+margin)
+        
         self.replot()
 
-#####################################################################3
+#####################################################################
+# The ChannelMetadataWidget is used to view and edit the metadata
+# for an individual channel
+#####################################################################
+class ChannelMetadataWidget(QDialog):
+    def __init__(self, channel=None, parent=None, editable=True):
+        super().__init__(parent)
+
+        # Save animatronics object for update if Save is selected
+        self._channel = channel
+
+        self.title = 'Channel MetaData Editor'
+        widget = QWidget()
+        layout = QFormLayout()
+        
+        self._nameedit = QLineEdit()
+        self._nameedit.setReadOnly(not editable)
+        layout.addRow(QLabel('Name:'), self._nameedit)
+        self._typeedit = QComboBox()
+        self._typeedit.addItems(('Linear', 'Spline', 'Step'))
+        layout.addRow(QLabel('Type:'), self._typeedit)
+        self._portedit = QLineEdit()
+        layout.addRow(QLabel('Port:'), self._portedit)
+        self._minedit = QLineEdit()
+        layout.addRow(QLabel('Min:'), self._minedit)
+        self._maxedit = QLineEdit()
+        layout.addRow(QLabel('Max:'), self._maxedit)
+
+        if self._channel is not None:
+            self._nameedit.setText(self._channel.name)
+            self._typeedit.setCurrentIndex(self._channel.type-1)
+            if self._channel.port >= 0:
+                self._portedit.setText(str(self._channel.port))
+            if self._channel.maxLimit > self._channel.minLimit:
+                self._minedit.setText(str(self._channel.minLimit))
+                self._maxedit.setText(str(self._channel.maxLimit))
+
+        widget.setLayout(layout)
+
+        self.okButton = QPushButton('Save')
+        self.cancelButton = QPushButton('Cancel')
+
+        hbox = QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addWidget(self.okButton)
+        hbox.addWidget(self.cancelButton)
+
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(widget)
+        vbox.addStretch(1)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+        self.okButton.clicked.connect(self.onAccepted)
+        self.cancelButton.clicked.connect(self.reject)
+
+    def onAccepted(self):
+        tstring = self._nameedit.text()
+        if len(tstring) > 0:
+            self._channel.name = tstring
+        self._channel.type = self._typeedit.currentIndex() + 1
+        tstring = self._portedit.text()
+        if len(tstring) > 0:
+            self._channel.port = int(tstring)
+        tstring = self._minedit.text()
+        if len(tstring) > 0:
+            self._channel.minLimit = float(tstring)
+        tstring = self._maxedit.text()
+        if len(tstring) > 0:
+            self._channel.maxLimit = float(tstring)
+
+        self.accept()
+
+#####################################################################
 # The MetadataWidget is used to view and edit the metadata
 # for the overall Animatronics file
-#####################################################################3
+#####################################################################
 class MetadataWidget(QDialog):
     def __init__(self, inanim, parent=None):
         super().__init__(parent)
+
+        # Save animatronics object for update if Save is selected
+        self._animatronics = inanim
 
         self.title = 'MetaData Editor'
         widget = QWidget()
@@ -481,10 +581,12 @@ class MetadataWidget(QDialog):
         self._startedit.setReadOnly(True)
         layout.addRow(QLabel('Start Time:'), self._startedit)
         self._endedit = QLineEdit()
+        if self._animatronics.start < self._animatronics.end:
+            self._endedit.setText(str(self._animatronics.end))
         layout.addRow(QLabel('End Time:'), self._endedit)
-        self._rateedit = QLineEdit('50')
+        self._rateedit = QLineEdit(str(self._animatronics.sample_rate))
         layout.addRow(QLabel('Sample Rate (Hz):'), self._rateedit)
-        self._audioedit = QLineEdit('0.0')
+        self._audioedit = QLineEdit(str(self._animatronics.audiostart))
         layout.addRow(QLabel('Audio Start Time:'), self._audioedit)
         layout.addRow(QLabel('Audio File:'))
         self._audiofile = QLineEdit('')
@@ -512,11 +614,132 @@ class MetadataWidget(QDialog):
         self.cancelButton.clicked.connect(self.reject)
 
     def onAccepted(self):
+        tstring = self._endedit.text()
+        if len(tstring) > 0:
+            self._animatronics.end = float(tstring)
+        tstring = self._rateedit.text()
+        if len(tstring) > 0:
+            self._animatronics.sample_rate = float(tstring)
+        tstring = self._audioedit.text()
+        if len(tstring) > 0:
+            self._animatronics.audiostart = float(tstring)
         self.accept()
 
-#####################################################################3
+#####################################################################
+# The Player class is a widget with playback controls
+#####################################################################
+class Player(QWidget):
+    def __init__(self, parent=None, player=None):
+        super().__init__(parent)
+
+        self._startPosition = 0.0
+        self._endPosition = 10000.0   # 10 seconds
+        # The offset is the start time of the audio in case it is not 0.0
+        self._offset = 0.0
+
+        self.mediaPlayer = player
+        if player is not None:
+            try:    # PyQt5
+                self.mediaPlayer.stateChanged.connect(self.mediaStateChanged)
+            except: # PyQt6
+                self.mediaPlayer.playbackStateChanged.connect(self.mediaStateChanged)
+        self.mediaPlayer.positionChanged.connect(self.positionNotify)
+
+        btnSize = QSize(16, 16)
+
+        layout = QHBoxLayout()
+        self._rewindbutton = QPushButton()
+        self._rewindbutton.setFixedHeight(24)
+        self._rewindbutton.setIconSize(btnSize)
+        self._rewindbutton.setIcon(self.style().standardIcon(QStyle.SP_MediaSkipBackward))
+        self._rewindbutton.clicked.connect(self.rewind)
+        layout.addWidget(self._rewindbutton)
+
+        self._playbutton = QPushButton()
+        self._playbutton.setFixedHeight(24)
+        self._playbutton.setIconSize(btnSize)
+        self._playbutton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self._playbutton.clicked.connect(self.play)
+        layout.addWidget(self._playbutton)
+
+        self._setleftbutton = QPushButton()
+        self._setleftbutton.setEnabled(False)
+        self._setleftbutton.setFixedHeight(24)
+        self._setleftbutton.setText('Set Left')
+        self._setleftbutton.clicked.connect(self.setleft)
+        layout.addWidget(self._setleftbutton)
+
+        self._setrightbutton = QPushButton()
+        self._setrightbutton.setEnabled(False)
+        self._setrightbutton.setFixedHeight(24)
+        self._setrightbutton.setText('Set Right')
+        self._setrightbutton.clicked.connect(self.setright)
+        layout.addWidget(self._setrightbutton)
+
+        layout.addStretch()
+
+        self.setLayout(layout)
+
+    def setRange(self, minTime, maxTime):
+        self._startPosition = int((minTime - self._offset) * 1000)
+        self._endPosition = int((maxTime - self._offset) * 1000)
+
+    def setOffset(self, audioStartTime):
+        self._offset = audioStartTime
+
+    # Slots
+    def rewind(self):
+        # Go to left side of playable area
+        print('Hit Rewind')
+        self.mediaPlayer.setPosition(self._startPosition)
+        pass
+
+    def play(self):
+        print('Hit Play')
+        if self.mediaPlayer is not None:
+            try:    # PyQt5
+                state = self.mediaPlayer.state()
+            except: # PyQt6
+                state = self.mediaPlayer.playbackState()
+            if state == qm.QMediaPlayer.PlayingState:
+                self.mediaPlayer.pause()
+            else:
+                # Limit range of playback
+                if self.mediaPlayer.position() < self._startPosition or self.mediaPlayer.position() >= self._endPosition:
+                    self.mediaPlayer.setPosition(self._startPosition)
+                self.mediaPlayer.play()
+
+    def positionNotify(self, currPosition):
+        if currPosition >= self._endPosition:
+            self.mediaPlayer.stop() # Hmmm pause goes infinite here but stop does not???
+
+    def mediaStateChanged(self, state):
+        if self.mediaPlayer is not None:
+            try:    # PyQt5
+                state = self.mediaPlayer.state()
+            except: # PyQt6
+                state = self.mediaPlayer.playbackState()
+            if state == qm.QMediaPlayer.PlayingState:
+                self._playbutton.setIcon(
+                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
+            else:
+                self._playbutton.setIcon(
+                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+
+
+    def setleft(self):
+        # Set start of play range to current time and set left edge time to it
+        print('Hit Left')
+        pass
+
+    def setright(self):
+        # Set start of play range to current time and set right edge time to it
+        print('Hit Right')
+        pass
+
+#####################################################################
 # The MainWindow class represents the Qt main window.
-#####################################################################3
+#####################################################################
 class MainWindow(QMainWindow):
     Y_LEFT_AXIS_ID = 0
     Y_RIGHT_AXIS_ID = 1
@@ -530,6 +753,7 @@ class MainWindow(QMainWindow):
         self.filedialog = None
         # Initialize to no audio plot and add later if read
         self.audioPlot = None
+        self.audioCurve = None
         # Initialize empty list of channel plots
         self.plots = {}
 
@@ -547,11 +771,6 @@ class MainWindow(QMainWindow):
         self.totalMax = 1.0
 
         self.player = qm.QMediaPlayer()
-        try:
-            # This fails in PyQt6???
-            self.player.setNotifyInterval(30)
-        except:
-            pass
         # self.player.setPlaybackRate(0.5)
         self.player.positionChanged.connect(self.positionChanged)
 
@@ -563,11 +782,22 @@ class MainWindow(QMainWindow):
         self.animatronics = inanim
 
         # Clear and recreate UI here
+        self.audioPlot = None
+        self.audioCurve = None
         # Create the bottom level widget and make it the main widget
-        self._plotarea = QScrollArea(self)
-        self._plotarea.setWidgetResizable(True)
-        self._plotarea.setMaximumSize(3800,1000)
-        self.setCentralWidget(self._plotarea)
+        self._mainarea = QScrollArea(self)
+        self._mainarea.setWidgetResizable(True)
+        self._mainarea.setMaximumSize(3800,1000)
+        self.setCentralWidget(self._mainarea)
+
+        # Set up the playback widget
+        self._playwidget = Player(player=self.player)
+        #self._playwidget.hide()
+        tlayout = QVBoxLayout(self._mainarea)
+        tlayout.addWidget(self._playwidget)
+
+        self._plotarea = QWidget()
+        tlayout.addWidget(self._plotarea)
 
         # Set the background color
         p = self._plotarea.palette()
@@ -583,16 +813,15 @@ class MainWindow(QMainWindow):
         # Remove all existing plot channels
         self.plots = {}
 
-        if self.animatronics.audio_data is not None:
-            xdata = [float(i) * self.animatronics.audio_rate + self.animatronics.start for i in range(len(self.animatronics.audio_data))]
+        if self.animatronics.newAudio is not None:
+            self.audioMin,self.audioMax = self.animatronics.newAudio.audioTimeRange()
+            xdata, ydata = self.animatronics.newAudio.getPlotData(self.audioMin,self.audioMax,4000)
             newplot = qwt.QwtPlot('Audio')
-            qwt.QwtPlotCurve.make(xdata=xdata, ydata=self.animatronics.audio_data,
+            self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, #self.animatronics.audio_data,
                 title='Audio', plot=newplot,
                 )
             layout.addWidget(newplot)
             self.audioPlot = newplot
-            self.audioMin = xdata[0]
-            self.audioMax = xdata[-1]
             if self.audioMax > self.totalMax: self.totalMax = self.audioMax
             self.lastXmin = self.audioMin
             self.lastXmax = self.audioMax
@@ -605,14 +834,30 @@ class MainWindow(QMainWindow):
             self.timeSlider.setBaseline(-30000.0)
             self.timeSlider.attach(newplot)
 
+            # Create/open QtMediaPlayer
+            try:
+                # PyQt5 way
+                self.player.setMedia(qm.QMediaContent(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile)))
+                # Default notification rate is 1Hz in PyQt5 so up to 50Hz
+                self.player.setNotifyInterval(self.animatronics.sample_rate) # This fails in PyQt6???
+            except:
+                try:
+                    # PyQt6 way
+                    self.player.setSource(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile))
+                    self.player.setAudioOutput(qm.QAudioOutput(qm.QAudioDevice()))
+                except:
+                    print('Whoops - No Audio player')
+                    pass
+
         for channel in self.animatronics.channels:
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(self._plotarea, chan, mainwindow=self)
             newplot.setAxisScale(self.X_BOTTOM_AXIS_ID, self.lastXmin, self.lastXmax)
             layout.addWidget(newplot)
             self.plots[chan.name] = newplot
+
+        self._playwidget.setRange(self.lastXmin, self.lastXmax)
             
-        # print(self.animatronics.toXML())
 
     def openAnimFile(self):
         """Get filename and open as active animatronics"""
@@ -703,31 +948,90 @@ class MainWindow(QMainWindow):
 
     def exportCSVFile(self):
         """Export the current animatronics file into a CSV format"""
+        columns = {}
+        timecolumn = []
+        starttime = self.animatronics.start
+        endtime = self.animatronics.end
+        samplestep = 1.0/self.animatronics.sample_rate
+        if endtime < starttime:
+            for plot in self.plots:
+                _,tend = self.plots[plot].getTimeRange()
+                if tend > endtime: endtime = tend
+        currtime = starttime
+        while currtime < endtime:
+            timecolumn.append(currtime)
+            currtime += samplestep
+        columns['Time'] = timecolumn
+
+        for plot in self.plots:
+            values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep)
+            columns[plot] = values
+
+        # Get the filename to write to
+        if self.filedialog is None:
+            self.filedialog = QFileDialog(self)
+
+        self.filedialog.setDefaultSuffix('csv')
+        fileName, _ = self.filedialog.getSaveFileName(self,"Get Save Filename", "",
+                            "Anim Files (*.csv);;All Files (*)",
+                            options=QFileDialog.DontUseNativeDialog)
+
+        if fileName:
+            try:
+                with open(fileName, 'w') as outfile:
+                    # Write out the column headers
+                    for channel in columns:
+                        if channel != 'Time':
+                            outfile.write(',')
+                        outfile.write('"%s"' % channel)
+                    outfile.write('\n')
+                    # Write out all the data in columns
+                    for indx in range(len(timecolumn)):
+                        for channel in columns:
+                            if channel != 'Time':
+                                outfile.write(',')
+                            outfile.write('%f' % columns[channel][indx])
+                        outfile.write('\n')
+
+            except Exception as e:
+                sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
+                sys.stderr.write("Message: %s\n" % e)
+                return
+
         pass
 
     def exportVSAFile(self):
-        """Export the current animatronics file into a special format"""
+        """Export the current animatronics file into a Brookshire VSA format"""
         pass
 
     def newchannel_action(self):
         """ Perform newchannel action"""
-        text, ok = QInputDialog.getText(self, "Get New Channel Name",
-                "Channel Name", QLineEdit.Normal)
-        if ok and text:
+        tempChannel = Channel()
+        td = ChannelMetadataWidget(channel=tempChannel, parent=self)
+        code = td.exec_()
+
+        if code == QDialog.Accepted:
             # Check to see if channel already exists
             ret = None
-            if text in self.animatronics.channels:
-                rsgBox = QMessageBox()
+            text = tempChannel.name
+            if len(text) <= 0:
+                msgBox = QMessageBox()
+                msgBox.setText('A channel MUST have a name of at least one character and must be unique')
+                msgBox.setStandardButtons(QMessageBox.Cancel)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
+            elif text in self.animatronics.channels:
+                msgBox = QMessageBox()
                 msgBox.setText('The channel "%s" already exists.' % text)
-                msgBox.setInformativeText("Delete all its data?")
+                msgBox.setInformativeText("Replace it?")
                 msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
                 msgBox.setIcon(QMessageBox.Warning)
-                ret = msgBox.exec()
+                ret = msgBox.exec_()
             if ret == QMessageBox.Yes:
                 del self.animatronics.channels[text]
                 ret = None
             if ret is None:
-                self.animatronics.channels[text] = Channel(inname = text)
+                self.animatronics.channels[text] = tempChannel
                 self.setAnimatronics(self.animatronics)
                 
         pass
@@ -743,7 +1047,7 @@ class MainWindow(QMainWindow):
         msgBox.setInformativeText(inform_text)
         msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
         msgBox.setIcon(QMessageBox.Warning)
-        ret = msgBox.exec()
+        ret = msgBox.exec_()
         if ret == QMessageBox.Yes:
             for name in chanList:
                 del self.animatronics.channels[name]
@@ -781,6 +1085,7 @@ class MainWindow(QMainWindow):
                 sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
+
         pass
 
     def editmetadata_action(self):
@@ -820,20 +1125,10 @@ class MainWindow(QMainWindow):
 
     def playbackcontrols_action(self):
         """ Perform playbackcontrols action"""
-        # Create/open QtMediaPlayer
-        try:
-            # PyQt5 way
-            self.player.setMedia(qm.QMediaContent(QUrl.fromLocalFile(self.animatronics.audiofile)))
-            self.player.play()
-        except:
-            try:
-                # PyQt6 way
-                self.player.setSource(QUrl.fromLocalFile(self.animatronics.audiofile))
-                self.player.setAudioOutput(qm.QAudioOutput(qm.QAudioDevice()))
-                self.player.play()
-            except:
-                print('Whoops - No Audio player')
-                pass
+        if self._playwidget.isHidden():
+            self._playwidget.show()
+        else:
+            self._playwidget.hide()
         pass
 
     def resetscales_action(self):
@@ -850,27 +1145,32 @@ class MainWindow(QMainWindow):
             if lmax > maxTime: maxTime = lmax
 
         # Actually set all the ranges
-        if self.audioPlot is not None:
-            self.audioPlot.setAxisScale(self.X_BOTTOM_AXIS_ID, minTime, maxTime)
-            self.audioPlot.replot()
+        self.redrawAudio(minTime, maxTime)
         for i in self.plots:
             self.plots[i].settimerange(minTime, maxTime)
             self.plots[i].resetDataRange()
         self.lastXmax = maxTime
         self.lastXmin = minTime
-        
+        self._playwidget.setRange(self.lastXmin, self.lastXmax)
         pass
+
+    def redrawAudio(self, minTime, maxTime):
+        if self.audioPlot is not None and self.audioCurve is not None:
+            if self.animatronics.newAudio is not None:
+                xdata, ydata = self.animatronics.newAudio.getPlotData(minTime, maxTime, 4000)
+                self.audioCurve.setData(xdata, ydata)
+            self.audioPlot.setAxisScale(self.X_BOTTOM_AXIS_ID, minTime, maxTime)
+            self.audioPlot.replot()
 
     def scaletoaudio_action(self):
         """ Perform scaletoaudio action"""
         # Reset all horizontal scales to audio range and vertical scales to local Y ranges
-        if self.audioPlot is not None:
-            self.audioPlot.setAxisScale(self.X_BOTTOM_AXIS_ID, self.audioMin, self.audioMax)
-            self.audioPlot.replot()
+        self.redrawAudio(self.audioMin, self.audioMax)
         for i in self.plots:
             self.plots[i].settimerange(self.audioMin, self.audioMax)
         self.lastXmax = self.audioMax
         self.lastXmin = self.audioMin
+        self._playwidget.setRange(self.lastXmin, self.lastXmax)
         pass
 
     def showall_action(self):
@@ -883,20 +1183,20 @@ class MainWindow(QMainWindow):
     def showselector_action(self):
         """ Perform showselector action"""
         # Pop up show/hide selector to choose visible channels
-        form = ChecklistDialog('Channels to Hide', self.animatronics.channels)
+        form = ChecklistDialog('Channels to Show', self.animatronics.channels)
         checklist = []
         for name in self.plots:
             if self.plots[name].isHidden():
-                checklist.append(Qt.Checked)
-            else:
                 checklist.append(Qt.Unchecked)
+            else:
+                checklist.append(Qt.Checked)
         form.setStates(checklist)
         if form.exec_() == QDialog.Accepted:
             for name in self.animatronics.channels:
                 if name in form.choices:
-                    self.plots[name].hide()
-                else:
                     self.plots[name].show()
+                else:
+                    self.plots[name].hide()
         pass
 
     def showXML_action(self):
@@ -936,8 +1236,8 @@ class MainWindow(QMainWindow):
             yScaler = pow(2.0, float(deltaY)/50.0)
             self.lastXmax = self.centerX + (self.lastXmax - self.centerX) / yScaler + (self.centerX - newCenterX)
             self.lastXmin = self.centerX + (self.lastXmin - self.centerX) / yScaler + (self.centerX - newCenterX)
-            self.audioPlot.setAxisScale(self.X_BOTTOM_AXIS_ID, self.lastXmin, self.lastXmax)
-            self.audioPlot.replot()
+            self._playwidget.setRange(self.lastXmin, self.lastXmax)
+            self.redrawAudio(self.lastXmin, self.lastXmax)
             for i in self.plots:
                 self.plots[i].settimerange(self.lastXmin, self.lastXmax)
             
@@ -999,7 +1299,7 @@ class MainWindow(QMainWindow):
 
         # Create the Edit dropdown menu #################################
         self.edit_menu = self.menuBar().addMenu("&Edit")
-        self._newchannel_action = QAction("News Cchannel", self, shortcut="Ctrl+N",
+        self._newchannel_action = QAction("New Channel", self, shortcut="Ctrl+N",
             triggered=self.newchannel_action)
         self.edit_menu.addAction(self._newchannel_action)
 
@@ -1047,13 +1347,9 @@ class MainWindow(QMainWindow):
 
         # Create the Playback dropdown menu #################################
         self.playback_menu = self.menuBar().addMenu("&Playback")
-        # playaudio menu item
-        self._playaudio_action = QAction("Preview Audio", self,
-            triggered=self.playaudio_action)
-        self.playback_menu.addAction(self._playaudio_action)
 
         # playbackcontrols menu item
-        self._playbackcontrols_action = QAction("playbackcontrols", self,
+        self._playbackcontrols_action = QAction("Toggle Playback Controls", self,
             triggered=self.playbackcontrols_action)
         self.playback_menu.addAction(self._playbackcontrols_action)
 
@@ -1069,14 +1365,106 @@ class MainWindow(QMainWindow):
         # self.help_menu.addAction(self.about_Qt_action)
 
 
-#####################################################################3
+#####################################################################
+# The AudioChannel class represents the audio channel needed for doing
+# animatronics.
+#####################################################################
+class AudioChannel:
+
+    def __init__(self, filename=None):
+
+        self.audiofile = filename
+        self.audio_data = None
+        self.samplerate = 44100
+        self.numchannels = 1
+        self.samplesize = 2
+        self.audiostart = 0.0
+        self.audioend = 0.0
+        if filename is not None:
+            self.setAudioFile(filename)
+
+    def audioTimeRange(self):
+        """Return the start and end times for the audio"""
+        print('Audio file:', self.audiofile)
+        print('Audio samplerate:', self.samplerate)
+        print('Audio numchannels:', self.numchannels)
+        print('Audio samplesize:', self.samplesize)
+        print('Audio datasize:', len(self.audio_data))
+        self.audioend = self.audiostart + float(len(self.audio_data))/self.numchannels/self.samplerate/self.samplesize
+        return self.audiostart,self.audioend
+
+    def getPlotData(self, minTime, maxTime, maxCount):
+        if self.numchannels == 1:
+            structformat = '<h'
+            currTime = minTime
+            xdata = []
+            ydata = []
+            timeStep = (maxTime - minTime) / maxCount
+            while currTime <= maxTime:
+                sampleindex = int((currTime-self.audiostart) * self.samplerate * self.numchannels * self.samplesize)
+                if sampleindex >= 0 and sampleindex <= len(self.audio_data) - self.samplesize*self.numchannels:
+                    short = struct.unpack(structformat, self.audio_data[sampleindex:(sampleindex+self.samplesize*self.numchannels)])
+                    xdata.append(currTime)
+                    ydata.append(float(short[0]))
+                currTime += timeStep
+            return xdata, ydata
+        else:
+            structformat = '<hh'
+            currTime = minTime
+            xdata = []
+            leftdata = []
+            rightdata = []
+            timeStep = (maxTime - minTime) / maxCount
+            while currTime <= maxTime:
+                sampleindex = int((currTime-self.audiostart) * self.samplerate * self.numchannels * self.samplesize)
+                if sampleindex >= 0 and sampleindex <= len(self.audio_data) - self.samplesize*self.numchannels:
+                    short = struct.unpack(structformat, self.audio_data[sampleindex:sampleindex+self.samplesize*self.numchannels])
+                    xdata.append(currTime)
+                    leftdata.append(float(short[0]))
+                    rightdata.append(float(short[1]))
+                currTime += timeStep
+            return xdata, leftdata  #, rightdata
+
+    def setAudioFile(self, infilename):
+        # Now read the audio data
+        if os.path.exists(infilename):
+            self.audiofile = infilename
+
+            audio = wave.open(self.audiofile)
+            self.samplerate = audio.getframerate()
+            self.numchannels = audio.getnchannels()
+            self.samplesize = audio.getsampwidth()
+            self.audio_data = audio.readframes(audio.getnframes())
+
+    def toXML(self):
+        output = StringIO()
+        if self.audiofile is not None:
+            output.write('<Audio file="%s">\n' % self.audiofile)
+            output.write('    <Start time="%f"/>\n' % self.audiostart)
+            output.write('</Audio>\n')
+        return output.getvalue()
+
+    def parseXML(self, inXML):
+        if inXML.tag == 'Audio':
+            if 'file' in inXML.attrib:
+                self.setAudioFile(inXML.attrib['file'])
+
+            for start in inXML:
+                if start.tag == 'Start':
+                    if 'time' in start.attrib:
+                        self.audiostart = float(start.attrib['time'])
+        pass
+
+
+#####################################################################
 # The Channel class represents the information needed for doing
 # animatronics with a single control channel.
-#####################################################################3
+#####################################################################
 class Channel:
     Linear = 1
     Spline = 2
     Step = 3
+    Smooth = 4
 
     def __init__(self, inname = '', intype = Linear):
         self.name = inname
@@ -1099,6 +1487,161 @@ class Channel:
 
     def num_knots(self):
         return len(self.knots)
+
+    def getValueAtTime(self, inTime):
+        pass
+
+    def getKnotData(self, minTime, maxTime, maxCount):
+        """Returns up to maxCount of the knots along the visible part of the curve"""
+        keys = sorted(self.knots.keys())
+        if len(keys) < 1:
+            # Return Nones if channel is empty
+            return None,None
+        if len(keys) < 2:
+            # return single values if only one knot in channel
+            return [keys[0]], [self.knots[keys[0]]]
+        xdata = []
+        ydata = []
+        if len(keys) < maxCount:
+            # Return all of them for now
+            for key in self.knots:
+                xdata.append(key)
+                ydata.append(self.knots[key])
+        else:
+            # Weed them out somehow
+            # Return all of them for now
+            for key in self.knots:
+                xdata.append(key)
+                ydata.append(self.knots[key])
+        return xdata,ydata
+
+    def getPlotData(self, minTime, maxTime, maxCount):
+        """Returns up to maxCount points along the visible part of the curve"""
+        keys = sorted(self.knots.keys())
+        if len(keys) < 1:
+            # Return Nones if channel is empty
+            return None,None
+        if len(keys) < 2:
+            # Return a constant value
+            xdata = [minTime, maxTime]
+            ydata = [self.knots[keys[0]], self.knots[keys[0]]]
+
+        elif self.type == self.Linear:
+            # Just return the points within the time range plus some on either side
+            if len(keys) < maxCount:
+                # Just send them all
+                xdata = keys
+                ydata = [self.knots[key] for key in keys]
+            else:
+                # Have to weed them out somehow
+                # Just send them all for now
+                xdata = keys
+                ydata = [self.knots[key] for key in keys]
+        elif self.type == self.Step:
+            # To simulate a step function, output a value at the beginning and end
+            # of its interval
+            xdata = [min(minTime, keys[0])]
+            ydata = [self.knots[keys[0]]]
+            if len(keys) < maxCount:
+                xdata.append(keys[0])
+                ydata.append(self.knots[keys[0]])
+                for i in range(1, len(keys)):
+                    xdata.append(keys[i] - 0.0000001)
+                    ydata.append(self.knots[keys[i-1]])
+                    xdata.append(keys[i])
+                    ydata.append(self.knots[keys[i]])
+            xdata.append(max(maxTime, keys[-1]))
+            ydata.append(self.knots[keys[-1]])
+        elif self.type == self.Smooth or self.type == self.Spline:
+            # Use Lagrangian interpolation of knots
+            timeStep = (maxTime - minTime) / maxCount
+            currTime = minTime
+            xdata = []
+            ydata = []
+            while currTime < maxTime + timeStep:
+                # Find appropriate interval for current time
+                for i in range(len(keys)):
+                    if keys[i] >= currTime:
+                        break
+                # Wants two knots before and two after for best results
+                interpKeys = keys[max(0,i-2):min(i+2,len(keys))]
+                def _basis(j):
+                    k = len(interpKeys)
+                    p = [(currTime - interpKeys[m])/(interpKeys[j] - interpKeys[m]) for m in range(k) if m != j]
+                    return reduce(operator.mul, p)
+                weights = []
+                for i in range(len(interpKeys)):
+                    weights.append(_basis(i))
+                xdata.append(currTime)
+                ydata.append(sum(weights[j] * self.knots[interpKeys[j]] for j in range(len(interpKeys))))
+
+                currTime += timeStep
+
+        elif self.type == self.Spline:
+            xdata = None
+            ydata = None
+
+        # Limit the range of plot data to min and max values
+        if self.minLimit < self.maxLimit:
+            for i in range(len(ydata)):
+                if ydata[i] > self.maxLimit:
+                    ydata[i] = self.maxLimit
+                elif ydata[i] < self.minLimit:
+                    ydata[i] = self.minLimit
+
+        return xdata,ydata
+
+
+    def getValuesAtTimeSteps(self, startTime, endTime, timeStep):
+        """Returns an array of values along the curve at each time step from start to end"""
+        if len(self.knots) == 0:
+            return None
+        keys = sorted(self.knots.keys())
+        currTime = startTime
+        nextkeyindex = 1
+        values = []
+        while currTime <= endTime:
+            if currTime < keys[0]:
+                if self.type == self.Linear or self.type == self.Step:
+                    values.append(self.knots[keys[0]])
+                elif self.type == self.Spline:
+                    # Compute the spline value
+                    pass
+                elif self.type == self.Smooth:
+                    # Compute the smooth value
+                    pass
+            elif currTime > keys[-1]:
+                if self.type == self.Linear or self.type == self.Step:
+                    values.append(self.knots[keys[-1]])
+                elif self.type == self.Spline:
+                    # Compute the spline value
+                    pass
+                elif self.type == self.Smooth:
+                    # Compute the smooth value
+                    pass
+            else:
+                # Somewhere in range so find interval
+                while nextkeyindex < len(keys) and keys[nextkeyindex] <= currTime:
+                    nextkeyindex += 1
+                if self.type == self.Linear:
+                    # interpolate
+                    tval = ((self.knots[keys[nextkeyindex]] * (currTime - keys[nextkeyindex-1]) +
+                        self.knots[keys[nextkeyindex-1]] * (keys[nextkeyindex] - currTime)) /
+                        (keys[nextkeyindex] - keys[nextkeyindex-1]))
+                    values.append(tval)
+                    pass
+                elif self.type == self.Step:
+                    values.append(self.knots[keys[nextkeyindex-1]])
+                elif self.type == self.Spline:
+                    # Compute the spline value
+                    pass
+                elif self.type == self.Smooth:
+                    # Compute the smooth value
+                    pass
+
+            currTime += timeStep
+
+        return values
 
     def toXML(self):
         output = StringIO()
@@ -1130,20 +1673,22 @@ class Channel:
             if 'name' in inXML.attrib:
                 self.name = inXML.attrib['name']
             if 'minLimit' in inXML.attrib:
-                self.minLimit = inXML.attrib['minLimit']
+                self.minLimit = float(inXML.attrib['minLimit'])
             if 'maxLimit' in inXML.attrib:
-                self.maxLimit = inXML.attrib['maxLimit']
+                self.maxLimit = float(inXML.attrib['maxLimit'])
             if 'rateLimit' in inXML.attrib:
-                self.rateLimit = inXML.attrib['rateLimit']
+                self.rateLimit = float(inXML.attrib['rateLimit'])
             if 'port' in inXML.attrib:
-                self.port = inXML.attrib['port']
+                self.port = int(inXML.attrib['port'])
             if 'type' in inXML.attrib:
                 if inXML.attrib['type'] == 'Linear':
                     self.type = self.Linear
                 elif inXML.attrib['type'] == 'Spline':
                     self.type = self.Spline
+                elif inXML.attrib['type'] == 'Step':
+                    self.type = self.Step
                 else:
-                    raise Exception('Invalid Channel Type')
+                    raise Exception('Invalid Channel Type:%s' % inXML.attrib['type'])
         else:
             raise Exception('XML is not a Channel')
 
@@ -1161,43 +1706,47 @@ class Channel:
         pass
 
 
-#####################################################################3
+#####################################################################
 # The Animatronics class represents the information needed for doing
 # animatronics synced with an audio file.
-#####################################################################3
+#####################################################################
 class Animatronics:
     def __init__(self):
         self.filename = None
-        self.audiofile = None
-        self.audio_data = None
-        self.audio_rate = None
+        self.newAudio = None
         self.channels = {}
         self.start = 0.0
         self.end = -1.0
-        self.audiostart = 0.0
+        self.sample_rate = 50.0
 
     def parseXML(self, inXMLFilename):
         with open(inXMLFilename, 'r') as infile:
             testtext = infile.read()
             root = ET.fromstring(testtext)
             self.filename = inXMLFilename
+            # Get the attributes from the XML
+            if 'endtime' in root.attrib:
+                self.end = float(root.attrib['endtime'])
             for child in root:
                 if child.tag == 'Audio':
-                    if 'file' in child.attrib:
-                        self.set_audio(child.attrib['file'])
-                    for start in child:
-                        if start.tag == 'Start':
-                            if 'time' in start.attrib:
-                                self.audiostart = float(start.attrib['time'])
+                    self.newAudio = AudioChannel()
+                    self.newAudio.parseXML(child)
                 elif child.tag == 'Channel':
                     tchannel = Channel()
                     tchannel.parseXML(child)
                     self.channels[tchannel.name] = tchannel
+                elif child.tag == 'Control':
+                    if 'rate' in child.attrib:
+                        self.sample_rate = float(child.attrib['rate'])
 
     def toXML(self):
         output = StringIO()
         output.write('<?xml version="1.0"?>\n')
-        output.write('<Animatronics>\n')
+        output.write('<Animatronics starttime="%f"' % self.start)
+        if self.end > self.start:
+            output.write(' endtime="%f"' % self.end)
+        output.write('>\n')
+        output.write('<Control rate="%f"/>\n' % self.sample_rate)
         if self.audiofile is not None:
             output.write('<Audio file="%s">\n' % self.audiofile)
             output.write('    <Start time="%f"/>\n' % self.audiostart)
@@ -1208,16 +1757,7 @@ class Animatronics:
         return output.getvalue()
 
     def set_audio(self, infilename):
-        if os.path.exists(infilename):
-            self.audiofile = infilename
-
-            audio = wave.open(self.audiofile)
-            self.audio_rate = 1.0 / float(audio.getframerate())
-            self.audio_data = []
-            for i in range(audio.getnframes()):
-                bit = audio.readframes(1)
-                short = struct.unpack('<h', bit)
-                self.audio_data.append(float(short[0]))
+        self.newAudio = AudioChannel(infilename)
 
 
 #/* Main */
@@ -1259,7 +1799,7 @@ def main():
     main_win = MainWindow()
     main_win.setAnimatronics(animation)
     main_win.show()
-    app.exec()
+    app.exec_()
 
 
 if __name__ == "__main__":
