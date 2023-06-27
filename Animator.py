@@ -65,10 +65,10 @@ verbosity = False
 #/* Usage method */
 def print_usage(name):
     """ Simple method to output usage when needed """
-    sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose]\n" % name);
-    sys.stderr.write("Enter purpose here.\n");
+    sys.stderr.write("\nUsage: %s [-/-h/-help] [-f/-file infilename]\n")
+    sys.stderr.write("Create and edit animatronics control channels.\n");
     sys.stderr.write("-/-h/-help        :show this information\n");
-    sys.stderr.write("-v/-verbose       :run more verbosely\n");
+    sys.stderr.write("-f/-file infilename    :desc\n")
     sys.stderr.write("\n\n");
 
 #####################################################################
