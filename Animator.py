@@ -67,8 +67,8 @@ def print_usage(name):
     """ Simple method to output usage when needed """
     sys.stderr.write("\nUsage: %s [-/-h/-help] [-f/-file infilename]\n")
     sys.stderr.write("Create and edit animatronics control channels.\n");
-    sys.stderr.write("-/-h/-help        :show this information\n");
-    sys.stderr.write("-f/-file infilename    :desc\n")
+    sys.stderr.write("-/-h/-help             :show this information\n");
+    sys.stderr.write("-f/-file infilename    :Input anim file\n")
     sys.stderr.write("\n\n");
 
 #####################################################################
@@ -964,7 +964,9 @@ class MainWindow(QMainWindow):
         columns['Time'] = timecolumn
 
         for plot in self.plots:
+            print('Getting data from:', plot, 'from time:',starttime, 'to:', endtime, 'by:', samplestep)
             values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep)
+            print('Got datasize:', len(values))
             columns[plot] = values
 
         # Get the filename to write to
@@ -981,9 +983,14 @@ class MainWindow(QMainWindow):
                 with open(fileName, 'w') as outfile:
                     # Write out the column headers
                     for channel in columns:
+                        theport = ''
                         if channel != 'Time':
                             outfile.write(',')
-                        outfile.write('"%s"' % channel)
+                            portnum = self.plots[channel].channel.port
+                            if portnum >= 0:
+                                theport = "(%d)" % portnum
+                        outfile.write('"%s%s"' % (channel,theport))
+                        print('Length of column:', channel, 'is:', len(columns[channel]))
                     outfile.write('\n')
                     # Write out all the data in columns
                     for indx in range(len(timecolumn)):
@@ -1523,8 +1530,8 @@ class Channel:
             return None,None
         if len(keys) < 2:
             # Return a constant value
-            xdata = [minTime, maxTime]
-            ydata = [self.knots[keys[0]], self.knots[keys[0]]]
+            xdata = [minTime + i * (maxTime - minTime) for i in range(maxCount+1)]
+            ydata = [self.knots[keys[0]] for i in range(maxCount+1)]
 
         elif self.type == self.Linear:
             # Just return the points within the time range plus some on either side
@@ -1596,6 +1603,14 @@ class Channel:
         """Returns an array of values along the curve at each time step from start to end"""
         if len(self.knots) == 0:
             return None
+
+        # Short cut for spline and smooth curves
+        if self.type == self.Spline or self.type == self.Smooth:
+            maxCount = int((endTime - startTime) / timeStep)
+            _, values = self.getPlotData(startTime, endTime, maxCount)
+            return values
+
+        # Handle Linear and Step types
         keys = sorted(self.knots.keys())
         currTime = startTime
         nextkeyindex = 1
@@ -1604,21 +1619,9 @@ class Channel:
             if currTime < keys[0]:
                 if self.type == self.Linear or self.type == self.Step:
                     values.append(self.knots[keys[0]])
-                elif self.type == self.Spline:
-                    # Compute the spline value
-                    pass
-                elif self.type == self.Smooth:
-                    # Compute the smooth value
-                    pass
             elif currTime > keys[-1]:
                 if self.type == self.Linear or self.type == self.Step:
                     values.append(self.knots[keys[-1]])
-                elif self.type == self.Spline:
-                    # Compute the spline value
-                    pass
-                elif self.type == self.Smooth:
-                    # Compute the smooth value
-                    pass
             else:
                 # Somewhere in range so find interval
                 while nextkeyindex < len(keys) and keys[nextkeyindex] <= currTime:
@@ -1632,12 +1635,6 @@ class Channel:
                     pass
                 elif self.type == self.Step:
                     values.append(self.knots[keys[nextkeyindex-1]])
-                elif self.type == self.Spline:
-                    # Compute the spline value
-                    pass
-                elif self.type == self.Smooth:
-                    # Compute the smooth value
-                    pass
 
             currTime += timeStep
 
@@ -1747,10 +1744,8 @@ class Animatronics:
             output.write(' endtime="%f"' % self.end)
         output.write('>\n')
         output.write('<Control rate="%f"/>\n' % self.sample_rate)
-        if self.audiofile is not None:
-            output.write('<Audio file="%s">\n' % self.audiofile)
-            output.write('    <Start time="%f"/>\n' % self.audiostart)
-            output.write('</Audio>\n')
+        if self.newAudio is not None:
+            output.write(self.newAudio.toXML())
         for channel in self.channels.values():
             output.write(channel.toXML())
         output.write('</Animatronics>\n')
