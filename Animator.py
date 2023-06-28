@@ -414,6 +414,16 @@ class ChannelPane(qwt.QwtPlot):
 
         return valueX,valueY
 
+    def wheelEvent(self, event):
+        numDegrees = event.angleDelta() / 8
+        vertDegrees = numDegrees.y()
+
+        # Get the data value where the cursor is located
+        yplotval = self.invTransform(self.Y_LEFT_AXIS_ID, event.pos().y() - self.yoffset)
+        minval = yplotval - (yplotval - self.minVal) * (1.0 - vertDegrees/100.0)
+        maxval = yplotval - (yplotval - self.maxVal) * (1.0 - vertDegrees/100.0)
+        self.setDataRange(minval, maxval)
+
     def mousePressEvent(self, event):
         self.setOffsets()
         if event.buttons() == Qt.LeftButton :
@@ -464,6 +474,8 @@ class ChannelPane(qwt.QwtPlot):
                     xplotval += 0.00000001
                 self.channel.knots[xplotval] = yplotval
                 self.selectedKey = xplotval
+                if yplotval < self.minVal: self.minVal = yplotval
+                if yplotval > self.maxVal: self.maxVal = yplotval
                 self.redrawme()
         pass
 
@@ -482,8 +494,8 @@ class ChannelPane(qwt.QwtPlot):
         if self.curve2 is not None and xdata is not None and ydata is not None:
             self.curve2.setData(xdata, ydata)
             if len(xdata) > 1:
-                self.minVal = min(ydata)
-                self.maxVal = max(ydata)
+                # self.minVal = min(ydata)
+                # self.maxVal = max(ydata)
                 margin = (self.maxVal - self.minVal) * 0.05
                 self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal-margin, self.maxVal+margin)
         
@@ -1327,12 +1339,12 @@ class MainWindow(QMainWindow):
         self.view_menu = self.menuBar().addMenu("&View")
         # resetscales menu item
         self._resetscales_action = QAction("Fit to All Data", self,
+            shortcut="Ctrl+F",
             triggered=self.resetscales_action)
         self.view_menu.addAction(self._resetscales_action)
 
         # scaletoaudio menu item
         self._scaletoaudio_action = QAction("Fit to Audio", self,
-            shortcut="Ctrl+F",
             triggered=self.scaletoaudio_action)
         self.view_menu.addAction(self._scaletoaudio_action)
 
