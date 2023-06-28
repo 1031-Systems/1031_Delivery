@@ -38,14 +38,14 @@ run Animator.py.  The steps are as follows:
 
 git clone git@github.com:steelheadj/Animatronics.git
 cd Animator
-python3 -m virtualenv '.venv'     # Replace .venv with any name you like
+python3 -m venv '.venv'     # Replace .venv with any name you like
 source .venv/bin/activate.shname  # Where shname is your shell name
 pip install -r ${OSTYPE}-requirements.txt
 python ./Animator.py
 
 ~~~
 
-Note that there are several shells supported and that bash is the
+Note that there are several shells supported. bash is the
 default and is activated with just .venv/bin/activate with no shell
 name specified.
 
@@ -58,13 +58,13 @@ then you have to manually install PyQt and qwt with the  following:
 ~~~
 
 pip install PyQt5
-pip install qwt
+pip install PythonQwt
 pip freeze -l > ${OSTYPE}-requirements.txt # To save your own config
 
 ~~~
 
-On MacOS-darwin, the only test system I have, PyQt5 does not install
-but PyQt6 does.  Meanwhile, on my CentOS Linux system, PyQt5 installs
+On darwin, the only MacOS test system I have, PyQt5 does not install
+but PyQt6 does.  Meanwhile, on my CentOS 7 test system, PyQt5 installs
 just fine whilst PyQt6 does not.  You will have to install whichever
 works for you.  Animator.py is written to work with either PyQt5 or
 PyQt6.
