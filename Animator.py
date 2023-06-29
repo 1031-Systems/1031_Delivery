@@ -441,21 +441,6 @@ class ChannelPane(qwt.QwtPlot):
                 return keyval
         return None
 
-    def getPlotValues(self, pixelX, pixelY):
-        # Get the rectangle containing the stuff to left of plot
-        rect = self.audioPlot.plotLayout().scaleRect(self.Y_LEFT_AXIS_ID)
-        # Get the width of that rectangle to use as offset in X
-        xoffset = rect.width()
-        valueX = self.audioPlot.invTransform(self.X_BOTTOM_AXIS_ID, pixelX - xoffset)
-
-        # Get the rectangle containing the stuff above top of plot
-        rect = self.audioPlot.plotLayout().scaleRect(self.X_TOP_AXIS_ID)
-        # Get the height of that rectangle to use as offset in Y
-        yoffset = rect.height()
-        valueY = self.audioPlot.invTransform(self.Y_LEFT_AXIS_ID, pixelY - yoffset)
-
-        return valueX,valueY
-
     def wheelEvent(self, event):
         numDegrees = event.angleDelta() / 8
         vertDegrees = numDegrees.y()
@@ -864,6 +849,8 @@ class MainWindow(QMainWindow):
         # Initialize to no audio plot and add later if read
         self.audioPlot = None
         self.audioCurve = None
+        self.audioPlotRight = None
+        self.audioCurveRight = None
         # Initialize empty list of channel plots
         self.plots = {}
 
@@ -882,7 +869,6 @@ class MainWindow(QMainWindow):
         self._slideTime = 0.0
 
         self.player = qm.QMediaPlayer()
-        # self.player.setPlaybackRate(0.5)
         self.player.positionChanged.connect(self.positionChanged)
 
         # Initialize with an empty animatronics object
@@ -895,6 +881,11 @@ class MainWindow(QMainWindow):
         # Clear and recreate UI here
         self.audioPlot = None
         self.audioCurve = None
+        self.audioPlotRight = None
+        self.audioCurveRight = None
+        self.timeSlider = None
+        self.timeSliderRight = None
+
         # Create the bottom level widget and make it the main widget
         self._mainarea = QScrollArea(self)
         self._mainarea.setWidgetResizable(True)
@@ -930,24 +921,47 @@ class MainWindow(QMainWindow):
 
         if self.animatronics.newAudio is not None:
             self.audioMin,self.audioMax = self.animatronics.newAudio.audioTimeRange()
-            xdata, ydata = self.animatronics.newAudio.getPlotData(self.audioMin,self.audioMax,4000)
-            newplot = qwt.QwtPlot('Audio')
-            self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, #self.animatronics.audio_data,
-                title='Audio', plot=newplot,
-                )
-            layout.addWidget(newplot)
-            self.audioPlot = newplot
+            xdata, leftdata, rightdata = self.animatronics.newAudio.getPlotData(self.audioMin,self.audioMax,4000)
+            if rightdata is None:
+                newplot = qwt.QwtPlot('Audio Mono')
+                self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=leftdata,
+                    title='Audio', plot=newplot,
+                    )
+                layout.addWidget(newplot)
+                self.audioPlot = newplot
+            else:
+                newplot = qwt.QwtPlot('Audio Left')
+                self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=leftdata,
+                    title='Audio', plot=newplot,
+                    )
+                layout.addWidget(newplot)
+                self.audioPlot = newplot
+                newplot = qwt.QwtPlot('Audio Right')
+                self.audioCurveRight = qwt.QwtPlotCurve.make(xdata=xdata, ydata=rightdata,
+                    title='Audio', plot=newplot,
+                    )
+                layout.addWidget(newplot)
+                self.audioPlotRight = newplot
             if self.audioMax > self.totalMax: self.totalMax = self.audioMax
             self.lastXmin = self.audioMin
             self.lastXmax = self.audioMax
 
-            # Create red bar for audio sync
+            # Create green bars for audio sync
             self.timeSlider = qwt.QwtPlotCurve()
             self.timeSlider.setStyle(qwt.QwtPlotCurve.Sticks)
             self.timeSlider.setData([self.audioMin], [30000.0])
             self.timeSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
             self.timeSlider.setBaseline(-30000.0)
-            self.timeSlider.attach(newplot)
+            self.timeSlider.attach(self.audioPlot)
+
+            if self.audioPlotRight is not None:
+                self.timeSliderRight = qwt.QwtPlotCurve()
+                self.timeSliderRight.setStyle(qwt.QwtPlotCurve.Sticks)
+                self.timeSliderRight.setData([self.audioMin], [30000.0])
+                self.timeSliderRight.setPen(Qt.green, 3.0, Qt.SolidLine)
+                self.timeSliderRight.setBaseline(-30000.0)
+                self.timeSliderRight.attach(self.audioPlotRight)
+
 
             # Create/open QtMediaPlayer
             try:
@@ -1223,6 +1237,9 @@ class MainWindow(QMainWindow):
         if self.timeSlider is not None:
             self.timeSlider.setData([timeVal], [30000.0])
             self.audioPlot.replot()
+        if self.timeSliderRight is not None:
+            self.timeSliderRight.setData([timeVal], [30000.0])
+            self.audioPlotRight.replot()
         for plot in self.plots:
             self.plots[plot].setSlider(timeVal)
         self._slideTime = timeVal
@@ -1255,10 +1272,17 @@ class MainWindow(QMainWindow):
     def redrawAudio(self, minTime, maxTime):
         if self.audioPlot is not None and self.audioCurve is not None:
             if self.animatronics.newAudio is not None:
-                xdata, ydata = self.animatronics.newAudio.getPlotData(minTime, maxTime, 4000)
+                xdata, ydata, rightdata = self.animatronics.newAudio.getPlotData(minTime, maxTime, 4000)
                 self.audioCurve.setData(xdata, ydata)
+                if self.audioCurveRight is not None and rightdata is not None:
+                    self.audioCurveRight.setData(xdata, rightdata)
             self.audioPlot.setAxisScale(self.X_BOTTOM_AXIS_ID, minTime, maxTime)
             self.audioPlot.replot()
+            if self.audioPlotRight is not None:
+                self.audioPlotRight.setAxisScale(self.X_BOTTOM_AXIS_ID, minTime, maxTime)
+                self.audioPlotRight.replot()
+                
+                
 
     def scaletoaudio_action(self):
         """ Perform scaletoaudio action"""
@@ -1511,7 +1535,7 @@ class AudioChannel:
                     xdata.append(currTime)
                     ydata.append(float(short[0]))
                 currTime += timeStep
-            return xdata, ydata
+            return xdata, ydata, None
         else:
             structformat = '<hh'
             currTime = minTime
@@ -1527,7 +1551,7 @@ class AudioChannel:
                     leftdata.append(float(short[0]))
                     rightdata.append(float(short[1]))
                 currTime += timeStep
-            return xdata, leftdata  #, rightdata
+            return xdata, leftdata , rightdata
 
     def setAudioFile(self, infilename):
         # Now read the audio data
