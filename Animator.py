@@ -28,14 +28,14 @@ try:
         QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
     from PyQt5.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
         QDoubleValidator, QRegularExpressionValidator, QValidator, 
-        QStandardItem, QStandardItemModel, QFont)
+        QStandardItem, QStandardItemModel, QFont, QKeySequence)
     from PyQt5.QtWidgets import (QAbstractItemView, QAction, QApplication,
         QCheckBox, QComboBox, QFileDialog, QDialog, QDialogButtonBox, QGridLayout,
         QGroupBox, QHeaderView, QInputDialog, QItemDelegate, QLabel, QLineEdit, QListView,
         QMainWindow, QMessageBox, QScrollArea, QStyle, QSpinBox, QStyleOptionViewItem,
         QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
         QHBoxLayout, QWidget, QPushButton, QTextEdit, QFormLayout, QTextBrowser,
-        QErrorMessage, QMenu)
+        QErrorMessage, QMenu, QShortcut)
     from PyQt5 import QtMultimedia as qm
 except:
     try:
@@ -44,14 +44,14 @@ except:
             QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
         from PyQt6.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
             QDoubleValidator, QRegularExpressionValidator, QValidator, 
-            QStandardItem, QStandardItemModel, QAction)
+            QStandardItem, QStandardItemModel, QAction, QFont, QKeySequence)
         from PyQt6.QtWidgets import (QAbstractItemView, QApplication,
             QCheckBox, QComboBox, QFileDialog, QDialog, QDialogButtonBox, QGridLayout,
             QGroupBox, QHeaderView, QInputDialog, QItemDelegate, QLabel, QLineEdit, QListView,
             QMainWindow, QMessageBox, QScrollArea, QStyle, QSpinBox, QStyleOptionViewItem,
             QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
             QHBoxLayout, QWidget, QPushButton, QTextEdit, QFormLayout, QTextBrowser,
-            QErrorMessage, QMenu)
+            QErrorMessage, QMenu, QShortcut)
         from PyQt6 import QtMultimedia as qm
     except:
         print('Whoops - Unable to find PyQt5 or PyQt6 - Quitting')
@@ -804,6 +804,8 @@ class MainWindow(QMainWindow):
 
         # Set up the playback widget
         self._playwidget = Player(player=self.player)
+        shortcut = QShortcut(QKeySequence("Ctrl+P"), self._mainarea)
+        shortcut.activated.connect(self._playwidget.play)
         #self._playwidget.hide()
         tlayout = QVBoxLayout(self._mainarea)
         tlayout.addWidget(self._playwidget)
