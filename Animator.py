@@ -44,14 +44,14 @@ except:
             QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
         from PyQt6.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
             QDoubleValidator, QRegularExpressionValidator, QValidator, 
-            QStandardItem, QStandardItemModel, QAction, QFont, QKeySequence)
+            QStandardItem, QStandardItemModel, QAction, QFont, QKeySequence, QShortcut)
         from PyQt6.QtWidgets import (QAbstractItemView, QApplication,
             QCheckBox, QComboBox, QFileDialog, QDialog, QDialogButtonBox, QGridLayout,
             QGroupBox, QHeaderView, QInputDialog, QItemDelegate, QLabel, QLineEdit, QListView,
             QMainWindow, QMessageBox, QScrollArea, QStyle, QSpinBox, QStyleOptionViewItem,
             QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
             QHBoxLayout, QWidget, QPushButton, QTextEdit, QFormLayout, QTextBrowser,
-            QErrorMessage, QMenu, QShortcut)
+            QErrorMessage, QMenu)
         from PyQt6 import QtMultimedia as qm
     except:
         print('Whoops - Unable to find PyQt5 or PyQt6 - Quitting')
@@ -711,15 +711,21 @@ class Player(QWidget):
         if self.mediaPlayer is not None:
             try:    # PyQt5
                 state = self.mediaPlayer.state()
+                if state == qm.QMediaPlayer.PlayingState:
+                    self.mediaPlayer.pause()
+                else:
+                    # Limit range of playback
+                    if self.mediaPlayer.position() < self._startPosition or self.mediaPlayer.position() >= self._endPosition:
+                        self.mediaPlayer.setPosition(self._startPosition)
+                    self.mediaPlayer.play()
             except: # PyQt6
-                state = self.mediaPlayer.playbackState()
-            if state == qm.QMediaPlayer.PlayingState:
-                self.mediaPlayer.pause()
-            else:
-                # Limit range of playback
-                if self.mediaPlayer.position() < self._startPosition or self.mediaPlayer.position() >= self._endPosition:
-                    self.mediaPlayer.setPosition(self._startPosition)
-                self.mediaPlayer.play()
+                if self.mediaPlayer.isPlaying():
+                    self.mediaPlayer.pause()
+                else:
+                    # Limit range of playback
+                    if self.mediaPlayer.position() < self._startPosition or self.mediaPlayer.position() >= self._endPosition:
+                        self.mediaPlayer.setPosition(self._startPosition)
+                    self.mediaPlayer.play()
 
     def positionNotify(self, currPosition):
         if currPosition >= self._endPosition:
@@ -729,13 +735,19 @@ class Player(QWidget):
         if self.mediaPlayer is not None:
             try:    # PyQt5
                 state = self.mediaPlayer.state()
+                if state == qm.QMediaPlayer.PlayingState:
+                    self._playbutton.setIcon(
+                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
+                else:
+                    self._playbutton.setIcon(
+                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
             except: # PyQt6
                 state = self.mediaPlayer.playbackState()
-            if state == qm.QMediaPlayer.PlayingState:
-                self._playbutton.setIcon(
+                if self.mediaPlayer.isPlaying():
+                    self._playbutton.setIcon(
                         self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
-            else:
-                self._playbutton.setIcon(
+                else:
+                    self._playbutton.setIcon(
                         self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
 
 
