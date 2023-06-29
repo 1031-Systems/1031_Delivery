@@ -675,17 +675,13 @@ class Player(QWidget):
         layout.addWidget(self._playbutton)
 
         self._setleftbutton = QPushButton()
-        self._setleftbutton.setEnabled(False)
         self._setleftbutton.setFixedHeight(24)
         self._setleftbutton.setText('Set Left')
-        self._setleftbutton.clicked.connect(self.setleft)
         layout.addWidget(self._setleftbutton)
 
         self._setrightbutton = QPushButton()
-        self._setrightbutton.setEnabled(False)
         self._setrightbutton.setFixedHeight(24)
         self._setrightbutton.setText('Set Right')
-        self._setrightbutton.clicked.connect(self.setright)
         layout.addWidget(self._setrightbutton)
 
         layout.addStretch()
@@ -751,14 +747,16 @@ class Player(QWidget):
                         self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
 
 
-    def setleft(self):
+    def setLeftConnect(self, leftConnection):
         # Set start of play range to current time and set left edge time to it
         print('Hit Left')
+        self._setleftbutton.clicked.connect(leftConnection)
         pass
 
-    def setright(self):
+    def setRightConnect(self, rightConnection):
         # Set start of play range to current time and set right edge time to it
         print('Hit Right')
+        self._setrightbutton.clicked.connect(rightConnection)
         pass
 
 #####################################################################
@@ -793,6 +791,7 @@ class MainWindow(QMainWindow):
         self.audioMax = 1.0
         self.totalMin = 0.0
         self.totalMax = 1.0
+        self._slideTime = 0.0
 
         self.player = qm.QMediaPlayer()
         # self.player.setPlaybackRate(0.5)
@@ -818,7 +817,9 @@ class MainWindow(QMainWindow):
         self._playwidget = Player(player=self.player)
         shortcut = QShortcut(QKeySequence("Ctrl+P"), self._mainarea)
         shortcut.activated.connect(self._playwidget.play)
-        #self._playwidget.hide()
+        self._playwidget.setLeftConnect(self.cutLeftSide)
+        self._playwidget.setRightConnect(self.cutRightSide)
+        self._playwidget.hide()
         tlayout = QVBoxLayout(self._mainarea)
         tlayout.addWidget(self._playwidget)
 
@@ -1155,6 +1156,7 @@ class MainWindow(QMainWindow):
             self.audioPlot.replot()
         for plot in self.plots:
             self.plots[plot].setSlider(timeVal)
+        self._slideTime = timeVal
 
     def playbackcontrols_action(self):
         """ Perform playbackcontrols action"""
@@ -1178,13 +1180,7 @@ class MainWindow(QMainWindow):
             if lmax > maxTime: maxTime = lmax
 
         # Actually set all the ranges
-        self.redrawAudio(minTime, maxTime)
-        for i in self.plots:
-            self.plots[i].settimerange(minTime, maxTime)
-            self.plots[i].resetDataRange()
-        self.lastXmax = maxTime
-        self.lastXmin = minTime
-        self._playwidget.setRange(self.lastXmin, self.lastXmax)
+        self.setTimeRange(minTime, maxTime)
         pass
 
     def redrawAudio(self, minTime, maxTime):
@@ -1198,12 +1194,7 @@ class MainWindow(QMainWindow):
     def scaletoaudio_action(self):
         """ Perform scaletoaudio action"""
         # Reset all horizontal scales to audio range and vertical scales to local Y ranges
-        self.redrawAudio(self.audioMin, self.audioMax)
-        for i in self.plots:
-            self.plots[i].settimerange(self.audioMin, self.audioMax)
-        self.lastXmax = self.audioMax
-        self.lastXmin = self.audioMin
-        self._playwidget.setRange(self.lastXmin, self.lastXmax)
+        self.setTimeRange(self.audioMin, self.audioMax)
         pass
 
     def showall_action(self):
@@ -1267,16 +1258,27 @@ class MainWindow(QMainWindow):
             self.lastY = event.pos().y()
             newCenterX,_ = self.getPlotValues(event.pos().x(), event.pos().y())
             yScaler = pow(2.0, float(deltaY)/50.0)
-            self.lastXmax = self.centerX + (self.lastXmax - self.centerX) / yScaler + (self.centerX - newCenterX)
-            self.lastXmin = self.centerX + (self.lastXmin - self.centerX) / yScaler + (self.centerX - newCenterX)
-            self._playwidget.setRange(self.lastXmin, self.lastXmax)
-            self.redrawAudio(self.lastXmin, self.lastXmax)
-            for i in self.plots:
-                self.plots[i].settimerange(self.lastXmin, self.lastXmax)
+            self.setTimeRange(self.centerX + (self.lastXmin - self.centerX) / yScaler + (self.centerX - newCenterX),
+                self.centerX + (self.lastXmax - self.centerX) / yScaler + (self.centerX - newCenterX))
             
                 
     def mouseReleaseEvent(self, event):
         pass
+
+    def setTimeRange(self, minval, maxval):
+        if minval < maxval:
+            self.lastXmax = maxval
+            self.lastXmin = minval
+            self._playwidget.setRange(self.lastXmin, self.lastXmax)
+            self.redrawAudio(self.lastXmin, self.lastXmax)
+            for i in self.plots:
+                self.plots[i].settimerange(self.lastXmin, self.lastXmax)
+
+    def cutLeftSide(self):
+        self.setTimeRange(self._slideTime, self.lastXmax)
+    
+    def cutRightSide(self):
+        self.setTimeRange(self.lastXmin, self._slideTime)
 
 
     def create_menus(self):
