@@ -186,7 +186,7 @@ class ChannelPane(qwt.QwtPlot):
 
             # Make the font daintier for this popup menu
             smallfont = QFont()
-            smallfont.setPointSize(6)
+            smallfont.setPointSize(8)
             self.setFont(smallfont)
 
             # metadata menu item
@@ -255,6 +255,19 @@ class ChannelPane(qwt.QwtPlot):
 
         def invert_action(self):
             """ Perform invert action"""
+            if ((self.channel.maxLimit > 1.0e33 and self.channel.minLimit > -1.0e33) or
+                (self.channel.maxLimit < 1.0e33 and self.channel.minLimit < -1.0e33)):
+                msgBox = QMessageBox()
+                msgBox.setText('A channel cannot be inverted with only one limit set!')
+                msgBox.setInformativeText("Set or clear both limits.")
+                msgBox.setStandardButtons(QMessageBox.Cancel)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
+                return
+            else:
+                for key in self.channel.knots:
+                    self.channel.knots[key] = (self.channel.maxLimit + self.channel.minLimit) - self.channel.knots[key]
+                self.parent.redrawme()
             pass
 
         def smooth_action(self):
@@ -377,18 +390,47 @@ class ChannelPane(qwt.QwtPlot):
         else:
             self.resetDataRange()
 
-        # Create red bar for audio sync
+        # Create green bar for audio sync
         self.timeSlider = qwt.QwtPlotCurve()
         self.timeSlider.setStyle(qwt.QwtPlotCurve.Sticks)
         self.timeSlider.setData([0.0], [30000.0])
-        self.timeSlider.setPen(Qt.red, 3.0, Qt.SolidLine)
+        self.timeSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
         self.timeSlider.setBaseline(-30000.0)
         self.timeSlider.attach(self)
+
+        # Optionally create red line for upper and lower limits
+        mintime,maxtime = self.getTimeRange()
+        self.lowerLimitBar = qwt.QwtPlotCurve()
+        self.lowerLimitBar.setStyle(qwt.QwtPlotCurve.Sticks)
+        self.lowerLimitBar.setOrientation(Qt.Vertical)
+        self.lowerLimitBar.setPen(Qt.red, 2.0, Qt.SolidLine)
+        self.lowerLimitBar.attach(self)
+        if self.channel.minLimit > -1.0e33:
+            self.lowerLimitBar.setData([maxtime], [self.channel.minLimit])
+            self.lowerLimitBar.setBaseline(mintime)
+        self.upperLimitBar = qwt.QwtPlotCurve()
+        self.upperLimitBar.setStyle(qwt.QwtPlotCurve.Sticks)
+        self.upperLimitBar.setOrientation(Qt.Vertical)
+        self.upperLimitBar.setPen(Qt.red, 2.0, Qt.SolidLine)
+        self.upperLimitBar.attach(self)
+        if self.channel.maxLimit < 1.0e33:
+            self.upperLimitBar.setData([maxtime], [self.channel.maxLimit])
+            self.upperLimitBar.setBaseline(mintime)
 
         # Create the popup menu
         self.popup = self.ChannelMenu(self, self.channel)
 
         pass
+
+    def redrawLimits(self):
+        if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+            mintime,maxtime = self.getTimeRange()
+            if self.channel.minLimit > -1.0e33:
+                self.lowerLimitBar.setData([maxtime], [self.channel.minLimit])
+                self.lowerLimitBar.setBaseline(mintime)
+            if self.channel.maxLimit < 1.0e33:
+                self.upperLimitBar.setData([maxtime], [self.channel.maxLimit])
+                self.upperLimitBar.setBaseline(mintime)
 
     def findClosestPointWithinBox(self, i,j):
         """Finds the nearest plot point within BoxSize of mouse click"""
@@ -460,6 +502,7 @@ class ChannelPane(qwt.QwtPlot):
         if self.selectedKey is not None:
             print('Left release')
             self.selectedKey = None
+            self.redrawLimits()
             self.replot()
         pass
 
@@ -472,6 +515,10 @@ class ChannelPane(qwt.QwtPlot):
                 # Avoid overwriting existing point as we drag past
                 if xplotval in self.channel.knots:
                     xplotval += 0.00000001
+                # Apply limits
+                if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                    if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
+                    if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
                 self.channel.knots[xplotval] = yplotval
                 self.selectedKey = xplotval
                 if yplotval < self.minVal: self.minVal = yplotval
@@ -494,8 +541,6 @@ class ChannelPane(qwt.QwtPlot):
         if self.curve2 is not None and xdata is not None and ydata is not None:
             self.curve2.setData(xdata, ydata)
             if len(xdata) > 1:
-                # self.minVal = min(ydata)
-                # self.maxVal = max(ydata)
                 margin = (self.maxVal - self.minVal) * 0.05
                 self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal-margin, self.maxVal+margin)
         
@@ -534,7 +579,7 @@ class ChannelMetadataWidget(QDialog):
             self._typeedit.setCurrentIndex(self._channel.type-1)
             if self._channel.port >= 0:
                 self._portedit.setText(str(self._channel.port))
-            if self._channel.maxLimit > self._channel.minLimit:
+            if self._channel.minLimit > -1.0e33 or self._channel.maxLimit < 1.0e33:
                 self._minedit.setText(str(self._channel.minLimit))
                 self._maxedit.setText(str(self._channel.maxLimit))
 
@@ -558,6 +603,45 @@ class ChannelMetadataWidget(QDialog):
         self.cancelButton.clicked.connect(self.reject)
 
     def onAccepted(self):
+        # Need to validate limits prior to changing things
+        validate = False
+        tstring = self._minedit.text()
+        if len(tstring) > 0:
+            minLimit = float(tstring)
+            if minLimit > self._channel.minLimit: validate = True
+        else:
+            minLimit = self._channel.minLimit
+        tstring = self._maxedit.text()
+        if len(tstring) > 0:
+            maxLimit = float(tstring)
+            if maxLimit < self._channel.maxLimit: validate = True
+        else:
+            maxLimit = self._channel.maxLimit
+        if validate and minLimit < maxLimit:
+            minVal = 1.0e34
+            maxVal = -1.0e34
+            for keyval in self._channel.knots:
+                if self._channel.knots[keyval] < minVal: minVal = self._channel.knots[keyval]
+                if self._channel.knots[keyval] > maxVal: maxVal = self._channel.knots[keyval]
+            if minVal < minLimit or maxVal > maxLimit:
+                msgBox = QMessageBox()
+                msgBox.setText('Knots in the channel fall outside these limits.')
+                msgBox.setInformativeText("Proceed and modify them to fit?")
+                msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
+                if ret == QMessageBox.Yes:
+                    for keyval in self._channel.knots:
+                        if self._channel.knots[keyval] < minLimit: 
+                            self._channel.knots[keyval] = minLimit
+                        if self._channel.knots[keyval] > maxLimit:
+                            self._channel.knots[keyval] = maxLimit
+                else:
+                    # Cancel selected so don't do any updating below
+                    self.close()
+                    return
+
+
         tstring = self._nameedit.text()
         if len(tstring) > 0:
             self._channel.name = tstring
@@ -568,9 +652,13 @@ class ChannelMetadataWidget(QDialog):
         tstring = self._minedit.text()
         if len(tstring) > 0:
             self._channel.minLimit = float(tstring)
+        else:
+            self._channel.minLimit = -1.0e34
         tstring = self._maxedit.text()
         if len(tstring) > 0:
             self._channel.maxLimit = float(tstring)
+        else:
+            self._channel.maxLimit = 1.0e34
 
         self.accept()
 
@@ -598,12 +686,12 @@ class MetadataWidget(QDialog):
         layout.addRow(QLabel('End Time:'), self._endedit)
         self._rateedit = QLineEdit(str(self._animatronics.sample_rate))
         layout.addRow(QLabel('Sample Rate (Hz):'), self._rateedit)
-        self._audioedit = QLineEdit(str(self._animatronics.audiostart))
+        self._audioedit = QLineEdit(str(self._animatronics.newAudio.audiostart))
         layout.addRow(QLabel('Audio Start Time:'), self._audioedit)
         layout.addRow(QLabel('Audio File:'))
         self._audiofile = QLineEdit('')
-        if inanim.audiofile is not None:
-            self._audiofile.setText(inanim.audiofile)
+        if inanim.newAudio.audiofile is not None:
+            self._audiofile.setText(inanim.newAudio.audiofile)
         self._audiofile.setReadOnly(True)
         layout.addRow(self._audiofile)
         widget.setLayout(layout)
@@ -857,7 +945,7 @@ class MainWindow(QMainWindow):
             self.timeSlider = qwt.QwtPlotCurve()
             self.timeSlider.setStyle(qwt.QwtPlotCurve.Sticks)
             self.timeSlider.setData([self.audioMin], [30000.0])
-            self.timeSlider.setPen(Qt.red, 3.0, Qt.SolidLine)
+            self.timeSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
             self.timeSlider.setBaseline(-30000.0)
             self.timeSlider.attach(newplot)
 
@@ -879,7 +967,7 @@ class MainWindow(QMainWindow):
         for channel in self.animatronics.channels:
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(self._plotarea, chan, mainwindow=self)
-            newplot.setAxisScale(self.X_BOTTOM_AXIS_ID, self.lastXmin, self.lastXmax)
+            newplot.settimerange(self.lastXmin, self.lastXmax)
             layout.addWidget(newplot)
             self.plots[chan.name] = newplot
 
@@ -1126,25 +1214,6 @@ class MainWindow(QMainWindow):
         """ Perform editmetadata action"""
         qd = MetadataWidget(self.animatronics, parent=self)
         qd.exec_()
-        pass
-
-    def playaudio_action(self):
-        """ Perform playaudio action"""
-        # Kluge to play entire audio from file
-        if self.animatronics.audiofile is not None:
-            try:
-                # The PyQt5 way
-                qm.QSound.play(self.animatronics.audiofile)
-            except:
-                try:
-                    # The PyQt6 way
-                    qse = qm.QSoundEffect()
-                    qse.setSource(QUrl("file:%s" % self.animatronics.audiofile))
-                    qse.play()
-                except:
-                    # Hope it does not get here
-                    print('Whoops - no quick playback')
-                    pass
         pass
 
     def positionChanged(self, position):
@@ -1506,8 +1575,8 @@ class Channel:
         self.knots = {}
         self.knottitles = {}
         self.type = intype
-        self.maxLimit = -1.0
-        self.minLimit = 1.0
+        self.maxLimit = 1.0e34
+        self.minLimit = -1.0e34
         self.port = -1
         self.rateLimit = -1.0
 
@@ -1538,7 +1607,7 @@ class Channel:
         xdata = []
         ydata = []
         if len(keys) < maxCount:
-            # Return all of them for now
+            # Return all of them
             for key in self.knots:
                 xdata.append(key)
                 ydata.append(self.knots[key])
@@ -1617,12 +1686,11 @@ class Channel:
             ydata = None
 
         # Limit the range of plot data to min and max values
-        if self.minLimit < self.maxLimit:
-            for i in range(len(ydata)):
-                if ydata[i] > self.maxLimit:
-                    ydata[i] = self.maxLimit
-                elif ydata[i] < self.minLimit:
-                    ydata[i] = self.minLimit
+        for i in range(len(ydata)):
+            if ydata[i] > self.maxLimit:
+                ydata[i] = self.maxLimit
+            elif ydata[i] < self.minLimit:
+                ydata[i] = self.minLimit
 
         return xdata,ydata
 
