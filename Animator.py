@@ -76,7 +76,7 @@ class TextDisplayDialog(QDialog):
 
     def __init__(self,
         name,
-        text,
+        text='',
         parent=None,
         ):
         super(TextDisplayDialog, self).__init__(parent)
@@ -85,10 +85,14 @@ class TextDisplayDialog(QDialog):
         self.textView = QTextBrowser(self)
         self.textView.setPlainText(text)
         self.textView.setReadOnly(True)
+        self.resize(500, 600)
 
         layout = QFormLayout()
         self.setLayout(layout)
         layout.addRow(self.textView)
+
+    def setText(self, text):
+        self.textView.setPlainText(text)
         
 #####################################################################
 class ChecklistDialog(QDialog):
@@ -272,6 +276,7 @@ class ChannelPane(qwt.QwtPlot):
                 for key in self.channel.knots:
                     self.channel.knots[key] = (self.channel.maxLimit + self.channel.minLimit) - self.channel.knots[key]
                 self.parent.redrawme()
+                main_win.updateXMLPane()
             pass
 
         def smooth_action(self):
@@ -497,6 +502,7 @@ class ChannelPane(qwt.QwtPlot):
             self.selectedKey = None
             self.redrawLimits()
             self.replot()
+            main_win.updateXMLPane()
         pass
 
     def mouseMoveEvent(self, event):
@@ -657,6 +663,7 @@ class ChannelMetadataWidget(QDialog):
             self._channel.maxLimit = 1.0e34
 
         self.accept()
+        main_win.updateXMLPane()
 
 #####################################################################
 # The MetadataWidget is used to view and edit the metadata
@@ -724,6 +731,7 @@ class MetadataWidget(QDialog):
         if len(tstring) > 0:
             self._animatronics.audiostart = float(tstring)
         self.accept()
+        main_win.updateXMLPane()
 
 #####################################################################
 # The Player class is a widget with playback controls
@@ -859,6 +867,10 @@ class MainWindow(QMainWindow):
 
         # Create file dialog on the fly when needed
         self.filedialog = None
+
+        # Create the XML display dialog for constant refresh
+        self.XMLPane = TextDisplayDialog('XML', parent=self)
+
         # Initialize to no audio plot and add later if read
         self.audioPlot = None
         self.audioCurve = None
@@ -896,6 +908,7 @@ class MainWindow(QMainWindow):
     def setAnimatronics(self, inanim):
         """Set the active animatronics to the input"""
         self.animatronics = inanim
+        self.updateXMLPane()
 
         # Clear and recreate UI here
         self.audioPlot = None
@@ -1242,6 +1255,8 @@ class MainWindow(QMainWindow):
             msgBox.setIcon(QMessageBox.Information)
             ret = msgBox.exec_()
         self.saveStateOkay = True
+        # Keep XML display pane up to date with latest
+        self.XMLPane.setText(self.animatronics.toXML())
             
         pass
 
@@ -1279,6 +1294,8 @@ class MainWindow(QMainWindow):
             msgBox.setIcon(QMessageBox.Information)
             ret = msgBox.exec_()
         self.saveStateOkay = True
+        # Keep XML display pane up to date with latest
+        self.XMLPane.setText(self.animatronics.toXML())
             
         pass
 
@@ -1479,9 +1496,12 @@ class MainWindow(QMainWindow):
     def showXML_action(self):
         """ Perform showXML action"""
         # Pop up text window containing XML to view (uneditable)
-        tdd = TextDisplayDialog('XML', self.animatronics.toXML(), parent=self)
-        tdd.show()
+        self.XMLPane.setText(self.animatronics.toXML())
+        self.XMLPane.show()
         pass
+
+    def updateXMLPane(self):
+        self.XMLPane.setText(self.animatronics.toXML())
 
     def getPlotValues(self, pixelX, pixelY):
         # Get the rectangle containing the stuff to left of plot
@@ -1939,8 +1959,10 @@ class Channel:
     def toXML(self):
         output = StringIO()
         output.write('<Channel name="%s"' % self.name)
-        if self.maxLimit > self.minLimit:
-            output.write(' minLimit="%f" maxLimit="%f"' % (self.minLimit, self.maxLimit))
+        if self.minLimit >= -1.0e33:
+            output.write(' minLimit="%f"' % self.minLimit)
+        if self.maxLimit <= 1.0e33:
+            output.write(' maxLimit="%f"' % self.maxLimit)
         if self.port >= 0:
             output.write(' port="%d"' % self.port)
         if self.rateLimit > 0.0:
