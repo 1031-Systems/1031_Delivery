@@ -257,14 +257,18 @@ class ChannelPane(qwt.QwtPlot):
             """ Perform invert action"""
             if ((self.channel.maxLimit > 1.0e33 and self.channel.minLimit > -1.0e33) or
                 (self.channel.maxLimit < 1.0e33 and self.channel.minLimit < -1.0e33)):
-                msgBox = QMessageBox()
+                msgBox = QMessageBox(parent=self)
                 msgBox.setText('A channel cannot be inverted with only one limit set!')
                 msgBox.setInformativeText("Set or clear both limits.")
-                msgBox.setStandardButtons(QMessageBox.Cancel)
+                msgBox.setStandardButtons(QMessageBox.Ok)
                 msgBox.setIcon(QMessageBox.Warning)
                 ret = msgBox.exec_()
                 return
             else:
+                # Push current state for undo
+                global main_win
+                main_win.pushState()
+
                 for key in self.channel.knots:
                     self.channel.knots[key] = (self.channel.maxLimit + self.channel.minLimit) - self.channel.knots[key]
                 self.parent.redrawme()
@@ -459,6 +463,10 @@ class ChannelPane(qwt.QwtPlot):
             # If shift key is down then
             modifiers = QApplication.keyboardModifiers()
             if modifiers == Qt.ShiftModifier:
+                # Push current state for undo
+                global main_win
+                main_win.pushState()
+
                 # Find nearest point
                 nearkey = self.findClosestPointWithinBox(event.pos().x(), event.pos().y())
                 if nearkey is not None:
@@ -609,7 +617,7 @@ class ChannelMetadataWidget(QDialog):
                 if self._channel.knots[keyval] < minVal: minVal = self._channel.knots[keyval]
                 if self._channel.knots[keyval] > maxVal: maxVal = self._channel.knots[keyval]
             if minVal < minLimit or maxVal > maxLimit:
-                msgBox = QMessageBox()
+                msgBox = QMessageBox(parent=self)
                 msgBox.setText('Knots in the channel fall outside these limits.')
                 msgBox.setInformativeText("Proceed and modify them to fit?")
                 msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
@@ -626,6 +634,9 @@ class ChannelMetadataWidget(QDialog):
                     self.close()
                     return
 
+        # Push current state for undo
+        global main_win
+        main_win.pushState()
 
         tstring = self._nameedit.text()
         if len(tstring) > 0:
@@ -699,6 +710,10 @@ class MetadataWidget(QDialog):
         self.cancelButton.clicked.connect(self.reject)
 
     def onAccepted(self):
+        # Push current state for undo
+        global main_win
+        main_win.pushState()
+
         tstring = self._endedit.text()
         if len(tstring) > 0:
             self._animatronics.end = float(tstring)
@@ -822,13 +837,11 @@ class Player(QWidget):
 
     def setLeftConnect(self, leftConnection):
         # Set start of play range to current time and set left edge time to it
-        print('Hit Left')
         self._setleftbutton.clicked.connect(leftConnection)
         pass
 
     def setRightConnect(self, rightConnection):
         # Set start of play range to current time and set right edge time to it
-        print('Hit Right')
         self._setrightbutton.clicked.connect(rightConnection)
         pass
 
@@ -853,6 +866,12 @@ class MainWindow(QMainWindow):
         self.audioCurveRight = None
         # Initialize empty list of channel plots
         self.plots = {}
+
+        # Initialize stacks of XML for Undo and Redo
+        self.previousStates = []
+        self.pendingStates = []
+        self.saveStateOkay = True
+        self.unsavedChanges = False
 
         # Create all the dropdown menus
         self.create_menus()
@@ -989,6 +1008,18 @@ class MainWindow(QMainWindow):
             
 
     def openAnimFile(self):
+        if self.unsavedChanges:
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('The current animation has unsaved changes')
+            msgBox.setInformativeText("Save them?")
+            msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            if ret == QMessageBox.Save:
+                self.saveAnimFile()
+            elif ret == QMessageBox.Cancel:
+                return
+
         """Get filename and open as active animatronics"""
         if self.filedialog is None:
             self.filedialog = QFileDialog(self)
@@ -998,21 +1029,48 @@ class MainWindow(QMainWindow):
                             options=QFileDialog.DontUseNativeDialog)
 
         if fileName:
+            # Push current state for undo
+            global main_win
+            main_win.pushState()
+
             newAnim = Animatronics()
             try:
                 newAnim.parseXML(fileName)
                 self.setAnimatronics(newAnim)
+                # Clear out edit history
+                self.pendingStates = []
+                self.unsavedChanges = False
     
             except Exception as e:
+                main_win.popState()
                 sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
 
 
     def newAnimFile(self):
+        if self.unsavedChanges:
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('The current animation has unsaved changes')
+            msgBox.setInformativeText("Save them?")
+            msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            if ret == QMessageBox.Save:
+                self.saveAnimFile()
+            elif ret == QMessageBox.Cancel:
+                return
+
+        # Push current state for undo
+        global main_win
+        main_win.pushState()
+
         """Clear animatronics and start from scratch"""
         newAnim = Animatronics()
         self.setAnimatronics(newAnim)
+        # Clear out edit history
+        self.pendingStates = []
+        self.unsavedChanges = False
     
     def mergeAnimFile(self):
         """Merge an animatronics file into the current one"""
@@ -1025,13 +1083,18 @@ class MainWindow(QMainWindow):
 
         if fileName:
             try:
+                # Push current state for undo
+                global main_win
+                main_win.pushState()
                 self.animatronics.parseXML(fileName)
                 self.setAnimatronics(self.animatronics)
     
             except Exception as e:
+                main_win.popState()
                 sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
+
         pass
 
     def saveAnimFile(self):
@@ -1044,6 +1107,7 @@ class MainWindow(QMainWindow):
             try:
                 with open(self.animatronics.filename, 'w') as outfile:
                     outfile.write(self.animatronics.toXML())
+                self.unsavedChanges = False
     
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % self.animatronics.filename)
@@ -1065,14 +1129,15 @@ class MainWindow(QMainWindow):
             try:
                 with open(fileName, 'w') as outfile:
                     outfile.write(self.animatronics.toXML())
+                self.unsavedChanges = False
+                if self.animatronics.filename is None:
+                    self.animatronics.filename = fileName
     
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
 
-        if self.animatronics.filename is None:
-            self.animatronics.filename = fileName
         pass
 
     def exportCSVFile(self):
@@ -1140,24 +1205,104 @@ class MainWindow(QMainWindow):
         """Export the current animatronics file into a Brookshire VSA format"""
         pass
 
+    def exit_action(self):
+        if self.unsavedChanges:
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('The current animation has unsaved changes')
+            msgBox.setInformativeText("Save them?")
+            msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            if ret == QMessageBox.Save:
+                self.saveAnimFile()
+            elif ret == QMessageBox.Cancel:
+                return
+        self.close()
+
+        
+
+    def undo_action(self):
+        print('Undo')
+        self.saveStateOkay = False
+        if len(self.previousStates) > 0:
+            if self.animatronics is not None:
+                # Push current state onto pending states
+                currState = self.animatronics.toXML()
+                self.pendingStates.append((currState, self.unsavedChanges))
+                # Pop last previous state
+                currState = self.previousStates.pop()
+                self.animatronics.fromXML(currState[0])
+                self.setAnimatronics(self.animatronics)
+                self.unsavedChanges = currState[1]
+                print('Number of undos left:', len(self.previousStates))
+        else:
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('At earliest state')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Information)
+            ret = msgBox.exec_()
+        self.saveStateOkay = True
+            
+        pass
+
+    def pushState(self):
+        if self.saveStateOkay:
+            # Push current state onto previous states
+            currState = self.animatronics.toXML()
+            self.previousStates.append((currState, self.unsavedChanges))
+            # Taking a new path so clear out pending states
+            self.pendingStates = []
+            self.unsavedChanges = True
+
+    def popState(self):
+        """Discard last state saved as some update failed"""
+        self.previousStates.pop()
+
+    def redo_action(self):
+        print('Redo')
+        self.saveStateOkay = False
+        if len(self.pendingStates) > 0:
+            if self.animatronics is not None:
+                # Push current state onto pending states
+                currState = self.animatronics.toXML()
+                self.previousStates.append((currState, self.unsavedChanges))
+                # Pop next pending state
+                currState = self.pendingStates.pop()
+                self.animatronics.fromXML(currState[0])
+                self.setAnimatronics(self.animatronics)
+                self.unsavedChanges = currState[1]
+                print('Number of redos left:', len(self.pendingStates))
+        else:
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('At latest state')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Information)
+            ret = msgBox.exec_()
+        self.saveStateOkay = True
+            
+        pass
+
     def newchannel_action(self):
         """ Perform newchannel action"""
+        global main_win
+        main_win.saveStateOkay = False
         tempChannel = Channel()
         td = ChannelMetadataWidget(channel=tempChannel, parent=self)
         code = td.exec_()
+        main_win.saveStateOkay = True
 
         if code == QDialog.Accepted:
             # Check to see if channel already exists
             ret = None
             text = tempChannel.name
             if len(text) <= 0:
-                msgBox = QMessageBox()
+                msgBox = QMessageBox(parent=self)
                 msgBox.setText('A channel MUST have a name of at least one character and must be unique')
-                msgBox.setStandardButtons(QMessageBox.Cancel)
+                msgBox.setStandardButtons(QMessageBox.Ok)
                 msgBox.setIcon(QMessageBox.Warning)
                 ret = msgBox.exec_()
             elif text in self.animatronics.channels:
-                msgBox = QMessageBox()
+                msgBox = QMessageBox(parent=self)
                 msgBox.setText('The channel "%s" already exists.' % text)
                 msgBox.setInformativeText("Replace it?")
                 msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
@@ -1167,8 +1312,14 @@ class MainWindow(QMainWindow):
                 del self.animatronics.channels[text]
                 ret = None
             if ret is None:
+                # Push current state for undo
+                print('Prior to save state undo stack size is:', len(main_win.previousStates))
+                main_win.pushState()
+                print('After save state undo stack size is:', len(main_win.previousStates))
+
                 self.animatronics.channels[text] = tempChannel
                 self.setAnimatronics(self.animatronics)
+                print('After set animatronics undo stack size is:', len(main_win.previousStates))
                 
         pass
 
@@ -1178,13 +1329,17 @@ class MainWindow(QMainWindow):
         for name in chanList:
             if len(inform_text) > 0: inform_text += ', '
             inform_text += name
-        msgBox = QMessageBox()
+        msgBox = QMessageBox(parent=self)
         msgBox.setText('Are you really sure you want to delete these channels?')
         msgBox.setInformativeText(inform_text)
         msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
         msgBox.setIcon(QMessageBox.Warning)
         ret = msgBox.exec_()
         if ret == QMessageBox.Yes:
+            # Push current state for undo
+            global main_win
+            main_win.pushState()
+
             for name in chanList:
                 del self.animatronics.channels[name]
             self.setAnimatronics(self.animatronics)
@@ -1213,11 +1368,16 @@ class MainWindow(QMainWindow):
                             options=QFileDialog.DontUseNativeDialog)
 
         if fileName:
+            # Push current state for undo
+            global main_win
+            main_win.pushState()
+
             try:
                 self.animatronics.set_audio(fileName)
                 self.setAnimatronics(self.animatronics)
     
             except Exception as e:
+                main_win.popState()
                 sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
@@ -1422,11 +1582,19 @@ class MainWindow(QMainWindow):
         # exit action
         self.file_menu.addSeparator()
         self._exit_action = QAction("E&xit", self, shortcut="Ctrl+Q",
-                triggered=self.close)
+                triggered=self.exit_action)
         self.file_menu.addAction(self._exit_action)
 
         # Create the Edit dropdown menu #################################
         self.edit_menu = self.menuBar().addMenu("&Edit")
+        self._undo_action = QAction("Undo", self, shortcut="Ctrl+Z",
+            triggered=self.undo_action)
+        self.edit_menu.addAction(self._undo_action)
+
+        self._redo_action = QAction("Redo", self, shortcut="Ctrl+Shift+Z",
+            triggered=self.redo_action)
+        self.edit_menu.addAction(self._redo_action)
+
         self._newchannel_action = QAction("New Channel", self, shortcut="Ctrl+N",
             triggered=self.newchannel_action)
         self.edit_menu.addAction(self._newchannel_action)
@@ -1556,13 +1724,21 @@ class AudioChannel:
     def setAudioFile(self, infilename):
         # Now read the audio data
         if os.path.exists(infilename):
-            self.audiofile = infilename
-
-            audio = wave.open(self.audiofile)
-            self.samplerate = audio.getframerate()
-            self.numchannels = audio.getnchannels()
-            self.samplesize = audio.getsampwidth()
-            self.audio_data = audio.readframes(audio.getnframes())
+            try:
+                audio = wave.open(infilename)
+                self.audiofile = infilename
+                self.samplerate = audio.getframerate()
+                self.numchannels = audio.getnchannels()
+                self.samplesize = audio.getsampwidth()
+                self.audio_data = audio.readframes(audio.getnframes())
+            except:
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Whoops - Unable to read audio file:')
+                msgBox.setInformativeText(infilename)
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
+                return
 
     def toXML(self):
         output = StringIO()
@@ -1839,22 +2015,31 @@ class Animatronics:
     def parseXML(self, inXMLFilename):
         with open(inXMLFilename, 'r') as infile:
             testtext = infile.read()
-            root = ET.fromstring(testtext)
+            self.fromXML(testtext)
             self.filename = inXMLFilename
-            # Get the attributes from the XML
-            if 'endtime' in root.attrib:
-                self.end = float(root.attrib['endtime'])
-            for child in root:
-                if child.tag == 'Audio':
-                    self.newAudio = AudioChannel()
-                    self.newAudio.parseXML(child)
-                elif child.tag == 'Channel':
-                    tchannel = Channel()
-                    tchannel.parseXML(child)
-                    self.channels[tchannel.name] = tchannel
-                elif child.tag == 'Control':
-                    if 'rate' in child.attrib:
-                        self.sample_rate = float(child.attrib['rate'])
+
+    def fromXML(self, testtext):
+        # Clean up existing stuff
+        self.newAudio = None
+        self.channels = {}
+        self.sample_rate = 50.0
+
+        # Scan the XML text
+        root = ET.fromstring(testtext)
+        # Get the attributes from the XML
+        if 'endtime' in root.attrib:
+            self.end = float(root.attrib['endtime'])
+        for child in root:
+            if child.tag == 'Audio':
+                self.newAudio = AudioChannel()
+                self.newAudio.parseXML(child)
+            elif child.tag == 'Channel':
+                tchannel = Channel()
+                tchannel.parseXML(child)
+                self.channels[tchannel.name] = tchannel
+            elif child.tag == 'Control':
+                if 'rate' in child.attrib:
+                    self.sample_rate = float(child.attrib['rate'])
 
     def toXML(self):
         output = StringIO()
@@ -1877,6 +2062,9 @@ class Animatronics:
 
 #/* Main */
 def main():
+    # Make main window global to support saving state for undo/redo
+    global main_win
+
     # Local Variables
     infilename = None
     root = None
@@ -1899,8 +2087,14 @@ def main():
 
         i += 1
 
+    # Create the global main window
+    app = QApplication(sys.argv)
+    main_win = MainWindow()
+
     # If an input file was specified, parse it or die trying
     if infilename is not None:
+        # Do not update state if we read here
+        main_win.saveStateOkay = False
         try:
             animation.parseXML(infilename)
 
@@ -1909,9 +2103,8 @@ def main():
             sys.stderr.write("Message: %s\n" % e)
             sys.exit(11)
 
-    app = QApplication(sys.argv)
+        main_win.saveStateOkay = True
 
-    main_win = MainWindow()
     main_win.setAnimatronics(animation)
     main_win.show()
     app.exec_()
