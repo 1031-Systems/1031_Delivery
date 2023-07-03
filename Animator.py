@@ -868,8 +868,11 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # Create file dialog on the fly when needed
-        self.filedialog = None
+        # Create file dialog used only for saving files
+        self.filedialog = QFileDialog(parent=self, caption="Get Save Filename")
+        self.filedialog.setOption(QFileDialog.DontUseNativeDialog)
+        self.filedialog.setAcceptMode(QFileDialog.AcceptSave)
+        self.filedialog.setFileMode(QFileDialog.AnyFile)
 
         # Create the XML display dialog for constant refresh
         self.XMLPane = TextDisplayDialog('XML', parent=self)
@@ -1040,10 +1043,7 @@ class MainWindow(QMainWindow):
                 return
 
         """Get filename and open as active animatronics"""
-        if self.filedialog is None:
-            self.filedialog = QFileDialog(self)
-
-        fileName, _ = self.filedialog.getOpenFileName(self,"Get Open Filename", "",
+        fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
                             "Anim Files (*.anim);;All Files (*)",
                             options=QFileDialog.DontUseNativeDialog)
 
@@ -1093,10 +1093,7 @@ class MainWindow(QMainWindow):
     
     def mergeAnimFile(self):
         """Merge an animatronics file into the current one"""
-        if self.filedialog is None:
-            self.filedialog = QFileDialog(self)
-
-        fileName, _ = self.filedialog.getOpenFileName(self,"Get Merge Filename", "",
+        fileName, _ = QFileDialog.getOpenFileName(self,"Get Merge Filename", "",
                             "Anim Files (*.anim);;All Files (*)",
                             options=QFileDialog.DontUseNativeDialog)
 
@@ -1136,16 +1133,11 @@ class MainWindow(QMainWindow):
 
     def saveAsFile(self):
         """Save the current animatronics file"""
-        if self.filedialog is None:
-            self.filedialog = QFileDialog(self)
-
         self.filedialog.setDefaultSuffix('anim')
-        fileName, _ = self.filedialog.getSaveFileName(self,"Get Save Filename", "",
-                            "Anim Files (*.anim);;All Files (*)",
-                            options=QFileDialog.DontUseNativeDialog)
-
-        if fileName:
+        self.filedialog.setNameFilter("Anim Files (*.anim);;All Files (*)")
+        if self.filedialog.exec_():
             try:
+                fileName = self.filedialog.selectedFiles()[0]
                 with open(fileName, 'w') as outfile:
                     outfile.write(self.animatronics.toXML())
                 self.unsavedChanges = False
@@ -1183,16 +1175,11 @@ class MainWindow(QMainWindow):
             columns[plot] = values
 
         # Get the filename to write to
-        if self.filedialog is None:
-            self.filedialog = QFileDialog(self)
-
         self.filedialog.setDefaultSuffix('csv')
-        fileName, _ = self.filedialog.getSaveFileName(self,"Get Save Filename", "",
-                            "Anim Files (*.csv);;All Files (*)",
-                            options=QFileDialog.DontUseNativeDialog)
-
-        if fileName:
+        self.filedialog.setNameFilter("CSV Files (*.csv);;All Files (*)")
+        if self.filedialog.exec_():
             try:
+                fileName = self.filedialog.selectedFiles()[0]
                 with open(fileName, 'w') as outfile:
                     # Write out the column headers
                     for channel in columns:
@@ -1383,10 +1370,7 @@ class MainWindow(QMainWindow):
 
     def selectaudio_action(self):
         """ Perform selectaudio action"""
-        if self.filedialog is None:
-            self.filedialog = QFileDialog(self)
-
-        fileName, _ = self.filedialog.getOpenFileName(self,"Get Open Filename", "",
+        fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
                             "Wave Audio Files (*.wav);;All Files (*)",
                             options=QFileDialog.DontUseNativeDialog)
 
