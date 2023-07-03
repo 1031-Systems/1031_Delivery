@@ -1168,10 +1168,9 @@ class MainWindow(QMainWindow):
             currtime += samplestep
         columns['Time'] = timecolumn
 
+        # Get the data points for each column
         for plot in self.plots:
-            print('Getting data from:', plot, 'from time:',starttime, 'to:', endtime, 'by:', samplestep)
             values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep)
-            print('Got datasize:', len(values))
             columns[plot] = values
 
         # Get the filename to write to
@@ -1571,6 +1570,7 @@ class MainWindow(QMainWindow):
         # Merge action
         self._merge_file_action = QAction("&Merge Anim File",
                 self, triggered=self.mergeAnimFile)
+        self._merge_file_action.setEnabled(False)
         self.file_menu.addAction(self._merge_file_action)
 
         # Save action
@@ -1591,6 +1591,7 @@ class MainWindow(QMainWindow):
 
         self._export_vsa_file_action = QAction("&Export to VSA",
                 self, triggered=self.exportVSAFile)
+        self._export_vsa_file_action.setEnabled(False)
         self._export_file_menu.addAction(self._export_vsa_file_action)
 
         #self._export_file_action = QAction("&Export",
@@ -1613,6 +1614,8 @@ class MainWindow(QMainWindow):
         self._redo_action = QAction("Redo", self, shortcut="Ctrl+Shift+Z",
             triggered=self.redo_action)
         self.edit_menu.addAction(self._redo_action)
+
+        self.edit_menu.addSeparator()
 
         self._newchannel_action = QAction("New Channel", self, shortcut="Ctrl+N",
             triggered=self.newchannel_action)
@@ -1644,6 +1647,8 @@ class MainWindow(QMainWindow):
             triggered=self.scaletoaudio_action)
         self.view_menu.addAction(self._scaletoaudio_action)
 
+        self.view_menu.addSeparator()
+
         # showall menu item
         self._showall_action = QAction("Show All Channels", self,
             triggered=self.showall_action)
@@ -1654,19 +1659,12 @@ class MainWindow(QMainWindow):
             triggered=self.showselector_action)
         self.view_menu.addAction(self._showselector_action)
 
-        # showXML menu item
-        self._showXML_action = QAction("Show XML", self,
-            triggered=self.showXML_action)
-        self.view_menu.addAction(self._showXML_action)
-
-
-        # Create the Playback dropdown menu #################################
-        self.playback_menu = self.menuBar().addMenu("&Playback")
+        self.view_menu.addSeparator()
 
         # playbackcontrols menu item
         self._playbackcontrols_action = QAction("Toggle Playback Controls", self,
             triggered=self.playbackcontrols_action)
-        self.playback_menu.addAction(self._playbackcontrols_action)
+        self.view_menu.addAction(self._playbackcontrols_action)
 
 
         # Create the Tools dropdown menu #################################
@@ -1683,6 +1681,11 @@ class MainWindow(QMainWindow):
         self._help_action = QAction("Help", self,
             triggered=self.help_action)
         self.help_menu.addAction(self._help_action)
+
+        # showXML menu item
+        self._showXML_action = QAction("Show XML", self,
+            triggered=self.showXML_action)
+        self.help_menu.addAction(self._showXML_action)
 
 
 #####################################################################
