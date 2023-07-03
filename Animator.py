@@ -93,6 +93,9 @@ class TextDisplayDialog(QDialog):
 
     def setText(self, text):
         self.textView.setPlainText(text)
+
+    def setSource(self, instr):
+        self.textView.setSource(QUrl.fromLocalFile(instr))
         
 #####################################################################
 class ChecklistDialog(QDialog):
@@ -871,6 +874,9 @@ class MainWindow(QMainWindow):
         # Create the XML display dialog for constant refresh
         self.XMLPane = TextDisplayDialog('XML', parent=self)
 
+        # Create the Help Popup
+        self.helpPane = TextDisplayDialog('Animator Help', parent=self)
+
         # Initialize to no audio plot and add later if read
         self.audioPlot = None
         self.audioCurve = None
@@ -1553,6 +1559,15 @@ class MainWindow(QMainWindow):
     def cutRightSide(self):
         self.setTimeRange(self.lastXmin, self._slideTime)
 
+    def about_action(self):
+        self.helpPane.setSource('docs/About.md')
+        self.helpPane.resize(500, 180)
+        self.helpPane.show()
+
+    def help_action(self):
+        self.helpPane.setSource('docs/Help.md')
+        self.helpPane.resize(600, 700)
+        self.helpPane.show()
 
     def create_menus(self):
         """Creates all the dropdown menus for the toolbar and associated actions"""
@@ -1677,8 +1692,13 @@ class MainWindow(QMainWindow):
 
         # Create the Help dropdown menu #################################
         self.help_menu = self.menuBar().addMenu("&Help")
-        # self.help_menu.addAction(self.about_action)
-        # self.help_menu.addAction(self.about_Qt_action)
+        self._about_action = QAction("About", self,
+            triggered=self.about_action)
+        self.help_menu.addAction(self._about_action)
+
+        self._help_action = QAction("Help", self,
+            triggered=self.help_action)
+        self.help_menu.addAction(self._help_action)
 
 
 #####################################################################
