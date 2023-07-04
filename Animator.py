@@ -210,29 +210,39 @@ class ChannelPane(qwt.QwtPlot):
             if self.channel.type == self.channel.Linear:
                 self._smooth_action = QAction("smooth", self,
                     triggered=self.smooth_action)
+                self._smooth_action.setEnabled(False)
                 self.addAction(self._smooth_action)
 
             # wrap menu item
             self._wrap_action = QAction("wrap", self,
                 triggered=self.wrap_action)
+            self._wrap_action.setEnabled(False)
             self.addAction(self._wrap_action)
 
             # copy menu item
             self._copy_action = QAction("copy", self,
                 shortcut="Ctrl+C",
                 triggered=self.copy_action)
-            self.addAction(self._copy_action)
+            self.parent.addAction(self._copy_action)
 
             # paste menu item
             self._paste_action = QAction("paste", self,
                 shortcut="Ctrl+V",
                 triggered=self.paste_action)
+            self._paste_action.setEnabled(False)
             self.addAction(self._paste_action)
 
             # Rescale menu item
             self._Rescale_action = QAction("Rescale", self,
                 triggered=self.Rescale_action)
+            #    shortcut="Ctrl+R",
+            #self._Rescale_action.setShortcutContext(Qt.WidgetWithChildrenShortcut)
             self.addAction(self._Rescale_action)
+            # self.parent.addAction(self._Rescale_action)
+            # sc = QShortcut(parent=self.parent, key="Ctrl+F", shortcutContext=Qt.WidgetWithChildrenShortcut)
+            # sc = QShortcut(QKeySequence("Ctrl+F"), self.parent)
+            # sc.setContext(Qt.WidgetWithChildrenShortcut)
+            # sc.activated.connect(self.Rescale_action)
 
             # Hide menu item
             self._Hide_action = QAction("Hide", self,
@@ -292,6 +302,7 @@ class ChannelPane(qwt.QwtPlot):
 
         def copy_action(self):
             """ Perform copy action"""
+            print('Hit Ctrl+c for Copy')
             pass
 
         def paste_action(self):
@@ -355,6 +366,8 @@ class ChannelPane(qwt.QwtPlot):
         for keyval in self.channel.knots:
             if self.channel.knots[keyval] < self.minVal: self.minVal = self.channel.knots[keyval]
             if self.channel.knots[keyval] > self.maxVal: self.maxVal = self.channel.knots[keyval]
+        if self.channel.minLimit < self.minVal: self.minVal = self.channel.minLimit
+        if self.channel.maxLimit > self.maxVal: self.maxVal = self.channel.maxLimit
         if self.minVal == self.maxVal:
             margin = 0.5
         else:
@@ -395,12 +408,13 @@ class ChannelPane(qwt.QwtPlot):
                 QBrush(), QPen(Qt.green), QSize(self.BoxSize, self.BoxSize))
         )
         self.curve2.setStyle(qwt.QwtPlotCurve.NoCurve)
-        self.curve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self)
+        self.curve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self, linewidth=2)
+
+        if self.channel.type == Channel.Digital:
+            fillbrush = QBrush(Qt.gray)
+            self.curve.setBrush(fillbrush)
         
-        if len(ydata) <= 0:
-            self.setDataRange(0.0, 1.0)
-        else:
-            self.resetDataRange()
+        self.resetDataRange()
 
         # Create green bar for audio sync
         self.timeSlider = qwt.QwtPlotCurve()
@@ -411,23 +425,24 @@ class ChannelPane(qwt.QwtPlot):
         self.timeSlider.attach(self)
 
         # Optionally create red line for upper and lower limits
-        mintime,maxtime = self.getTimeRange()
-        self.lowerLimitBar = qwt.QwtPlotCurve()
-        self.lowerLimitBar.setStyle(qwt.QwtPlotCurve.Sticks)
-        self.lowerLimitBar.setOrientation(Qt.Vertical)
-        self.lowerLimitBar.setPen(Qt.red, 2.0, Qt.SolidLine)
-        self.lowerLimitBar.attach(self)
-        if self.channel.minLimit > -1.0e33:
-            self.lowerLimitBar.setData([maxtime], [self.channel.minLimit])
-            self.lowerLimitBar.setBaseline(mintime)
-        self.upperLimitBar = qwt.QwtPlotCurve()
-        self.upperLimitBar.setStyle(qwt.QwtPlotCurve.Sticks)
-        self.upperLimitBar.setOrientation(Qt.Vertical)
-        self.upperLimitBar.setPen(Qt.red, 2.0, Qt.SolidLine)
-        self.upperLimitBar.attach(self)
-        if self.channel.maxLimit < 1.0e33:
-            self.upperLimitBar.setData([maxtime], [self.channel.maxLimit])
-            self.upperLimitBar.setBaseline(mintime)
+        if self.channel.type != Channel.Digital:
+            mintime,maxtime = self.getTimeRange()
+            self.lowerLimitBar = qwt.QwtPlotCurve()
+            self.lowerLimitBar.setStyle(qwt.QwtPlotCurve.Sticks)
+            self.lowerLimitBar.setOrientation(Qt.Vertical)
+            self.lowerLimitBar.setPen(Qt.red, 2.0, Qt.SolidLine)
+            self.lowerLimitBar.attach(self)
+            if self.channel.minLimit > -1.0e33:
+                self.lowerLimitBar.setData([maxtime+1000.0], [self.channel.minLimit])
+                self.lowerLimitBar.setBaseline(mintime-1000.0)
+            self.upperLimitBar = qwt.QwtPlotCurve()
+            self.upperLimitBar.setStyle(qwt.QwtPlotCurve.Sticks)
+            self.upperLimitBar.setOrientation(Qt.Vertical)
+            self.upperLimitBar.setPen(Qt.red, 2.0, Qt.SolidLine)
+            self.upperLimitBar.attach(self)
+            if self.channel.maxLimit < 1.0e33:
+                self.upperLimitBar.setData([maxtime+1000.0], [self.channel.maxLimit])
+                self.upperLimitBar.setBaseline(mintime-1000.0)
 
         # Create the popup menu
         self.popup = self.ChannelMenu(self, self.channel)
@@ -435,14 +450,15 @@ class ChannelPane(qwt.QwtPlot):
         pass
 
     def redrawLimits(self):
-        if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
-            mintime,maxtime = self.getTimeRange()
-            if self.channel.minLimit > -1.0e33:
-                self.lowerLimitBar.setData([maxtime], [self.channel.minLimit])
-                self.lowerLimitBar.setBaseline(mintime)
-            if self.channel.maxLimit < 1.0e33:
-                self.upperLimitBar.setData([maxtime], [self.channel.maxLimit])
-                self.upperLimitBar.setBaseline(mintime)
+        if self.channel.type != Channel.Digital:
+            if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                mintime,maxtime = self.getTimeRange()
+                if self.channel.minLimit > -1.0e33:
+                    self.lowerLimitBar.setData([maxtime+1000.0], [self.channel.minLimit])
+                    self.lowerLimitBar.setBaseline(mintime-1000.0)
+                if self.channel.maxLimit < 1.0e33:
+                    self.upperLimitBar.setData([maxtime+1000.0], [self.channel.maxLimit])
+                    self.upperLimitBar.setBaseline(mintime-1000.0)
 
     def findClosestPointWithinBox(self, i,j):
         """Finds the nearest plot point within BoxSize of mouse click"""
@@ -468,6 +484,9 @@ class ChannelPane(qwt.QwtPlot):
         if event.buttons() == Qt.LeftButton :
             xplotval = self.invTransform(self.X_BOTTOM_AXIS_ID, event.pos().x() - self.xoffset)
             yplotval = self.invTransform(self.Y_LEFT_AXIS_ID, event.pos().y() - self.yoffset)
+            if self.channel.type == Channel.Digital:
+                if yplotval >= 0.5: yplotval = 1.0
+                elif yplotval < 0.5: yplotval = 0.0
             # If shift key is down then
             modifiers = QApplication.keyboardModifiers()
             if modifiers == Qt.ShiftModifier:
@@ -513,6 +532,9 @@ class ChannelPane(qwt.QwtPlot):
             if self.selectedKey is not None:
                 xplotval = self.invTransform(self.X_BOTTOM_AXIS_ID, event.pos().x() - self.xoffset)
                 yplotval = self.invTransform(self.Y_LEFT_AXIS_ID, event.pos().y() - self.yoffset)
+                if self.channel.type == Channel.Digital:
+                    if yplotval >= 0.5: yplotval = 1.0
+                    elif yplotval < 0.5: yplotval = 0.0
                 del self.channel.knots[self.selectedKey]
                 # Avoid overwriting existing point as we drag past
                 if xplotval in self.channel.knots:
@@ -565,22 +587,26 @@ class ChannelMetadataWidget(QDialog):
         
         self._nameedit = QLineEdit()
         self._nameedit.setReadOnly(not editable)
+        self._nameedit.setText(self._channel.name)
         layout.addRow(QLabel('Name:'), self._nameedit)
-        self._typeedit = QComboBox()
-        self._typeedit.addItems(('Linear', 'Spline', 'Step'))
-        layout.addRow(QLabel('Type:'), self._typeedit)
-        self._portedit = QLineEdit()
-        layout.addRow(QLabel('Port:'), self._portedit)
-        self._minedit = QLineEdit()
-        layout.addRow(QLabel('Min:'), self._minedit)
-        self._maxedit = QLineEdit()
-        layout.addRow(QLabel('Max:'), self._maxedit)
 
-        if self._channel is not None:
-            self._nameedit.setText(self._channel.name)
+        if self._channel is not None and self._channel.type != Channel.Digital:
+            self._typeedit = QComboBox()
+            self._typeedit.addItems(('Linear', 'Spline', 'Step'))
             self._typeedit.setCurrentIndex(self._channel.type-1)
+            layout.addRow(QLabel('Type:'), self._typeedit)
+
+        self._portedit = QLineEdit()
+        layout.addRow(QLabel('Channel:'), self._portedit)
+        if self._channel is not None:
             if self._channel.port >= 0:
                 self._portedit.setText(str(self._channel.port))
+
+        if self._channel is not None and self._channel.type != Channel.Digital:
+            self._minedit = QLineEdit()
+            layout.addRow(QLabel('Min:'), self._minedit)
+            self._maxedit = QLineEdit()
+            layout.addRow(QLabel('Max:'), self._maxedit)
             if self._channel.minLimit > -1.0e33 or self._channel.maxLimit < 1.0e33:
                 self._minedit.setText(str(self._channel.minLimit))
                 self._maxedit.setText(str(self._channel.maxLimit))
@@ -605,43 +631,44 @@ class ChannelMetadataWidget(QDialog):
         self.cancelButton.clicked.connect(self.reject)
 
     def onAccepted(self):
-        # Need to validate limits prior to changing things
-        validate = False
-        tstring = self._minedit.text()
-        if len(tstring) > 0:
-            minLimit = float(tstring)
-            if minLimit > self._channel.minLimit: validate = True
-        else:
-            minLimit = self._channel.minLimit
-        tstring = self._maxedit.text()
-        if len(tstring) > 0:
-            maxLimit = float(tstring)
-            if maxLimit < self._channel.maxLimit: validate = True
-        else:
-            maxLimit = self._channel.maxLimit
-        if validate and minLimit < maxLimit:
-            minVal = 1.0e34
-            maxVal = -1.0e34
-            for keyval in self._channel.knots:
-                if self._channel.knots[keyval] < minVal: minVal = self._channel.knots[keyval]
-                if self._channel.knots[keyval] > maxVal: maxVal = self._channel.knots[keyval]
-            if minVal < minLimit or maxVal > maxLimit:
-                msgBox = QMessageBox(parent=self)
-                msgBox.setText('Knots in the channel fall outside these limits.')
-                msgBox.setInformativeText("Proceed and modify them to fit?")
-                msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
-                msgBox.setIcon(QMessageBox.Warning)
-                ret = msgBox.exec_()
-                if ret == QMessageBox.Yes:
-                    for keyval in self._channel.knots:
-                        if self._channel.knots[keyval] < minLimit: 
-                            self._channel.knots[keyval] = minLimit
-                        if self._channel.knots[keyval] > maxLimit:
-                            self._channel.knots[keyval] = maxLimit
-                else:
-                    # Cancel selected so don't do any updating below
-                    self.close()
-                    return
+        if self._channel.type != Channel.Digital:
+            # Need to validate limits prior to changing things
+            validate = False
+            tstring = self._minedit.text()
+            if len(tstring) > 0:
+                minLimit = float(tstring)
+                if minLimit > self._channel.minLimit: validate = True
+            else:
+                minLimit = self._channel.minLimit
+            tstring = self._maxedit.text()
+            if len(tstring) > 0:
+                maxLimit = float(tstring)
+                if maxLimit < self._channel.maxLimit: validate = True
+            else:
+                maxLimit = self._channel.maxLimit
+            if validate and minLimit < maxLimit:
+                minVal = 1.0e34
+                maxVal = -1.0e34
+                for keyval in self._channel.knots:
+                    if self._channel.knots[keyval] < minVal: minVal = self._channel.knots[keyval]
+                    if self._channel.knots[keyval] > maxVal: maxVal = self._channel.knots[keyval]
+                if minVal < minLimit or maxVal > maxLimit:
+                    msgBox = QMessageBox(parent=self)
+                    msgBox.setText('Knots in the channel fall outside these limits.')
+                    msgBox.setInformativeText("Proceed and modify them to fit?")
+                    msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                    msgBox.setIcon(QMessageBox.Warning)
+                    ret = msgBox.exec_()
+                    if ret == QMessageBox.Yes:
+                        for keyval in self._channel.knots:
+                            if self._channel.knots[keyval] < minLimit: 
+                                self._channel.knots[keyval] = minLimit
+                            if self._channel.knots[keyval] > maxLimit:
+                                self._channel.knots[keyval] = maxLimit
+                    else:
+                        # Cancel selected so don't do any updating below
+                        self.close()
+                        return
 
         # Push current state for undo
         global main_win
@@ -650,20 +677,25 @@ class ChannelMetadataWidget(QDialog):
         tstring = self._nameedit.text()
         if len(tstring) > 0:
             self._channel.name = tstring
-        self._channel.type = self._typeedit.currentIndex() + 1
+
+        if self._channel.type != Channel.Digital:
+            self._channel.type = self._typeedit.currentIndex() + 1
+
         tstring = self._portedit.text()
         if len(tstring) > 0:
             self._channel.port = int(tstring)
-        tstring = self._minedit.text()
-        if len(tstring) > 0:
-            self._channel.minLimit = float(tstring)
-        else:
-            self._channel.minLimit = -1.0e34
-        tstring = self._maxedit.text()
-        if len(tstring) > 0:
-            self._channel.maxLimit = float(tstring)
-        else:
-            self._channel.maxLimit = 1.0e34
+
+        if self._channel.type != Channel.Digital:
+            tstring = self._minedit.text()
+            if len(tstring) > 0:
+                self._channel.minLimit = float(tstring)
+            else:
+                self._channel.minLimit = -1.0e34
+            tstring = self._maxedit.text()
+            if len(tstring) > 0:
+                self._channel.maxLimit = float(tstring)
+            else:
+                self._channel.maxLimit = 1.0e34
 
         self.accept()
         main_win.updateXMLPane()
@@ -1008,14 +1040,17 @@ class MainWindow(QMainWindow):
             try:
                 # PyQt5 way
                 self.player.setMedia(qm.QMediaContent(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile)))
-                # Default notification rate is 1Hz in PyQt5 so up to 50Hz
-                self.player.setNotifyInterval(self.animatronics.sample_rate) # This fails in PyQt6???
-            except:
+                # Default notification rate is 1Hz in PyQt5 so up to 50Hz converted to milliseconds
+                self.player.setNotifyInterval(int(1000.0/self.animatronics.sample_rate)) # This fails in PyQt6
+            except Exception as e:
+                sys.stderr.write("Message: %s\n" % e)
+                sys.stderr.write("PyQt5 failure - trying PyQt6\n")
                 try:
                     # PyQt6 way
                     self.player.setSource(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile))
                     self.player.setAudioOutput(qm.QAudioOutput(qm.QAudioDevice()))
-                except:
+                except Exception as e:
+                    sys.stderr.write("Message: %s\n" % e)
                     print('Whoops - No Audio player')
                     pass
 
@@ -1171,7 +1206,8 @@ class MainWindow(QMainWindow):
         # Get the data points for each column
         for plot in self.plots:
             values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep)
-            columns[plot] = values
+            if values is not None:
+                columns[plot] = values
 
         # Get the filename to write to
         self.filedialog.setDefaultSuffix('csv')
@@ -1289,6 +1325,47 @@ class MainWindow(QMainWindow):
         # Keep XML display pane up to date with latest
         self.XMLPane.setText(self.animatronics.toXML())
             
+        pass
+
+    def newdigital_action(self):
+        """ Perform newdigital action"""
+        global main_win
+        main_win.saveStateOkay = False
+        tempChannel = Channel(intype=Channel.Digital)
+        td = ChannelMetadataWidget(channel=tempChannel, parent=self)
+        code = td.exec_()
+        main_win.saveStateOkay = True
+
+        if code == QDialog.Accepted:
+            # Check to see if channel already exists
+            ret = None
+            text = tempChannel.name
+            if len(text) <= 0:
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('A channel MUST have a name of at least one character and must be unique')
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
+            elif text in self.animatronics.channels:
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('The channel "%s" already exists.' % text)
+                msgBox.setInformativeText("Replace it?")
+                msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
+            if ret == QMessageBox.Yes:
+                del self.animatronics.channels[text]
+                ret = None
+            if ret is None:
+                # Push current state for undo
+                print('Prior to save state undo stack size is:', len(main_win.previousStates))
+                main_win.pushState()
+                print('After save state undo stack size is:', len(main_win.previousStates))
+
+                self.animatronics.channels[text] = tempChannel
+                self.setAnimatronics(self.animatronics)
+                print('After set animatronics undo stack size is:', len(main_win.previousStates))
+                
         pass
 
     def newchannel_action(self):
@@ -1594,11 +1671,6 @@ class MainWindow(QMainWindow):
         self._export_vsa_file_action.setEnabled(False)
         self._export_file_menu.addAction(self._export_vsa_file_action)
 
-        #self._export_file_action = QAction("&Export",
-        #        self, triggered=self.exportAnimFile)
-        #self.file_menu.addAction(self._export_file_action)
-        #self.file_menu.addMenu(self._export_file_menu)
-
         # exit action
         self.file_menu.addSeparator()
         self._exit_action = QAction("E&xit", self, shortcut="Ctrl+Q",
@@ -1617,9 +1689,13 @@ class MainWindow(QMainWindow):
 
         self.edit_menu.addSeparator()
 
-        self._newchannel_action = QAction("New Channel", self, shortcut="Ctrl+N",
+        self._newchannel_action = QAction("New Servo Channel", self, shortcut="Ctrl+N",
             triggered=self.newchannel_action)
         self.edit_menu.addAction(self._newchannel_action)
+
+        self._newdigital_action = QAction("New Digital Channel", self, shortcut="Ctrl+D",
+            triggered=self.newdigital_action)
+        self.edit_menu.addAction(self._newdigital_action)
 
         self._deletechannel_action = QAction("Delete Channels", self,
             triggered=self.deletechannel_action)
@@ -1792,18 +1868,25 @@ class AudioChannel:
 # animatronics with a single control channel.
 #####################################################################
 class Channel:
-    Linear = 1
-    Spline = 2
-    Step = 3
-    Smooth = 4
+    Linear = 1      # Servo/CAN channel with linear interpolation
+    Spline = 2      # Servo/CAN channel with Lagrange interpolation
+    Step = 3        # Servo/CAN channel with step changes
+    Digital = 4     # Digital (on/off) channel limited to 0 and 1
 
     def __init__(self, inname = '', intype = Linear):
         self.name = inname
         self.knots = {}
         self.knottitles = {}
         self.type = intype
-        self.maxLimit = 1.0e34
-        self.minLimit = -1.0e34
+        if intype == self.Digital:
+            self.minLimit = 0.0
+            self.maxLimit = 1.0
+        elif intype == self.Linear or intype == self.Spline:
+            self.minLimit = 0.0
+            self.maxLimit = 180.0
+        else:
+            self.maxLimit = 1.0e34
+            self.minLimit = -1.0e34
         self.port = -1
         self.rateLimit = -1.0
 
@@ -1848,6 +1931,7 @@ class Channel:
 
     def getPlotData(self, minTime, maxTime, maxCount):
         """Returns up to maxCount points along the visible part of the curve"""
+        print('Type:', self.type)
         keys = sorted(self.knots.keys())
         if len(keys) < 1:
             # Return Nones if channel is empty
@@ -1858,6 +1942,7 @@ class Channel:
             ydata = [self.knots[keys[0]] for i in range(maxCount+1)]
 
         elif self.type == self.Linear:
+            print('Type is Linear')
             # Just return the points within the time range plus some on either side
             if len(keys) < maxCount:
                 # Just send them all
@@ -1868,7 +1953,8 @@ class Channel:
                 # Just send them all for now
                 xdata = keys
                 ydata = [self.knots[key] for key in keys]
-        elif self.type == self.Step:
+        elif self.type == self.Step or self.type == self.Digital:
+            print('Type is Step or Digital')
             # To simulate a step function, output a value at the beginning and end
             # of its interval
             xdata = [min(minTime, keys[0])]
@@ -1883,7 +1969,8 @@ class Channel:
                     ydata.append(self.knots[keys[i]])
             xdata.append(max(maxTime, keys[-1]))
             ydata.append(self.knots[keys[-1]])
-        elif self.type == self.Smooth or self.type == self.Spline:
+        elif self.type == self.Spline:
+            print('Type is spline')
             # Use Lagrangian interpolation of knots
             timeStep = (maxTime - minTime) / maxCount
             currTime = minTime
@@ -1908,9 +1995,10 @@ class Channel:
 
                 currTime += timeStep
 
-        elif self.type == self.Spline:
-            xdata = None
-            ydata = None
+        else:
+            # Better never get here
+            print('Type is Invalid')
+            exit(10)
 
         # Limit the range of plot data to min and max values
         for i in range(len(ydata)):
@@ -1928,7 +2016,7 @@ class Channel:
             return None
 
         # Short cut for spline and smooth curves
-        if self.type == self.Spline or self.type == self.Smooth:
+        if self.type == self.Spline:
             maxCount = int((endTime - startTime) / timeStep)
             _, values = self.getPlotData(startTime, endTime, maxCount)
             return values
@@ -1940,10 +2028,10 @@ class Channel:
         values = []
         while currTime <= endTime:
             if currTime < keys[0]:
-                if self.type == self.Linear or self.type == self.Step:
+                if self.type == self.Linear or self.type == self.Step or self.type == self.Digital:
                     values.append(self.knots[keys[0]])
             elif currTime > keys[-1]:
-                if self.type == self.Linear or self.type == self.Step:
+                if self.type == self.Linear or self.type == self.Step or self.type == self.Digital:
                     values.append(self.knots[keys[-1]])
             else:
                 # Somewhere in range so find interval
@@ -1956,7 +2044,7 @@ class Channel:
                         (keys[nextkeyindex] - keys[nextkeyindex-1]))
                     values.append(tval)
                     pass
-                elif self.type == self.Step:
+                elif self.type == self.Step or self.type == self.Digital:
                     values.append(self.knots[keys[nextkeyindex-1]])
 
             currTime += timeStep
@@ -1971,7 +2059,7 @@ class Channel:
         if self.maxLimit <= 1.0e33:
             output.write(' maxLimit="%f"' % self.maxLimit)
         if self.port >= 0:
-            output.write(' port="%d"' % self.port)
+            output.write(' channel="%d"' % self.port)
         if self.rateLimit > 0.0:
             output.write(' rateLimit="%f"' % self.rateLimit)
         if self.type == self.Linear:
@@ -1980,6 +2068,8 @@ class Channel:
             output.write(' type="Spline">\n')
         elif self.type == self.Step:
             output.write(' type="Step">\n')
+        elif self.type == self.Digital:
+            output.write(' type="Digital">\n')
         for ttime in sorted(self.knots.keys()):
             if ttime not in self.knottitles:
                 output.write('    <Point time="%f">\n' % ttime)
@@ -2000,8 +2090,8 @@ class Channel:
                 self.maxLimit = float(inXML.attrib['maxLimit'])
             if 'rateLimit' in inXML.attrib:
                 self.rateLimit = float(inXML.attrib['rateLimit'])
-            if 'port' in inXML.attrib:
-                self.port = int(inXML.attrib['port'])
+            if 'channel' in inXML.attrib:
+                self.port = int(inXML.attrib['channel'])
             if 'type' in inXML.attrib:
                 if inXML.attrib['type'] == 'Linear':
                     self.type = self.Linear
@@ -2009,6 +2099,8 @@ class Channel:
                     self.type = self.Spline
                 elif inXML.attrib['type'] == 'Step':
                     self.type = self.Step
+                elif inXML.attrib['type'] == 'Digital':
+                    self.type = self.Digital
                 else:
                     raise Exception('Invalid Channel Type:%s' % inXML.attrib['type'])
         else:
