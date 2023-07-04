@@ -234,9 +234,9 @@ class ChannelPane(qwt.QwtPlot):
 
             # Rescale menu item
             self._Rescale_action = QAction("Rescale", self,
+                shortcut="Ctrl+R",
                 triggered=self.Rescale_action)
-            #    shortcut="Ctrl+R",
-            #self._Rescale_action.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+            self._Rescale_action.setShortcutContext(Qt.WidgetWithChildrenShortcut)
             self.addAction(self._Rescale_action)
             # self.parent.addAction(self._Rescale_action)
             # sc = QShortcut(parent=self.parent, key="Ctrl+F", shortcutContext=Qt.WidgetWithChildrenShortcut)
@@ -480,6 +480,7 @@ class ChannelPane(qwt.QwtPlot):
         self.setDataRange(minval, maxval)
 
     def mousePressEvent(self, event):
+        global main_win
         self.setOffsets()
         if event.buttons() == Qt.LeftButton :
             xplotval = self.invTransform(self.X_BOTTOM_AXIS_ID, event.pos().x() - self.xoffset)
@@ -487,25 +488,27 @@ class ChannelPane(qwt.QwtPlot):
             if self.channel.type == Channel.Digital:
                 if yplotval >= 0.5: yplotval = 1.0
                 elif yplotval < 0.5: yplotval = 0.0
-            # If shift key is down then
+            # Find nearest point
             modifiers = QApplication.keyboardModifiers()
-            if modifiers == Qt.ShiftModifier:
+            nearkey = self.findClosestPointWithinBox(event.pos().x(), event.pos().y())
+            if nearkey is not None:
+                # If close enough, select it and drag it around
+                self.selectedKey = nearkey
                 # Push current state for undo
-                global main_win
+                main_win.pushState()
+            elif modifiers == Qt.ShiftModifier:
+                # If shift key is down then we want to insert a new point
+                # Push current state for undo
                 main_win.pushState()
 
-                # Find nearest point
-                nearkey = self.findClosestPointWithinBox(event.pos().x(), event.pos().y())
-                if nearkey is not None:
-                    # If close enough, select it and drag it around
-                    self.selectedKey = nearkey
-                else:
-                    # else Insert a new point and drag it around
-                    nearkey = xplotval
-                    self.channel.knots[nearkey] = yplotval
-                    self.selectedKey = nearkey
-                    self.redrawme()
-            # else, drag to adjust vertical zoom and pan of this pane
+                # Insert a new point and drag it around
+                nearkey = xplotval
+                self.channel.knots[nearkey] = yplotval
+                self.selectedKey = nearkey
+                self.redrawme()
+            else:
+                # drag to adjust vertical zoom and pan of this pane
+                pass
         elif event.buttons()== Qt.MiddleButton :
             # Vertical pan of pane with wheel/mouse?
             pass
@@ -1065,66 +1068,44 @@ class MainWindow(QMainWindow):
             
 
     def openAnimFile(self):
-        if self.unsavedChanges:
-            msgBox = QMessageBox(parent=self)
-            msgBox.setText('The current animation has unsaved changes')
-            msgBox.setInformativeText("Save them?")
-            msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-            msgBox.setIcon(QMessageBox.Warning)
-            ret = msgBox.exec_()
-            if ret == QMessageBox.Save:
-                self.saveAnimFile()
-            elif ret == QMessageBox.Cancel:
-                return
+        if self.handle_unsaved_changes():
+            """Get filename and open as active animatronics"""
+            fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
+                                "Anim Files (*.anim);;All Files (*)",
+                                options=QFileDialog.DontUseNativeDialog)
 
-        """Get filename and open as active animatronics"""
-        fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
-                            "Anim Files (*.anim);;All Files (*)",
-                            options=QFileDialog.DontUseNativeDialog)
+            if fileName:
+                # Push current state for undo
+                global main_win
+                main_win.pushState()
 
-        if fileName:
+                newAnim = Animatronics()
+                try:
+                    newAnim.parseXML(fileName)
+                    self.setAnimatronics(newAnim)
+                    # Clear out edit history
+                    self.pendingStates = []
+                    self.unsavedChanges = False
+        
+                except Exception as e:
+                    main_win.popState()
+                    sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
+                    sys.stderr.write("Message: %s\n" % e)
+                    return
+
+
+    def newAnimFile(self):
+        if self.handle_unsaved_changes():
             # Push current state for undo
             global main_win
             main_win.pushState()
 
+            """Clear animatronics and start from scratch"""
             newAnim = Animatronics()
-            try:
-                newAnim.parseXML(fileName)
-                self.setAnimatronics(newAnim)
-                # Clear out edit history
-                self.pendingStates = []
-                self.unsavedChanges = False
-    
-            except Exception as e:
-                main_win.popState()
-                sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
-                sys.stderr.write("Message: %s\n" % e)
-                return
-
-
-    def newAnimFile(self):
-        if self.unsavedChanges:
-            msgBox = QMessageBox(parent=self)
-            msgBox.setText('The current animation has unsaved changes')
-            msgBox.setInformativeText("Save them?")
-            msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-            msgBox.setIcon(QMessageBox.Warning)
-            ret = msgBox.exec_()
-            if ret == QMessageBox.Save:
-                self.saveAnimFile()
-            elif ret == QMessageBox.Cancel:
-                return
-
-        # Push current state for undo
-        global main_win
-        main_win.pushState()
-
-        """Clear animatronics and start from scratch"""
-        newAnim = Animatronics()
-        self.setAnimatronics(newAnim)
-        # Clear out edit history
-        self.pendingStates = []
-        self.unsavedChanges = False
+            self.setAnimatronics(newAnim)
+            # Clear out edit history
+            self.pendingStates = []
+            self.unsavedChanges = False
     
     def mergeAnimFile(self):
         """Merge an animatronics file into the current one"""
@@ -1246,21 +1227,24 @@ class MainWindow(QMainWindow):
         """Export the current animatronics file into a Brookshire VSA format"""
         pass
 
-    def exit_action(self):
+    def handle_unsaved_changes(self):
         if self.unsavedChanges:
             msgBox = QMessageBox(parent=self)
             msgBox.setText('The current animation has unsaved changes')
             msgBox.setInformativeText("Save them?")
             msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            msgBox.setDefaultButton(QMessageBox.Save)
             msgBox.setIcon(QMessageBox.Warning)
             ret = msgBox.exec_()
             if ret == QMessageBox.Save:
                 self.saveAnimFile()
             elif ret == QMessageBox.Cancel:
-                return
-        self.close()
+                return False
+        return True
 
-        
+    def exit_action(self):
+        if self.handle_unsaved_changes():
+            self.close()
 
     def undo_action(self):
         print('Undo')
@@ -1644,6 +1628,10 @@ class MainWindow(QMainWindow):
                 self, shortcut="Ctrl+O", triggered=self.openAnimFile)
         self.file_menu.addAction(self._open_file_action)
 
+        self._selectaudio_action = QAction("Select Audio", self, shortcut="Ctrl+A",
+            triggered=self.selectaudio_action)
+        self.file_menu.addAction(self._selectaudio_action)
+
         # Merge action
         self._merge_file_action = QAction("&Merge Anim File",
                 self, triggered=self.mergeAnimFile)
@@ -1701,9 +1689,7 @@ class MainWindow(QMainWindow):
             triggered=self.deletechannel_action)
         self.edit_menu.addAction(self._deletechannel_action)
 
-        self._selectaudio_action = QAction("Select Audio", self, shortcut="Ctrl+A",
-            triggered=self.selectaudio_action)
-        self.edit_menu.addAction(self._selectaudio_action)
+        self.edit_menu.addSeparator()
 
         # editmetadata menu item
         self._editmetadata_action = QAction("Edit Metadata", self,
