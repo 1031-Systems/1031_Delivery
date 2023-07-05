@@ -788,12 +788,14 @@ class Player(QWidget):
         self._offset = 0.0
 
         self.mediaPlayer = player
-        if player is not None:
-            try:    # PyQt5
-                self.mediaPlayer.stateChanged.connect(self.mediaStateChanged)
-            except: # PyQt6
-                self.mediaPlayer.playbackStateChanged.connect(self.mediaStateChanged)
-        self.mediaPlayer.positionChanged.connect(self.positionNotify)
+
+        # Create timer to provide time steps in place of media player
+        self.timer = QTimer(self)
+        self.interval = interval
+        self.timer.setInterval(self.interval)
+        self.timer.timeout.connect(self.tellme)
+        self.currPosition = 0
+        self.playing = False
 
         btnSize = QSize(16, 16)
 
@@ -826,64 +828,80 @@ class Player(QWidget):
 
         self.setLayout(layout)
 
+        self.timeChangedCallbacks = []
+
     def setRange(self, minTime, maxTime):
         self._startPosition = int((minTime - self._offset) * 1000)
         self._endPosition = int((maxTime - self._offset) * 1000)
 
     def setOffset(self, audioStartTime):
-        self._offset = audioStartTime
+        self._offset = int(audioStartTime * 1000.0)
+
+    def addTimeChangedCallback(self, callback):
+        self.timeChangedCallbacks.append(callback)
 
     # Slots
+    def tellme(self):
+        if self.currPosition >= self._endPosition:
+            self.stopplaying()
+        else:
+            # If player not already playing
+            if self.mediaPlayer is not None:
+                if not self.is_media_playing():
+                    # Check to see if it should be
+                    desiredPosn = self.currPosition - self._offset
+                    if desiredPosn >= 0 and desiredPosn < self.mediaPlayer.duration():
+                        self.mediaPlayer.setPosition(desiredPosn)
+                        self.mediaPlayer.play()
+        for cb in self.timeChangedCallbacks:
+            cb(float(self.currPosition) / 1000.0)
+        self.currPosition += self.interval
+
     def rewind(self):
         # Go to left side of playable area
-        print('Hit Rewind')
-        self.mediaPlayer.setPosition(self._startPosition)
+        self.currPosition = self._startPosition
+        self.stopplaying()
+        for cb in self.timeChangedCallbacks:
+            cb(float(self.currPosition) / 1000.0)
         pass
 
+    def startplaying(self):
+        if self.currPosition < self._startPosition or self.currPosition >= self._endPosition:
+            self.currPosition = self._startPosition
+        self._playbutton.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
+        self.playing = True
+        self.timer.start()
+        self.tellme()   # Call the timer function for time=0
+
+    def stopplaying(self):
+        self.playing = False
+        self._playbutton.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        if self.mediaPlayer is not None: self.mediaPlayer.pause()
+        self.timer.stop()
+
     def play(self):
-        print('Hit Play')
+        if self.playing:
+            self.stopplaying()
+        else:
+            self.startplaying()
+
+    def is_media_playing(self):
         if self.mediaPlayer is not None:
             try:    # PyQt5
                 state = self.mediaPlayer.state()
                 if state == qm.QMediaPlayer.PlayingState:
-                    self.mediaPlayer.pause()
+                    return True
                 else:
-                    # Limit range of playback
-                    if self.mediaPlayer.position() < self._startPosition or self.mediaPlayer.position() >= self._endPosition:
-                        self.mediaPlayer.setPosition(self._startPosition)
-                    self.mediaPlayer.play()
+                    return False
             except: # PyQt6
                 if self.mediaPlayer.isPlaying():
-                    self.mediaPlayer.pause()
+                    return True
                 else:
-                    # Limit range of playback
-                    if self.mediaPlayer.position() < self._startPosition or self.mediaPlayer.position() >= self._endPosition:
-                        self.mediaPlayer.setPosition(self._startPosition)
-                    self.mediaPlayer.play()
-
-    def positionNotify(self, currPosition):
-        if currPosition >= self._endPosition:
-            self.mediaPlayer.stop() # Hmmm pause goes infinite here but stop does not???
-
-    def mediaStateChanged(self, state):
-        if self.mediaPlayer is not None:
-            try:    # PyQt5
-                state = self.mediaPlayer.state()
-                if state == qm.QMediaPlayer.PlayingState:
-                    self._playbutton.setIcon(
-                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
-                else:
-                    self._playbutton.setIcon(
-                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-            except: # PyQt6
-                state = self.mediaPlayer.playbackState()
-                if self.mediaPlayer.isPlaying():
-                    self._playbutton.setIcon(
-                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
-                else:
-                    self._playbutton.setIcon(
-                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-
+                    return False
+        else:
+            return False
 
     def setLeftConnect(self, leftConnection):
         # Set start of play range to current time and set left edge time to it
@@ -949,7 +967,6 @@ class MainWindow(QMainWindow):
 
         # Create the media player
         self.player = qm.QMediaPlayer()
-        self.player.positionChanged.connect(self.positionChanged)
 
         # Initialize with an empty animatronics object
         self.setAnimatronics(Animatronics())
@@ -979,6 +996,7 @@ class MainWindow(QMainWindow):
         shortcut.activated.connect(self._playwidget.play)
         self._playwidget.setLeftConnect(self.cutLeftSide)
         self._playwidget.setRightConnect(self.cutRightSide)
+        self._playwidget.addTimeChangedCallback(self.timeChanged)
         self._playwidget.hide()
         tlayout = QVBoxLayout(self._mainarea)
         tlayout.addWidget(self._playwidget)
@@ -1061,6 +1079,11 @@ class MainWindow(QMainWindow):
                     sys.stderr.write("Message: %s\n" % e)
                     print('Whoops - No Audio player')
                     pass
+            self.player.setMuted(False)
+        else:
+            # Mute the player because it does not seem to clear out old audio quite rightly
+            self.player.setMuted(True)
+
 
         for channel in self.animatronics.channels:
             chan = self.animatronics.channels[channel]
@@ -1462,8 +1485,8 @@ class MainWindow(QMainWindow):
         qd.exec_()
         pass
 
-    def positionChanged(self, position):
-        self.setSlider(float(position)/1000.0 + self.animatronics.start)
+    def timeChanged(self, currTime):
+        self.setSlider(currTime + self.animatronics.start)
 
     def setSlider(self, timeVal):
         if self.timeSlider is not None:
