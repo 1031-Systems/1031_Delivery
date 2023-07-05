@@ -171,6 +171,152 @@ class ChecklistDialog(QDialog):
             item = self.model.item(i)
             item.setCheckState(Qt.Unchecked)
 
+#####################################################################
+# The ChannelMenu class represents the editing menu for a
+# single channel.
+#####################################################################
+class ChannelMenu(QMenu):
+    """The popup widget for an individual channel pane"""
+    def __init__(self, parent, channel):
+        super().__init__(parent)
+        self.parent = parent
+        self.channel = channel
+        self.name = channel.name
+
+        # Make the font daintier for this popup menu
+        smallfont = QFont()
+        smallfont.setPointSize(8)
+        self.setFont(smallfont)
+
+        # metadata menu item
+        self._metadata_action = QAction("metadata", self,
+            triggered=self.metadata_action)
+        self.addAction(self._metadata_action)
+
+        # invert menu item
+        self._invert_action = QAction("invert", self,
+            triggered=self.invert_action)
+        self.addAction(self._invert_action)
+
+        # smooth menu item only for Linear channels
+        if self.channel.type == self.channel.Linear:
+            self._smooth_action = QAction("smooth", self,
+                triggered=self.smooth_action)
+            self._smooth_action.setEnabled(False)
+            self.addAction(self._smooth_action)
+
+        # wrap menu item
+        self._wrap_action = QAction("wrap", self,
+            triggered=self.wrap_action)
+        self._wrap_action.setEnabled(False)
+        self.addAction(self._wrap_action)
+
+        # copy menu item
+        self._copy_action = QAction("copy", self,
+            shortcut="Ctrl+C",
+            triggered=self.copy_action)
+        self.parent.addAction(self._copy_action)
+
+        # paste menu item
+        self._paste_action = QAction("paste", self,
+            shortcut="Ctrl+V",
+            triggered=self.paste_action)
+        self._paste_action.setEnabled(False)
+        self.addAction(self._paste_action)
+
+        # Rescale menu item
+        self._Rescale_action = QAction("Rescale", self,
+            shortcut="Ctrl+R",
+            triggered=self.Rescale_action)
+        self._Rescale_action.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+        self.addAction(self._Rescale_action)
+        # self.parent.addAction(self._Rescale_action)
+        # sc = QShortcut(parent=self.parent, key="Ctrl+F", shortcutContext=Qt.WidgetWithChildrenShortcut)
+        # sc = QShortcut(QKeySequence("Ctrl+F"), self.parent)
+        # sc.setContext(Qt.WidgetWithChildrenShortcut)
+        # sc.activated.connect(self.Rescale_action)
+
+        # Hide menu item
+        self._Hide_action = QAction("Hide", self,
+            triggered=self.Hide_action)
+        self.addAction(self._Hide_action)
+
+        # Delete menu item
+        self.addSeparator()
+        self._Delete_action = QAction("Delete", self,
+            triggered=self.Delete_action)
+        self.addAction(self._Delete_action)
+
+        self.hide()
+
+    def metadata_action(self):
+        """ Perform metadata action"""
+        tname = self.channel.name
+        td = ChannelMetadataWidget(channel=self.channel, parent=self, editable=False)
+        code = td.exec_()
+
+        if code == QDialog.Accepted:
+            # Need to trigger redraw
+            self.parent.holder.setAnimatronics(self.parent.holder.animatronics)
+            pass
+            
+        pass
+
+    def invert_action(self):
+        """ Perform invert action"""
+        if ((self.channel.maxLimit > 1.0e33 and self.channel.minLimit > -1.0e33) or
+            (self.channel.maxLimit < 1.0e33 and self.channel.minLimit < -1.0e33)):
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('A channel cannot be inverted with only one limit set!')
+            msgBox.setInformativeText("Set or clear both limits.")
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            return
+        else:
+            # Push current state for undo
+            global main_win
+            main_win.pushState()
+
+            for key in self.channel.knots:
+                self.channel.knots[key] = (self.channel.maxLimit + self.channel.minLimit) - self.channel.knots[key]
+            self.parent.redrawme()
+            main_win.updateXMLPane()
+        pass
+
+    def smooth_action(self):
+        """ Perform smooth action"""
+        pass
+
+    def wrap_action(self):
+        """ Perform wrap action"""
+        pass
+
+    def copy_action(self):
+        """ Perform copy action"""
+        print('Hit Ctrl+c for Copy')
+        pass
+
+    def paste_action(self):
+        """ Perform paste action"""
+        pass
+
+    def Rescale_action(self):
+        """ Perform Rescale action"""
+        self.parent.resetDataRange()
+        pass
+
+    def Hide_action(self):
+        """ Perform Hide action"""
+        self.parent.hidePane()
+        pass
+
+    def Delete_action(self):
+        """ Perform Delete action"""
+        if self.parent.holder is not None:
+            self.parent.holder.deleteChannels([self.name])
+        pass
+
 
 #####################################################################
 # The ChannelPane class represents the display widget for a
@@ -182,148 +328,6 @@ class ChannelPane(qwt.QwtPlot):
     X_BOTTOM_AXIS_ID = 2
     X_TOP_AXIS_ID = 3
     BoxSize = 10
-
-    class ChannelMenu(QMenu):
-        """The popup widget for an individual channel pane"""
-        def __init__(self, parent, channel):
-            super().__init__(parent)
-            self.parent = parent
-            self.channel = channel
-            self.name = channel.name
-
-            # Make the font daintier for this popup menu
-            smallfont = QFont()
-            smallfont.setPointSize(8)
-            self.setFont(smallfont)
-
-            # metadata menu item
-            self._metadata_action = QAction("metadata", self,
-                triggered=self.metadata_action)
-            self.addAction(self._metadata_action)
-
-            # invert menu item
-            self._invert_action = QAction("invert", self,
-                triggered=self.invert_action)
-            self.addAction(self._invert_action)
-
-            # smooth menu item only for Linear channels
-            if self.channel.type == self.channel.Linear:
-                self._smooth_action = QAction("smooth", self,
-                    triggered=self.smooth_action)
-                self._smooth_action.setEnabled(False)
-                self.addAction(self._smooth_action)
-
-            # wrap menu item
-            self._wrap_action = QAction("wrap", self,
-                triggered=self.wrap_action)
-            self._wrap_action.setEnabled(False)
-            self.addAction(self._wrap_action)
-
-            # copy menu item
-            self._copy_action = QAction("copy", self,
-                shortcut="Ctrl+C",
-                triggered=self.copy_action)
-            self.parent.addAction(self._copy_action)
-
-            # paste menu item
-            self._paste_action = QAction("paste", self,
-                shortcut="Ctrl+V",
-                triggered=self.paste_action)
-            self._paste_action.setEnabled(False)
-            self.addAction(self._paste_action)
-
-            # Rescale menu item
-            self._Rescale_action = QAction("Rescale", self,
-                shortcut="Ctrl+R",
-                triggered=self.Rescale_action)
-            self._Rescale_action.setShortcutContext(Qt.WidgetWithChildrenShortcut)
-            self.addAction(self._Rescale_action)
-            # self.parent.addAction(self._Rescale_action)
-            # sc = QShortcut(parent=self.parent, key="Ctrl+F", shortcutContext=Qt.WidgetWithChildrenShortcut)
-            # sc = QShortcut(QKeySequence("Ctrl+F"), self.parent)
-            # sc.setContext(Qt.WidgetWithChildrenShortcut)
-            # sc.activated.connect(self.Rescale_action)
-
-            # Hide menu item
-            self._Hide_action = QAction("Hide", self,
-                triggered=self.Hide_action)
-            self.addAction(self._Hide_action)
-
-            # Delete menu item
-            self.addSeparator()
-            self._Delete_action = QAction("Delete", self,
-                triggered=self.Delete_action)
-            self.addAction(self._Delete_action)
-
-            self.hide()
-
-        def metadata_action(self):
-            """ Perform metadata action"""
-            tname = self.channel.name
-            td = ChannelMetadataWidget(channel=self.channel, parent=self, editable=False)
-            code = td.exec_()
-
-            if code == QDialog.Accepted:
-                # Need to trigger redraw
-                self.parent.holder.setAnimatronics(self.parent.holder.animatronics)
-                pass
-                
-            pass
-
-        def invert_action(self):
-            """ Perform invert action"""
-            if ((self.channel.maxLimit > 1.0e33 and self.channel.minLimit > -1.0e33) or
-                (self.channel.maxLimit < 1.0e33 and self.channel.minLimit < -1.0e33)):
-                msgBox = QMessageBox(parent=self)
-                msgBox.setText('A channel cannot be inverted with only one limit set!')
-                msgBox.setInformativeText("Set or clear both limits.")
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.setIcon(QMessageBox.Warning)
-                ret = msgBox.exec_()
-                return
-            else:
-                # Push current state for undo
-                global main_win
-                main_win.pushState()
-
-                for key in self.channel.knots:
-                    self.channel.knots[key] = (self.channel.maxLimit + self.channel.minLimit) - self.channel.knots[key]
-                self.parent.redrawme()
-                main_win.updateXMLPane()
-            pass
-
-        def smooth_action(self):
-            """ Perform smooth action"""
-            pass
-
-        def wrap_action(self):
-            """ Perform wrap action"""
-            pass
-
-        def copy_action(self):
-            """ Perform copy action"""
-            print('Hit Ctrl+c for Copy')
-            pass
-
-        def paste_action(self):
-            """ Perform paste action"""
-            pass
-
-        def Rescale_action(self):
-            """ Perform Rescale action"""
-            self.parent.resetDataRange()
-            pass
-
-        def Hide_action(self):
-            """ Perform Hide action"""
-            self.parent.hidePane()
-            pass
-
-        def Delete_action(self):
-            """ Perform Delete action"""
-            if self.parent.holder is not None:
-                self.parent.holder.deleteChannels([self.name])
-            pass
 
     def __init__(self, parent=None, inchannel=None, mainwindow=None):
         super().__init__(parent)
@@ -445,7 +449,7 @@ class ChannelPane(qwt.QwtPlot):
                 self.upperLimitBar.setBaseline(mintime-1000.0)
 
         # Create the popup menu
-        self.popup = self.ChannelMenu(self, self.channel)
+        self.popup = ChannelMenu(self, self.channel)
 
         pass
 
@@ -775,7 +779,7 @@ class MetadataWidget(QDialog):
 # The Player class is a widget with playback controls
 #####################################################################
 class Player(QWidget):
-    def __init__(self, parent=None, player=None):
+    def __init__(self, parent=None, player=None, interval=20):
         super().__init__(parent)
 
         self._startPosition = 0.0
@@ -943,6 +947,7 @@ class MainWindow(QMainWindow):
         self.totalMax = 1.0
         self._slideTime = 0.0
 
+        # Create the media player
         self.player = qm.QMediaPlayer()
         self.player.positionChanged.connect(self.positionChanged)
 
@@ -1917,7 +1922,6 @@ class Channel:
 
     def getPlotData(self, minTime, maxTime, maxCount):
         """Returns up to maxCount points along the visible part of the curve"""
-        print('Type:', self.type)
         keys = sorted(self.knots.keys())
         if len(keys) < 1:
             # Return Nones if channel is empty
@@ -1928,7 +1932,6 @@ class Channel:
             ydata = [self.knots[keys[0]] for i in range(maxCount+1)]
 
         elif self.type == self.Linear:
-            print('Type is Linear')
             # Just return the points within the time range plus some on either side
             if len(keys) < maxCount:
                 # Just send them all
@@ -1940,7 +1943,6 @@ class Channel:
                 xdata = keys
                 ydata = [self.knots[key] for key in keys]
         elif self.type == self.Step or self.type == self.Digital:
-            print('Type is Step or Digital')
             # To simulate a step function, output a value at the beginning and end
             # of its interval
             xdata = [min(minTime, keys[0])]
@@ -1956,7 +1958,6 @@ class Channel:
             xdata.append(max(maxTime, keys[-1]))
             ydata.append(self.knots[keys[-1]])
         elif self.type == self.Spline:
-            print('Type is spline')
             # Use Lagrangian interpolation of knots
             timeStep = (maxTime - minTime) / maxCount
             currTime = minTime
