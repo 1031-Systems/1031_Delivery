@@ -782,10 +782,10 @@ class Player(QWidget):
     def __init__(self, parent=None, player=None, interval=20):
         super().__init__(parent)
 
-        self._startPosition = 0.0
-        self._endPosition = 10000.0   # 10 seconds
-        # The offset is the start time of the audio in case it is not 0.0
-        self._offset = 0.0
+        self._startPosition = 0
+        self._endPosition = 10000   # 10 seconds
+        # The offset is the start time of the audio in case it is not 0
+        self._offset = 0
 
         self.mediaPlayer = player
 
@@ -1079,10 +1079,10 @@ class MainWindow(QMainWindow):
                     sys.stderr.write("Message: %s\n" % e)
                     print('Whoops - No Audio player')
                     pass
-            self.player.setMuted(False)
         else:
             # Mute the player because it does not seem to clear out old audio quite rightly
-            self.player.setMuted(True)
+            # Not sure what I want to do here
+            pass
 
 
         for channel in self.animatronics.channels:
