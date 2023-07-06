@@ -1030,6 +1030,7 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
+                # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showmono_audio_action)
                 self._showmono_audio_action.setChecked(True)
             else:
@@ -1039,6 +1040,7 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
+                # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showleft_audio_action)
                 self._showleft_audio_action.setChecked(True)
                 newplot = qwt.QwtPlot('Audio Right')
@@ -1047,6 +1049,7 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlotRight = newplot
+                # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showright_audio_action)
                 self._showright_audio_action.setChecked(True)
             if self.audioMax > self.totalMax: self.totalMax = self.audioMax
@@ -1559,7 +1562,11 @@ class MainWindow(QMainWindow):
         """ Perform showall action"""
         # Unhide audio channels
         if self.audioPlot is not None: self.audioPlot.show()
+        self._showmono_audio_action.setChecked(True)
+        self._showleft_audio_action.setChecked(True)
         if self.audioPlotRight is not None: self.audioPlotRight.show()
+        self._showright_audio_action.setChecked(True)
+
         # Unhide all channels
         for i in self.plots:
             self.plots[i].show()
