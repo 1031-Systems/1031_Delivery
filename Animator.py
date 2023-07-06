@@ -22,6 +22,8 @@ import operator
 # Utilize XML to read/write animatronics files
 import xml.etree.ElementTree as ET
 
+usedPyQt = None
+
 try:
     # Qt import block for all widgets
     from PyQt5.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
@@ -37,6 +39,7 @@ try:
         QHBoxLayout, QWidget, QPushButton, QTextEdit, QFormLayout, QTextBrowser,
         QErrorMessage, QMenu, QShortcut)
     from PyQt5 import QtMultimedia as qm
+    usedPyQt = 5
 except:
     try:
         # Qt import block for all widgets
@@ -53,6 +56,7 @@ except:
             QHBoxLayout, QWidget, QPushButton, QTextEdit, QFormLayout, QTextBrowser,
             QErrorMessage, QMenu)
         from PyQt6 import QtMultimedia as qm
+        usedPyQt = 6
     except:
         print('Whoops - Unable to find PyQt5 or PyQt6 - Quitting')
         exit(10)
@@ -889,13 +893,13 @@ class Player(QWidget):
 
     def is_media_playing(self):
         if self.mediaPlayer is not None:
-            try:    # PyQt5
+            if usedPyQt == 5:    # PyQt5
                 state = self.mediaPlayer.state()
                 if state == qm.QMediaPlayer.PlayingState:
                     return True
                 else:
                     return False
-            except: # PyQt6
+            elif usedPyQt == 6: # PyQt6
                 if self.mediaPlayer.isPlaying():
                     return True
                 else:
@@ -1076,22 +1080,13 @@ class MainWindow(QMainWindow):
 
 
             # Create/open QtMediaPlayer
-            try:
+            if usedPyQt == 5:
                 # PyQt5 way
                 self.player.setMedia(qm.QMediaContent(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile)))
-                # Default notification rate is 1Hz in PyQt5 so up to 50Hz converted to milliseconds
-                self.player.setNotifyInterval(int(1000.0/self.animatronics.sample_rate)) # This fails in PyQt6
-            except Exception as e:
-                sys.stderr.write("Message: %s\n" % e)
-                sys.stderr.write("PyQt5 failure - trying PyQt6\n")
-                try:
-                    # PyQt6 way
-                    self.player.setSource(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile))
-                    self.player.setAudioOutput(qm.QAudioOutput(qm.QAudioDevice()))
-                except Exception as e:
-                    sys.stderr.write("Message: %s\n" % e)
-                    print('Whoops - No Audio player')
-                    pass
+            elif usedPyQt == 6:
+                # PyQt6 way
+                self.player.setSource(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile))
+                self.player.setAudioOutput(qm.QAudioOutput(qm.QAudioDevice()))
         else:
             # Mute the player because it does not seem to clear out old audio quite rightly
             # Not sure what I want to do here
