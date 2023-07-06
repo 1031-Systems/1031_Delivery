@@ -983,6 +983,8 @@ class MainWindow(QMainWindow):
         self.audioCurveRight = None
         self.timeSlider = None
         self.timeSliderRight = None
+        self._show_audio_menu.clear()
+        self._show_audio_menu.setEnabled(False)
 
         # Create the bottom level widget and make it the main widget
         self._mainarea = QScrollArea(self)
@@ -1028,6 +1030,8 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
+                self._show_audio_menu.addAction(self._showmono_audio_action)
+                self._showmono_audio_action.setChecked(True)
             else:
                 newplot = qwt.QwtPlot('Audio Left')
                 self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=leftdata,
@@ -1035,15 +1039,21 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
+                self._show_audio_menu.addAction(self._showleft_audio_action)
+                self._showleft_audio_action.setChecked(True)
                 newplot = qwt.QwtPlot('Audio Right')
                 self.audioCurveRight = qwt.QwtPlotCurve.make(xdata=xdata, ydata=rightdata,
                     title='Audio', plot=newplot,
                     )
                 layout.addWidget(newplot)
                 self.audioPlotRight = newplot
+                self._show_audio_menu.addAction(self._showright_audio_action)
+                self._showright_audio_action.setChecked(True)
             if self.audioMax > self.totalMax: self.totalMax = self.audioMax
             self.lastXmin = self.audioMin
             self.lastXmax = self.audioMax
+
+            self._show_audio_menu.setEnabled(True)
 
             # Create green bars for audio sync
             self.timeSlider = qwt.QwtPlotCurve()
@@ -1547,6 +1557,9 @@ class MainWindow(QMainWindow):
 
     def showall_action(self):
         """ Perform showall action"""
+        # Unhide audio channels
+        if self.audioPlot is not None: self.audioPlot.show()
+        if self.audioPlotRight is not None: self.audioPlotRight.show()
         # Unhide all channels
         for i in self.plots:
             self.plots[i].show()
@@ -1640,6 +1653,16 @@ class MainWindow(QMainWindow):
         self.helpPane.setSource('docs/Help.md')
         self.helpPane.resize(600, 700)
         self.helpPane.show()
+
+    def showleft_audio_action(self, checked):
+        if self.audioPlot is not None:
+            if checked: self.audioPlot.show()
+            else: self.audioPlot.hide()
+
+    def showright_audio_action(self, checked):
+        if self.audioPlotRight is not None:
+            if checked: self.audioPlotRight.show()
+            else: self.audioPlotRight.hide()
 
     def create_menus(self):
         """Creates all the dropdown menus for the toolbar and associated actions"""
@@ -1748,6 +1771,18 @@ class MainWindow(QMainWindow):
         self._showselector_action = QAction("Select Viewed Channels", self,
             triggered=self.showselector_action)
         self.view_menu.addAction(self._showselector_action)
+
+        self._show_audio_menu = self.view_menu.addMenu("Show Audio")
+        # Make actions to be associated with menu later
+        self._showmono_audio_action = QAction("Audio Mono", self,
+            checkable=True,
+            triggered=self.showleft_audio_action)
+        self._showleft_audio_action = QAction("Audio Left", self,
+            checkable=True,
+            triggered=self.showleft_audio_action)
+        self._showright_audio_action = QAction("Audio Right", self,
+            checkable=True,
+            triggered=self.showright_audio_action)
 
         self.view_menu.addSeparator()
 
