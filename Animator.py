@@ -1061,6 +1061,7 @@ class MainWindow(QMainWindow):
             self.lastXmax = self.audioMax
 
             self._show_audio_menu.setEnabled(True)
+            self._audio_amplitude_action.setChecked(False)
 
             # Create green bars for audio sync
             self.timeSlider = qwt.QwtPlotCurve()
@@ -1535,7 +1536,10 @@ class MainWindow(QMainWindow):
     def redrawAudio(self, minTime, maxTime):
         if self.audioPlot is not None and self.audioCurve is not None:
             if self.animatronics.newAudio is not None:
-                xdata, ydata, rightdata = self.animatronics.newAudio.getPlotData(minTime, maxTime, 4000)
+                if self._audio_amplitude_action.isChecked():
+                    xdata, ydata, rightdata = self.animatronics.newAudio.getAmplitudeData(minTime, maxTime, 4000)
+                else:
+                    xdata, ydata, rightdata = self.animatronics.newAudio.getPlotData(minTime, maxTime, 4000)
                 self.audioCurve.setData(xdata, ydata)
                 if self.audioCurveRight is not None and rightdata is not None:
                     self.audioCurveRight.setData(xdata, rightdata)
@@ -1666,6 +1670,33 @@ class MainWindow(QMainWindow):
             if checked: self.audioPlotRight.show()
             else: self.audioPlotRight.hide()
 
+    def showaudio_amplitude_action(self, checked):
+        if checked:
+            # Convert audio data to amplitude and set in audio pane
+            xdata, leftdata, rightdata = self.animatronics.newAudio.getAmplitudeData(self.audioMin, self.audioMax, 4000)
+            if self.audioCurve is not None and self.audioPlot is not None:
+                self.audioCurve.setSamples(xdata, leftdata)
+                self.audioPlot.replot()
+                pass
+            if self.audioCurveRight is not None and self.audioPlotRight is not None:
+                self.audioCurveRight.setSamples(xdata, rightdata)
+                self.audioPlotRight.replot()
+                pass
+            pass
+        else:
+            # Display non amplitude audio data
+            xdata, leftdata, rightdata = self.animatronics.newAudio.getPlotData(self.audioMin, self.audioMax, 4000)
+            if self.audioCurve is not None and self.audioPlot is not None:
+                self.audioCurve.setSamples(xdata, leftdata)
+                self.audioPlot.replot()
+                pass
+            if self.audioCurveRight is not None and self.audioPlotRight is not None:
+                self.audioCurveRight.setSamples(xdata, rightdata)
+                self.audioPlotRight.replot()
+                pass
+            pass
+        pass
+
     def create_menus(self):
         """Creates all the dropdown menus for the toolbar and associated actions"""
 
@@ -1788,6 +1819,13 @@ class MainWindow(QMainWindow):
 
         self.view_menu.addSeparator()
 
+        self._audio_amplitude_action = QAction("Audio Amplitude", self,
+            checkable=True,
+            triggered=self.showaudio_amplitude_action)
+        self.view_menu.addAction(self._audio_amplitude_action)
+
+        self.view_menu.addSeparator()
+
         # playbackcontrols menu item
         self._playbackcontrols_action = QAction("Toggle Playback Controls", self,
             triggered=self.playbackcontrols_action)
@@ -1874,6 +1912,59 @@ class AudioChannel:
                     rightdata.append(float(short[1]))
                 currTime += timeStep
             return xdata, leftdata , rightdata
+
+    def getAmplitudeData(self, minTime, maxTime, maxCount):
+
+        intSize = 30
+        """ Get intSize times as much data as needed, then pick max amplitude in each intSize sample window"""
+        xdata, leftdata, rightdata = self.getPlotData(minTime, maxTime, maxCount*intSize)
+        outx = []
+        outleft = []
+        outright = None
+        i = 0
+        while i < len(leftdata):
+            outx.append(xdata[i])
+            sumleft = 0.0
+            for j in range(intSize):
+                if i < len(leftdata):
+                    sumleft = max(sumleft, abs(leftdata[i]))
+                    i += 1
+            outleft.append(sumleft)
+
+        if rightdata is not None:
+            outright = []
+            i = 0
+            while i < len(rightdata):
+                outx.append(xdata[i])
+                sumright = 0.0
+                for j in range(intSize):
+                    if i < len(rightdata):
+                        sumright = max(sumright, abs(rightdata[i]))
+                        i += 1
+                outright.append(sumright)
+
+        return outx, outleft, outright
+
+        # Below here is some alternative code that might be better and might not
+        """ Get as much data as needed, then pick max amplitude in each intSize sample window"""
+        if rightdata is not None:
+            outright = []
+            minptr = 0
+            maxptr = int(intSize/2)
+            while minptr < len(leftdata) - int(intSize/2):
+                sumleft = 0.0
+                for i in range(minptr, maxptr):
+                    sumleft = max(sumleft, abs(leftdata[i]))
+                outright.append(sumleft)
+                if maxptr < len(leftdata): 
+                    maxptr += 1
+                    if minptr < maxptr - intSize:
+                        minptr += 1
+                else:
+                    minptr += 1
+
+        return xdata, outleft, outright
+        
 
     def setAudioFile(self, infilename):
         # Now read the audio data
