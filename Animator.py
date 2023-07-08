@@ -29,8 +29,8 @@ try:
     from PyQt5.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
         QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
     from PyQt5.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
-        QDoubleValidator, QRegularExpressionValidator, QValidator, 
-        QStandardItem, QStandardItemModel, QFont, QKeySequence)
+        QDoubleValidator, QRegularExpressionValidator, QValidator, QCursor,
+        QStandardItem, QStandardItemModel, QFont, QKeySequence, QPalette)
     from PyQt5.QtWidgets import (QAbstractItemView, QAction, QApplication,
         QCheckBox, QComboBox, QFileDialog, QDialog, QDialogButtonBox, QGridLayout,
         QGroupBox, QHeaderView, QInputDialog, QItemDelegate, QLabel, QLineEdit, QListView,
@@ -46,7 +46,7 @@ except:
         from PyQt6.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
             QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
         from PyQt6.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
-            QDoubleValidator, QRegularExpressionValidator, QValidator, 
+            QDoubleValidator, QRegularExpressionValidator, QValidator, QCursor,
             QStandardItem, QStandardItemModel, QAction, QFont, QKeySequence, QShortcut)
         from PyQt6.QtWidgets import (QAbstractItemView, QApplication,
             QCheckBox, QComboBox, QFileDialog, QDialog, QDialogButtonBox, QGridLayout,
@@ -217,13 +217,11 @@ class ChannelMenu(QMenu):
 
         # copy menu item
         self._copy_action = QAction("copy", self,
-            shortcut="Ctrl+C",
             triggered=self.copy_action)
         self.parent.addAction(self._copy_action)
 
         # paste menu item
         self._paste_action = QAction("paste", self,
-            shortcut="Ctrl+V",
             triggered=self.paste_action)
         self._paste_action.setEnabled(False)
         self.addAction(self._paste_action)
@@ -350,12 +348,13 @@ class ChannelPane(qwt.QwtPlot):
         self.xoffset = 0
         self.yoffset = 0
         self.selectedKey= None
+        self.selected = False
         self.settimerange(0.0, 100.0)
         self.setDataRange(-1.0, 1.0)
         self.setAxisTitle(self.Y_LEFT_AXIS_ID, self.channel.name)
 
         self.create()
-    
+
     def settimerange(self, mintime, maxtime):
         self.minTime = mintime
         self.maxTime = maxtime
@@ -455,18 +454,31 @@ class ChannelPane(qwt.QwtPlot):
         # Create the popup menu
         self.popup = ChannelMenu(self, self.channel)
 
-        pass
+        # Set up palettes for selected and not selected
+        self._unselectedPalette = self.palette()
+        backcolor = QColor()
+        backcolor.setRgb(100, 200, 100)
+        self._selectedPalette = QPalette()
+        self._selectedPalette.setColor(self.canvas().backgroundRole(), backcolor)
 
+        pass
+    
     def redrawLimits(self):
-        if self.channel.type != Channel.Digital:
-            if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
-                mintime,maxtime = self.getTimeRange()
-                if self.channel.minLimit > -1.0e33:
-                    self.lowerLimitBar.setData([maxtime+1000.0], [self.channel.minLimit])
-                    self.lowerLimitBar.setBaseline(mintime-1000.0)
-                if self.channel.maxLimit < 1.0e33:
-                    self.upperLimitBar.setData([maxtime+1000.0], [self.channel.maxLimit])
-                    self.upperLimitBar.setBaseline(mintime-1000.0)
+        try:
+            if self.channel.type != Channel.Digital:
+                if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                    mintime,maxtime = self.getTimeRange()
+                    if mintime > maxtime:   # Happens when there are no data points so kluge
+                        mintime = 0.0
+                        maxtime = 1.0
+                    if self.channel.minLimit > -1.0e33:
+                        self.lowerLimitBar.setData([maxtime+1000.0], [self.channel.minLimit])
+                        self.lowerLimitBar.setBaseline(mintime-1000.0)
+                    if self.channel.maxLimit < 1.0e33:
+                        self.upperLimitBar.setData([maxtime+1000.0], [self.channel.maxLimit])
+                        self.upperLimitBar.setBaseline(mintime-1000.0)
+        except:
+            pass
 
     def findClosestPointWithinBox(self, i,j):
         """Finds the nearest plot point within BoxSize of mouse click"""
@@ -476,6 +488,22 @@ class ChannelPane(qwt.QwtPlot):
             if abs(i-pnti) <= self.BoxSize/2 and abs(j-pntj) <= self.BoxSize/2:
                 return keyval
         return None
+
+    def select(self):
+        self.selected = True
+        # Go to selected background
+        self.canvas().setPalette(self._selectedPalette)
+
+    def deselect(self):
+        self.selected = False
+        # Back to blue background
+        self.canvas().setPalette(self._unselectedPalette)
+
+    def invertselect(self):
+        if self.selected:
+            self.deselect()
+        else:
+            self.select()
 
     def wheelEvent(self, event):
         numDegrees = event.angleDelta() / 8
@@ -509,11 +537,18 @@ class ChannelPane(qwt.QwtPlot):
                 # Push current state for undo
                 main_win.pushState()
 
+                # Apply limits
+                if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                    if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
+                    if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
                 # Insert a new point and drag it around
                 nearkey = xplotval
                 self.channel.knots[nearkey] = yplotval
                 self.selectedKey = nearkey
                 self.redrawme()
+            elif modifiers == Qt.ControlModifier:
+                # Select/deselect this channel
+                self.invertselect()
             else:
                 # drag to adjust vertical zoom and pan of this pane
                 pass
@@ -529,11 +564,8 @@ class ChannelPane(qwt.QwtPlot):
         pass
     
     def mouseReleaseEvent(self, event):
-        print('Something released')
         if self.selectedKey is not None:
-            print('Left release')
             self.selectedKey = None
-            self.redrawLimits()
             self.replot()
             main_win.updateXMLPane()
         pass
@@ -578,7 +610,8 @@ class ChannelPane(qwt.QwtPlot):
             if len(xdata) > 1:
                 margin = (self.maxVal - self.minVal) * 0.05
                 self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal-margin, self.maxVal+margin)
-        
+
+        self.redrawLimits()
         self.replot()
 
 #####################################################################
@@ -968,6 +1001,7 @@ class MainWindow(QMainWindow):
         self.totalMin = 0.0
         self.totalMax = 1.0
         self._slideTime = 0.0
+        self.clipboard = None
 
         # Create the media player
         self.player = qm.QMediaPlayer()
@@ -1023,6 +1057,7 @@ class MainWindow(QMainWindow):
 
         # Remove all existing plot channels
         self.plots = {}
+        self.selectedplots = []
 
         if self.animatronics.newAudio is not None:
             self.audioMin,self.audioMax = self.animatronics.newAudio.audioTimeRange()
@@ -1284,7 +1319,6 @@ class MainWindow(QMainWindow):
             self.close()
 
     def undo_action(self):
-        print('Undo')
         self.saveStateOkay = False
         if len(self.previousStates) > 0:
             if self.animatronics is not None:
@@ -1697,6 +1731,131 @@ class MainWindow(QMainWindow):
             pass
         pass
 
+    def selectAll_action(self):
+        for name in self.plots:
+            self.plots[name].select()
+        pass
+
+    def deselectAll_action(self):
+        """ Perform deselectAll action"""
+        for name in self.plots:
+            self.plots[name].deselect()
+        pass
+
+        pass
+
+    def Copy_action(self):
+        """ Perform Copy action"""
+        # Make sure there is only one channel selected
+        selection = []
+        for name in self.plots:
+            if self.plots[name].selected:
+                selection.append(name)
+
+        if len(selection) == 0:
+            # If none are selected, see if the cursor is in a ChannelPane
+            cursorpos = QCursor.pos()
+            channame = None
+            for name in self.plots:
+                if self.plots[name].isHidden(): continue
+                widgetpos = self.plots[name].mapFromGlobal(cursorpos)
+                width = self.plots[name].size().width()
+                height = self.plots[name].size().height()
+                if widgetpos.x() > 0 and widgetpos.x() < width and widgetpos.y() > 0 and widgetpos.y() < height:
+                    channame = name
+                    break
+            if channame is not None:
+                self.clipboard = self.animatronics.channels[name].toXML()
+        elif len(selection) > 1:
+            # Warn that they need to select only one channel to copy
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Whoops - Must select one and only one channel to copy')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            return
+            pass
+        else:
+            # Copy to clipboard
+            name = selection[0]
+            self.clipboard = self.animatronics.channels[name].toXML()
+            # Deselect the copied channel to avoid pasting right back over it
+            self.plots[name].deselect()
+        pass
+
+    def Paste_action(self):
+        global main_win
+        """ Perform Paste action"""
+        if self.clipboard is None:
+            # Warn that they need to have copied something
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Whoops - Empty clipboard')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            return
+
+        # Get a list of all the currently selected channels
+        selection = []
+        for name in self.plots:
+            if self.plots[name].selected:
+                selection.append(name)
+
+        if len(selection) == 0:
+            # If none are selected, see if the cursor is in a ChannelPane
+            cursorpos = QCursor.pos()
+            channame = None
+            for name in self.plots:
+                # Check if cursor is in any visible channel pane
+                if self.plots[name].isHidden(): continue
+                widgetpos = self.plots[name].mapFromGlobal(cursorpos)
+                width = self.plots[name].size().width()
+                height = self.plots[name].size().height()
+                # print('Checking cursor posn:', widgetpos.x(), widgetpos.y())
+                # print('Against channel:', name, 'width, height:', width, height)
+                if widgetpos.x() > 0 and widgetpos.x() < width and widgetpos.y() > 0 and widgetpos.y() < height:
+                    channame = name
+                    break
+            if channame is not None:
+                # Push current state for undo
+                main_win.pushState()
+
+                # Paste from clipboard
+                root = ET.fromstring(self.clipboard)
+                self.animatronics.channels[channame].parseXML(root)
+                self.plots[channame].redrawme()
+                main_win.updateXMLPane()
+        else:
+            # Push current state for undo
+            main_win.pushState()
+
+            # Paste the clipboard into all selected channels
+            root = ET.fromstring(self.clipboard)
+            for name in selection:
+                self.animatronics.channels[name].parseXML(root)
+                self.plots[name].redrawme()
+            main_win.updateXMLPane()
+        pass
+
+    def Shift_action(self):
+        """ Perform Shift action"""
+        pass
+
+    def Delete_action(self):
+        """ Perform Delete action"""
+        dellist = []
+        for name in self.plots:
+            if self.plots[name].selected:
+                dellist.append(name)
+        if len(dellist) > 0:
+            self.deleteChannels(dellist)
+        pass
+
+    def selectorPane_action(self):
+        """ Perform selectorPane action"""
+        print('Hit selectorPane action')
+        pass
+
     def create_menus(self):
         """Creates all the dropdown menus for the toolbar and associated actions"""
 
@@ -1712,7 +1871,7 @@ class MainWindow(QMainWindow):
                 self, shortcut="Ctrl+O", triggered=self.openAnimFile)
         self.file_menu.addAction(self._open_file_action)
 
-        self._selectaudio_action = QAction("Select Audio", self, shortcut="Ctrl+A",
+        self._selectaudio_action = QAction("Open &Audio File", self,
             triggered=self.selectaudio_action)
         self.file_menu.addAction(self._selectaudio_action)
 
@@ -1834,6 +1993,52 @@ class MainWindow(QMainWindow):
 
         # Create the Tools dropdown menu #################################
         self.tools_menu = self.menuBar().addMenu("&Tools")
+
+        # selectAll menu item
+        self._selectAll_action = QAction("selectAll", self,
+            shortcut="Ctrl+A",
+            triggered=self.selectAll_action)
+        self.tools_menu.addAction(self._selectAll_action)
+
+        # deselectAll menu item
+        self._deselectAll_action = QAction("deselectAll", self,
+            shortcut="Ctrl+Shift+A",
+            triggered=self.deselectAll_action)
+        self.tools_menu.addAction(self._deselectAll_action)
+
+        # selectorPane menu item
+        self._selectorPane_action = QAction("selectorPane", self,
+            shortcut="P",
+            triggered=self.selectorPane_action)
+        self.tools_menu.addAction(self._selectorPane_action)
+
+        self.tools_menu.addSeparator()
+
+        # Copy menu item
+        self._Copy_action = QAction("Copy", self,
+            shortcut="Ctrl+C",
+            triggered=self.Copy_action)
+        self.tools_menu.addAction(self._Copy_action)
+
+        # Paste menu item
+        self._Paste_action = QAction("Paste", self,
+            shortcut="Ctrl+V",
+            triggered=self.Paste_action)
+        self.tools_menu.addAction(self._Paste_action)
+
+        # Shift menu item
+        self._Shift_action = QAction("Shift", self,
+            triggered=self.Shift_action)
+        self._Shift_action.setEnabled(False)
+        self.tools_menu.addAction(self._Shift_action)
+
+        self.tools_menu.addSeparator()
+
+        # Delete menu item
+        self._Delete_action = QAction("Delete", self,
+            triggered=self.Delete_action)
+        self.tools_menu.addAction(self._Delete_action)
+
 
         self.menuBar().addSeparator()
 
@@ -2220,7 +2425,7 @@ class Channel:
 
     def parseXML(self, inXML):
         if inXML.tag == 'Channel':
-            if 'name' in inXML.attrib:
+            if 'name' in inXML.attrib and len(self.name) == 0:
                 self.name = inXML.attrib['name']
             if 'minLimit' in inXML.attrib:
                 self.minLimit = float(inXML.attrib['minLimit'])
@@ -2228,7 +2433,7 @@ class Channel:
                 self.maxLimit = float(inXML.attrib['maxLimit'])
             if 'rateLimit' in inXML.attrib:
                 self.rateLimit = float(inXML.attrib['rateLimit'])
-            if 'channel' in inXML.attrib:
+            if 'channel' in inXML.attrib and self.port < 0:
                 self.port = int(inXML.attrib['channel'])
             if 'type' in inXML.attrib:
                 if inXML.attrib['type'] == 'Linear':
@@ -2244,6 +2449,8 @@ class Channel:
         else:
             raise Exception('XML is not a Channel')
 
+        # Clean out all current knots
+        self.knots = {}
         for point in inXML:
             if point.tag == 'Point':
                 if 'time' in point.attrib:
