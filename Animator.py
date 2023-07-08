@@ -45,7 +45,7 @@ except:
         # Qt import block for all widgets
         from PyQt6.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
             QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
-        from PyQt6.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
+        from PyQt6.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen, QPalette,
             QDoubleValidator, QRegularExpressionValidator, QValidator, QCursor,
             QStandardItem, QStandardItemModel, QAction, QFont, QKeySequence, QShortcut)
         from PyQt6.QtWidgets import (QAbstractItemView, QApplication,
