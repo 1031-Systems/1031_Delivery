@@ -65,6 +65,8 @@ import qwt
 
 #/* Define block */
 verbosity = False
+MAXDIGITALCHANNELS = 32
+MAXSERVOCHANNELS = 16
 
 #/* Usage method */
 def print_usage(name):
@@ -351,7 +353,10 @@ class ChannelPane(qwt.QwtPlot):
         self.selected = False
         self.settimerange(0.0, 100.0)
         self.setDataRange(-1.0, 1.0)
-        self.setAxisTitle(self.Y_LEFT_AXIS_ID, self.channel.name)
+        channelname = self.channel.name
+        if self.channel.port >= 0:
+            channelname += '(%d)' % self.channel.port
+        self.setAxisTitle(self.Y_LEFT_AXIS_ID, channelname)
 
         self.create()
 
@@ -622,7 +627,7 @@ class ChannelMetadataWidget(QDialog):
     def __init__(self, channel=None, parent=None, editable=True):
         super().__init__(parent)
 
-        # Save animatronics object for update if Save is selected
+        # Save animatronics channel for update if Save is selected
         self._channel = channel
 
         self.title = 'Channel MetaData Editor'
@@ -640,11 +645,18 @@ class ChannelMetadataWidget(QDialog):
             self._typeedit.setCurrentIndex(self._channel.type-1)
             layout.addRow(QLabel('Type:'), self._typeedit)
 
-        self._portedit = QLineEdit()
-        layout.addRow(QLabel('Channel:'), self._portedit)
+        self._portedit = QComboBox()
+        if self._channel.type != Channel.Digital:
+            chancount = MAXSERVOCHANNELS
+        else:
+            chancount = MAXDIGITALCHANNELS
+        self._portedit.addItem('Unassigned')
+        for i in range(chancount):
+            self._portedit.addItem(str(i))
         if self._channel is not None:
             if self._channel.port >= 0:
-                self._portedit.setText(str(self._channel.port))
+                self._portedit.setCurrentText(str(self._channel.port))
+        layout.addRow(QLabel('Channel:'), self._portedit)
 
         if self._channel is not None and self._channel.type != Channel.Digital:
             self._minedit = QLineEdit()
@@ -725,9 +737,12 @@ class ChannelMetadataWidget(QDialog):
         if self._channel.type != Channel.Digital:
             self._channel.type = self._typeedit.currentIndex() + 1
 
-        tstring = self._portedit.text()
+        tstring = self._portedit.currentText()
         if len(tstring) > 0:
-            self._channel.port = int(tstring)
+            if tstring == 'Unassigned':
+                self._channel.port = -1
+            else:
+                self._channel.port = int(tstring)
 
         if self._channel.type != Channel.Digital:
             tstring = self._minedit.text()
