@@ -1137,7 +1137,8 @@ class MainWindow(QMainWindow):
             elif usedPyQt == 6:
                 # PyQt6 way
                 self.player.setSource(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile))
-                self.player.setAudioOutput(qm.QAudioOutput(qm.QAudioDevice()))
+                self._audioOut = qm.QAudioOutput()
+                self.player.setAudioOutput(self._audioOut)
         else:
             # Mute the player because it does not seem to clear out old audio quite rightly
             # Not sure what I want to do here
