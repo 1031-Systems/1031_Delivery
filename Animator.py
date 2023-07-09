@@ -77,6 +77,14 @@ def print_usage(name):
     sys.stderr.write("-f/-file infilename    :Input anim file\n")
     sys.stderr.write("\n\n");
 
+def pushState():
+    global main_win
+    main_win.pushState()
+
+def popState():
+    global main_win
+    main_win.popState()
+
 #####################################################################
 class TextDisplayDialog(QDialog):
 
@@ -279,8 +287,7 @@ class ChannelMenu(QMenu):
             return
         else:
             # Push current state for undo
-            global main_win
-            main_win.pushState()
+            pushState()
 
             for key in self.channel.knots:
                 self.channel.knots[key] = (self.channel.maxLimit + self.channel.minLimit) - self.channel.knots[key]
@@ -417,7 +424,7 @@ class ChannelPane(qwt.QwtPlot):
         ydata = [self.channel.knots[key] for key in xdata]
         self.curve2 = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self,
             symbol=qwt.symbol.QwtSymbol(qwt.symbol.QwtSymbol.Rect,
-                QBrush(), QPen(Qt.green), QSize(self.BoxSize, self.BoxSize))
+                QBrush(), QPen(Qt.black), QSize(self.BoxSize, self.BoxSize))
         )
         self.curve2.setStyle(qwt.QwtPlotCurve.NoCurve)
         self.curve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self, linewidth=2)
@@ -521,7 +528,6 @@ class ChannelPane(qwt.QwtPlot):
         self.setDataRange(minval, maxval)
 
     def mousePressEvent(self, event):
-        global main_win
         self.setOffsets()
         if event.buttons() == Qt.LeftButton :
             xplotval = self.invTransform(self.X_BOTTOM_AXIS_ID, event.pos().x() - self.xoffset)
@@ -536,11 +542,11 @@ class ChannelPane(qwt.QwtPlot):
                 # If close enough, select it and drag it around
                 self.selectedKey = nearkey
                 # Push current state for undo
-                main_win.pushState()
+                pushState()
             elif modifiers == Qt.ShiftModifier:
                 # If shift key is down then we want to insert a new point
                 # Push current state for undo
-                main_win.pushState()
+                pushState()
 
                 # Apply limits
                 if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
@@ -727,8 +733,7 @@ class ChannelMetadataWidget(QDialog):
                         return
 
         # Push current state for undo
-        global main_win
-        main_win.pushState()
+        pushState()
 
         tstring = self._nameedit.text()
         if len(tstring) > 0:
@@ -812,8 +817,7 @@ class MetadataWidget(QDialog):
 
     def onAccepted(self):
         # Push current state for undo
-        global main_win
-        main_win.pushState()
+        pushState()
 
         tstring = self._endedit.text()
         if len(tstring) > 0:
@@ -1164,8 +1168,7 @@ class MainWindow(QMainWindow):
 
             if fileName:
                 # Push current state for undo
-                global main_win
-                main_win.pushState()
+                pushState()
 
                 newAnim = Animatronics()
                 try:
@@ -1176,7 +1179,7 @@ class MainWindow(QMainWindow):
                     self.unsavedChanges = False
         
                 except Exception as e:
-                    main_win.popState()
+                    popState()
                     sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
                     sys.stderr.write("Message: %s\n" % e)
                     return
@@ -1185,8 +1188,7 @@ class MainWindow(QMainWindow):
     def newAnimFile(self):
         if self.handle_unsaved_changes():
             # Push current state for undo
-            global main_win
-            main_win.pushState()
+            pushState()
 
             """Clear animatronics and start from scratch"""
             newAnim = Animatronics()
@@ -1204,13 +1206,12 @@ class MainWindow(QMainWindow):
         if fileName:
             try:
                 # Push current state for undo
-                global main_win
-                main_win.pushState()
+                pushState()
                 self.animatronics.parseXML(fileName)
                 self.setAnimatronics(self.animatronics)
     
             except Exception as e:
-                main_win.popState()
+                popState()
                 sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
@@ -1400,7 +1401,6 @@ class MainWindow(QMainWindow):
 
     def newdigital_action(self):
         """ Perform newdigital action"""
-        global main_win
         main_win.saveStateOkay = False
         tempChannel = Channel(intype=Channel.Digital)
         td = ChannelMetadataWidget(channel=tempChannel, parent=self)
@@ -1424,14 +1424,9 @@ class MainWindow(QMainWindow):
                 msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
                 msgBox.setIcon(QMessageBox.Warning)
                 ret = msgBox.exec_()
-            if ret == QMessageBox.Yes:
-                del self.animatronics.channels[text]
-                ret = None
-            if ret is None:
+            if ret is None or ret == QMessageBox.Yes:
                 # Push current state for undo
-                print('Prior to save state undo stack size is:', len(main_win.previousStates))
-                main_win.pushState()
-                print('After save state undo stack size is:', len(main_win.previousStates))
+                pushState()
 
                 self.animatronics.channels[text] = tempChannel
                 self.setAnimatronics(self.animatronics)
@@ -1441,7 +1436,6 @@ class MainWindow(QMainWindow):
 
     def newchannel_action(self):
         """ Perform newchannel action"""
-        global main_win
         main_win.saveStateOkay = False
         tempChannel = Channel()
         td = ChannelMetadataWidget(channel=tempChannel, parent=self)
@@ -1465,18 +1459,12 @@ class MainWindow(QMainWindow):
                 msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
                 msgBox.setIcon(QMessageBox.Warning)
                 ret = msgBox.exec_()
-            if ret == QMessageBox.Yes:
-                del self.animatronics.channels[text]
-                ret = None
-            if ret is None:
+            if ret is None or ret == QMessageBox.Yes:
                 # Push current state for undo
-                print('Prior to save state undo stack size is:', len(main_win.previousStates))
-                main_win.pushState()
-                print('After save state undo stack size is:', len(main_win.previousStates))
+                pushState()
 
                 self.animatronics.channels[text] = tempChannel
                 self.setAnimatronics(self.animatronics)
-                print('After set animatronics undo stack size is:', len(main_win.previousStates))
                 
         pass
 
@@ -1494,8 +1482,7 @@ class MainWindow(QMainWindow):
         ret = msgBox.exec_()
         if ret == QMessageBox.Yes:
             # Push current state for undo
-            global main_win
-            main_win.pushState()
+            pushState()
 
             for name in chanList:
                 del self.animatronics.channels[name]
@@ -1523,15 +1510,14 @@ class MainWindow(QMainWindow):
 
         if fileName:
             # Push current state for undo
-            global main_win
-            main_win.pushState()
+            pushState()
 
             try:
                 self.animatronics.set_audio(fileName)
                 self.setAnimatronics(self.animatronics)
     
             except Exception as e:
-                main_win.popState()
+                popState()
                 sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
@@ -1800,7 +1786,6 @@ class MainWindow(QMainWindow):
         pass
 
     def Paste_action(self):
-        global main_win
         """ Perform Paste action"""
         if self.clipboard is None:
             # Warn that they need to have copied something
@@ -1834,7 +1819,7 @@ class MainWindow(QMainWindow):
                     break
             if channame is not None:
                 # Push current state for undo
-                main_win.pushState()
+                pushState()
 
                 # Paste from clipboard
                 root = ET.fromstring(self.clipboard)
@@ -1843,7 +1828,7 @@ class MainWindow(QMainWindow):
                 main_win.updateXMLPane()
         else:
             # Push current state for undo
-            main_win.pushState()
+            pushState()
 
             # Paste the clipboard into all selected channels
             root = ET.fromstring(self.clipboard)
