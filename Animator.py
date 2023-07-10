@@ -29,6 +29,7 @@ try:
     from PyQt5.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
         QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
     from PyQt5.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
+        QClipboard, QGuiApplication,
         QDoubleValidator, QRegularExpressionValidator, QValidator, QCursor,
         QStandardItem, QStandardItemModel, QFont, QKeySequence, QPalette)
     from PyQt5.QtWidgets import (QAbstractItemView, QAction, QApplication,
@@ -46,6 +47,7 @@ except:
         from PyQt6.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
             QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
         from PyQt6.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen, QPalette,
+            QClipboard, QGuiApplication,
             QDoubleValidator, QRegularExpressionValidator, QValidator, QCursor,
             QStandardItem, QStandardItemModel, QAction, QFont, QKeySequence, QShortcut)
         from PyQt6.QtWidgets import (QAbstractItemView, QApplication,
@@ -65,11 +67,21 @@ import qwt
 
 #/* Define block */
 verbosity = False
-MAXDIGITALCHANNELS = 32
-MAXSERVOCHANNELS = 16
+
+# System Preferences Block
+MaxDigitalChannels = 48
+MaxServoChannels = 32
 
 #/* Usage method */
 def print_usage(name):
+    """
+    The method print_usage prints the standard usage message.
+    Parameters
+    ----------
+    name : str
+        The name of the application from argv[0]
+    """
+
     """ Simple method to output usage when needed """
     sys.stderr.write("\nUsage: %s [-/-h/-help] [-f/-file infilename]\n")
     sys.stderr.write("Create and edit animatronics control channels.\n");
@@ -78,15 +90,41 @@ def print_usage(name):
     sys.stderr.write("\n\n");
 
 def pushState():
+    """
+    The method pushState pipes a request to save state for undo to the
+    main window.
+    """
     global main_win
     main_win.pushState()
 
 def popState():
+    """
+    The method popState pipes a request to pop state for undo to the
+    main window.
+    """
     global main_win
     main_win.popState()
 
 #####################################################################
 class TextDisplayDialog(QDialog):
+    """
+    Class: TextDisplayDialog
+        Derives from: (QDialog)
+
+    The TextDisplayDialog class is a popup window that displays text
+    from a string or a file.
+    ...
+    Attributes
+    ----------
+    name : str
+        Title of window
+    textView : QTextBrowser
+
+    Methods
+    -------
+    setText(self, text)
+    setSource(self, instr)
+    """
 
     def __init__(self,
         name,
@@ -106,13 +144,61 @@ class TextDisplayDialog(QDialog):
         layout.addRow(self.textView)
 
     def setText(self, text):
+        """
+        The method setText sets the displayed text to the incoming text
+            member of class: TextDisplayDialog
+        Parameters
+        ----------
+        self : TextDisplayDialog
+        text : str
+            The text to be displayed
+        """
         self.textView.setPlainText(text)
 
     def setSource(self, instr):
+        """
+        The method setSource sets the displayed text from the
+        specified local file.
+            member of class: TextDisplayDialog
+        Parameters
+        ----------
+        self : TextDisplayDialog
+        instr : Path to local file
+        """
         self.textView.setSource(QUrl.fromLocalFile(instr))
         
 #####################################################################
 class ChecklistDialog(QDialog):
+    """
+    Class: ChecklistDialog
+        Derives from: (QDialog)
+
+    The ChecklistDialog class provides a popup checklist of the
+    channels for selecting those to be hidden or deleted or other
+    actions.
+    ...
+    Attributes
+    ----------
+    name : str
+        Window Title
+    icon : QIcon
+        Hmmm, not sure what this does??
+    model : QStandardItemModel
+    listView : QListView
+    okButton : QPushButton
+    cancelButton : QPushButton
+    selectButton : QPushButton
+    unselectButton : QPushButton
+    choices : str array
+        Array of strings containing names of checked channels
+
+    Methods
+    -------
+    setStates(self, checklist)
+    onAccepted(self)
+    select(self)
+    unselect(self)
+    """
 
     def __init__(self,
         name,
@@ -165,10 +251,28 @@ class ChecklistDialog(QDialog):
         self.unselectButton.clicked.connect(self.unselect)
 
     def setStates(self, checklist):
+        """
+        The method setStates sets the initial checked state of all the
+        checkboxes
+            member of class: ChecklistDialog
+        Parameters
+        ----------
+        self : ChecklistDialog
+        checklist : boolean array
+            Array of booleans of checked status for each channel
+        """
         for i in range(min(len(checklist), self.model.rowCount())):
             self.model.item(i).setCheckState(checklist[i])
 
     def onAccepted(self):
+        """
+        The method onAccepted copies the set of checked item names
+        into the choices for later retrieval and signals approval.
+            member of class: ChecklistDialog
+        Parameters
+        ----------
+        self : ChecklistDialog
+        """
         self.choices = [self.model.item(i).text() for i in
                         range(self.model.rowCount())
                         if self.model.item(i).checkState()
@@ -176,11 +280,25 @@ class ChecklistDialog(QDialog):
         self.accept()
 
     def select(self):
+        """
+        The method select checks all items
+            member of class: ChecklistDialog
+        Parameters
+        ----------
+        self : ChecklistDialog
+        """
         for i in range(self.model.rowCount()):
             item = self.model.item(i)
             item.setCheckState(Qt.Checked)
 
     def unselect(self):
+        """
+        The method unselect unchecks all items
+            member of class: ChecklistDialog
+        Parameters
+        ----------
+        self : ChecklistDialog
+        """
         for i in range(self.model.rowCount()):
             item = self.model.item(i)
             item.setCheckState(Qt.Unchecked)
@@ -190,8 +308,52 @@ class ChecklistDialog(QDialog):
 # single channel.
 #####################################################################
 class ChannelMenu(QMenu):
+    """
+    Class: ChannelMenu
+        Derives from: (QMenu)
+
+        Implements a popup menu within a channel pane for working with
+    the particular channel or pane.  It offers several functions such
+    as Metadata editing, rescaling, hide, and delete.
+    ...
+    Attributes
+    ----------
+    parent : type
+    channel : type
+    name : type
+    _metadata_action : QAction
+    _invert_action : QAction
+    _smooth_action : QAction
+    _wrap_action : QAction
+    _Rescale_action : QAction
+    _Hide_action : QAction
+    _Delete_action : QAction
+
+    Methods
+    -------
+    __init__(self, parent, channel)
+    metadata_action(self)
+    invert_action(self)
+    smooth_action(self)
+    wrap_action(self)
+    Rescale_action(self)
+    Hide_action(self)
+    Delete_action(self)
+    """
+
     """The popup widget for an individual channel pane"""
     def __init__(self, parent, channel):
+        """
+        The method __init__
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        parent : QWidget
+            The ChannelPane upon which to display this menu
+        channel : Channel
+            The channel of data being manipulated
+        """
         super().__init__(parent)
         self.parent = parent
         self.channel = channel
@@ -213,7 +375,7 @@ class ChannelMenu(QMenu):
         self.addAction(self._invert_action)
 
         # smooth menu item only for Linear channels
-        if self.channel.type == self.channel.Linear:
+        if self.channel.type == self.channel.LINEAR:
             self._smooth_action = QAction("smooth", self,
                 triggered=self.smooth_action)
             self._smooth_action.setEnabled(False)
@@ -224,17 +386,6 @@ class ChannelMenu(QMenu):
             triggered=self.wrap_action)
         self._wrap_action.setEnabled(False)
         self.addAction(self._wrap_action)
-
-        # copy menu item
-        self._copy_action = QAction("copy", self,
-            triggered=self.copy_action)
-        self.parent.addAction(self._copy_action)
-
-        # paste menu item
-        self._paste_action = QAction("paste", self,
-            triggered=self.paste_action)
-        self._paste_action.setEnabled(False)
-        self.addAction(self._paste_action)
 
         # Rescale menu item
         self._Rescale_action = QAction("Rescale", self,
@@ -262,7 +413,14 @@ class ChannelMenu(QMenu):
         self.hide()
 
     def metadata_action(self):
-        """ Perform metadata action"""
+        """
+        The method metadata_action brings up the metadata editor widget
+        for viewing or modifying the channel's information.
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
         tname = self.channel.name
         td = ChannelMetadataWidget(channel=self.channel, parent=self, editable=False)
         code = td.exec_()
@@ -275,7 +433,16 @@ class ChannelMenu(QMenu):
         pass
 
     def invert_action(self):
-        """ Perform invert action"""
+        """
+        The method invert_action flips the channel data vertically between
+        the upper and lower limits.  Both or neither must be set.  If
+        neither then inverts simply negates all the values.
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
+
         if ((self.channel.maxLimit > 1.0e33 and self.channel.minLimit > -1.0e33) or
             (self.channel.maxLimit < 1.0e33 and self.channel.minLimit < -1.0e33)):
             msgBox = QMessageBox(parent=self)
@@ -296,34 +463,63 @@ class ChannelMenu(QMenu):
         pass
 
     def smooth_action(self):
-        """ Perform smooth action"""
+        """
+        The method smooth_action seems to be superseded by the spline
+        type.
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
+
         pass
 
     def wrap_action(self):
-        """ Perform wrap action"""
-        pass
+        """
+        The method wrap_action adjusts the final point(s) in the channel
+        so that it ends at the same state as the channel begins for
+        smooth loops.
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
 
-    def copy_action(self):
-        """ Perform copy action"""
-        print('Hit Ctrl+c for Copy')
-        pass
-
-    def paste_action(self):
-        """ Perform paste action"""
         pass
 
     def Rescale_action(self):
-        """ Perform Rescale action"""
+        """
+        The method Rescale_action requests the ChannelPane to adjust its
+        vertical range to fit the data and limits with a bit of margin.
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
         self.parent.resetDataRange()
         pass
 
     def Hide_action(self):
-        """ Perform Hide action"""
+        """
+        The method Hide_action hides the ChannelPane
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
         self.parent.hidePane()
         pass
 
     def Delete_action(self):
-        """ Perform Delete action"""
+        """
+        The method Delete_action requests that this Channel be removed
+        from the animation.
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
+        # self.parent.holder should be the MainWindow
         if self.parent.holder is not None:
             self.parent.holder.deleteChannels([self.name])
         pass
@@ -334,6 +530,72 @@ class ChannelMenu(QMenu):
 # single channel.
 #####################################################################
 class ChannelPane(qwt.QwtPlot):
+    """
+    Class: ChannelPane
+        Derives from: (qwt.QwtPlot)
+
+        Implements a QWTPlot widget for displaying and working with a
+    single channel of data.  Provides methods for creating and editing
+    a channel.
+    ...
+    Shared Attributes
+    ----------
+    # Creating enum to match what QWT uses
+    Y_LEFT_AXIS_ID = 0
+    Y_RIGHT_AXIS_ID = 1
+    X_BOTTOM_AXIS_ID = 2
+    X_TOP_AXIS_ID = 3
+
+    # The size of the square around each knot in the channel
+    BoxSize = 10
+
+    Attributes
+    ----------
+    parent : type
+    channel : type
+    holder : type
+    curve : QwtPlotCurve
+        The line representing the interpolated data points
+    curve2 : QwtPlotCurve
+        The symbols to be drawn at the actual data points
+    minTime : type
+    maxTime : type
+    minVal : type
+    maxVal : type
+    xoffset : type
+    yoffset : type
+    selectedKey : type
+    selected : type
+    timeSlider : qwt.QwtPlotCurve
+    lowerLimitBar : qwt.QwtPlotCurve
+    upperLimitBar : qwt.QwtPlotCurve
+    popup : ChannelMenu
+    _unselectedPalette : self.palette
+    _selectedPalette : QPalette
+
+    Methods
+    -------
+    __init__(self, parent=None, inchannel=None, mainwindow=None)
+    settimerange(self, mintime, maxtime)
+    setDataRange(self, minval, maxval)
+    resetDataRange(self)
+    getTimeRange(self)
+    setOffsets(self)
+    hidePane(self)
+    create(self)
+    redrawLimits(self)
+    findClosestPointWithinBox(self, i,j)
+    select(self)
+    deselect(self)
+    invertselect(self)
+    wheelEvent(self, event)
+    mousePressEvent(self, event)
+    mouseReleaseEvent(self, event)
+    mouseMoveEvent(self, event)
+    setSlider(self, timeVal)
+    redrawme(self)
+    """
+    # Creating enum to match what QWT uses
     Y_LEFT_AXIS_ID = 0
     Y_RIGHT_AXIS_ID = 1
     X_BOTTOM_AXIS_ID = 2
@@ -341,6 +603,19 @@ class ChannelPane(qwt.QwtPlot):
     BoxSize = 10
 
     def __init__(self, parent=None, inchannel=None, mainwindow=None):
+        """
+        The method __init__
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        parent=None : QWidget
+            The widget that contains this pane
+        inchannel=None : 
+            The data channel to be displayed and manipulated
+        mainwindow=None : MainWindow
+            The MainWindow of the application
+        """
         super().__init__(parent)
 
         self.parent = parent
@@ -361,6 +636,7 @@ class ChannelPane(qwt.QwtPlot):
         self.settimerange(0.0, 100.0)
         self.setDataRange(-1.0, 1.0)
         channelname = self.channel.name
+        # If port number is set, append it to the displayed channel name
         if self.channel.port >= 0:
             channelname += '(%d)' % self.channel.port
         self.setAxisTitle(self.Y_LEFT_AXIS_ID, channelname)
@@ -368,25 +644,60 @@ class ChannelPane(qwt.QwtPlot):
         self.create()
 
     def settimerange(self, mintime, maxtime):
+        """
+        The method settimerange sets the time range (X axis) to be
+        displayed.  This is generally called by the main window when the
+        user rescales the audio pane to make all panes show the same
+        time range.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        mintime : float
+        maxtime : float
+        """
         self.minTime = mintime
         self.maxTime = maxtime
         self.setAxisScale(self.X_BOTTOM_AXIS_ID, self.minTime, self.maxTime)
         self.redrawme()
 
     def setDataRange(self, minval, maxval):
+        """
+        The method setDataRange sets the data range (Y axis) to be
+        displayed.  This method is called internally as the user scrolls
+        the mouse wheel or requests rescale.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        minval : float
+        maxval : float
+        """
         self.minVal = minval
         self.maxVal = maxval
         self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal, self.maxVal)
         self.redrawme()
 
     def resetDataRange(self):
+        """
+        The method resetDataRange rescales the Y axis to fit the range of
+        data, including the limits, with a 5% margin top and bottom.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
         self.minVal = 1.0e34
         self.maxVal = -1.0e34
         for keyval in self.channel.knots:
-            if self.channel.knots[keyval] < self.minVal: self.minVal = self.channel.knots[keyval]
-            if self.channel.knots[keyval] > self.maxVal: self.maxVal = self.channel.knots[keyval]
-        if self.channel.minLimit < self.minVal: self.minVal = self.channel.minLimit
-        if self.channel.maxLimit > self.maxVal: self.maxVal = self.channel.maxLimit
+            if self.channel.knots[keyval] < self.minVal: 
+                self.minVal = self.channel.knots[keyval]
+            if self.channel.knots[keyval] > self.maxVal: 
+                self.maxVal = self.channel.knots[keyval]
+        if self.channel.minLimit < self.minVal: 
+                self.minVal = self.channel.minLimit
+        if self.channel.maxLimit > self.maxVal: 
+                self.maxVal = self.channel.maxLimit
         if self.minVal == self.maxVal:
             margin = 0.5
         else:
@@ -394,6 +705,15 @@ class ChannelPane(qwt.QwtPlot):
         self.setDataRange(self.minVal - margin, self.maxVal + margin)
 
     def getTimeRange(self):
+        """
+        The method getTimeRange returns the minimum and maximum time (X)
+        values of all the knots in the channel.  It is called from the
+        MainWindow when scaling the application to display all the data.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
         minVal = 1.0e34
         maxVal = -1.0e34
         for keyval in self.channel.knots:
@@ -402,6 +722,20 @@ class ChannelPane(qwt.QwtPlot):
         return minVal, maxVal
 
     def setOffsets(self):
+        """
+        The method setOffsets computes the offset of the upper left
+        corner of the data display part of the widget from the upper
+        left corner of the overall widget.  Essentially, this computes
+        the width of the region on the left containing the title and
+        the scale values and the height of the rectangle at the top
+        that contains only a margin.  These values are stored and used
+        to convert cursor location into data values within the range
+        of the channel.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
         # Compute axis offset from size of anything displayed at top
         rect = self.plotLayout().scaleRect(self.X_TOP_AXIS_ID)
         self.yoffset = rect.height()
@@ -410,10 +744,23 @@ class ChannelPane(qwt.QwtPlot):
         self.xoffset = rect.width()
 
     def hidePane(self):
+        """
+        The method hidePane hides the Pane (duh).
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
         self.hide()
 
     def create(self):
-        """Create all the widget stuff for the channel plot"""
+        """
+        The method create creates all the widget stuff for the channel pane
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
         grid = qwt.QwtPlotGrid()
         grid.enableXMin(True)
         grid.attach(self)
@@ -429,7 +776,8 @@ class ChannelPane(qwt.QwtPlot):
         self.curve2.setStyle(qwt.QwtPlotCurve.NoCurve)
         self.curve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self, linewidth=2)
 
-        if self.channel.type == Channel.Digital:
+        # Add filler for the On times for the digital channels
+        if self.channel.type == Channel.DIGITAL:
             fillbrush = QBrush(Qt.gray)
             self.curve.setBrush(fillbrush)
         
@@ -444,7 +792,7 @@ class ChannelPane(qwt.QwtPlot):
         self.timeSlider.attach(self)
 
         # Optionally create red line for upper and lower limits
-        if self.channel.type != Channel.Digital:
+        if self.channel.type != Channel.DIGITAL:
             mintime,maxtime = self.getTimeRange()
             self.lowerLimitBar = qwt.QwtPlotCurve()
             self.lowerLimitBar.setStyle(qwt.QwtPlotCurve.Sticks)
@@ -476,8 +824,16 @@ class ChannelPane(qwt.QwtPlot):
         pass
     
     def redrawLimits(self):
-        try:
-            if self.channel.type != Channel.Digital:
+        """
+        The method redrawLimits computes the positions of the upper and
+        lower limit bars drawn on the display.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
+        try: # Because this can crap out if done too early
+            if self.channel.type != Channel.DIGITAL:
                 if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
                     mintime,maxtime = self.getTimeRange()
                     if mintime > maxtime:   # Happens when there are no data points so kluge
@@ -490,34 +846,84 @@ class ChannelPane(qwt.QwtPlot):
                         self.upperLimitBar.setData([maxtime+1000.0], [self.channel.maxLimit])
                         self.upperLimitBar.setBaseline(mintime-1000.0)
         except:
+            # Just ignore it if it craps out
             pass
 
     def findClosestPointWithinBox(self, i,j):
-        """Finds the nearest plot point within BoxSize of mouse click"""
+        """
+        The method findClosestPointWithinBox finds the nearest plot point
+        within BoxSize of mouse click.  Returns None if too far from any
+        point.  In fact, the algorithm returns the first point it finds
+        that is within BoxSize of the requested point.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        i : int
+            X coordinate of pixel to check
+        j : int
+            Y coordinate of pixel to check
+        """
         for keyval in self.channel.knots:
+            # First convert each data point to pixel coordinates
             pnti = self.transform(self.X_BOTTOM_AXIS_ID, keyval) + self.xoffset
             pntj = self.transform(self.Y_LEFT_AXIS_ID, self.channel.knots[keyval]) + self.yoffset
+            # Check to see if converted point is close enough
             if abs(i-pnti) <= self.BoxSize/2 and abs(j-pntj) <= self.BoxSize/2:
                 return keyval
         return None
 
     def select(self):
+        """
+        The method select marks the Channel and Pane as selected.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
+        # Set the internal selected flag
         self.selected = True
         # Go to selected background
         self.canvas().setPalette(self._selectedPalette)
 
     def deselect(self):
+        """
+        The method deselect unmarks the Channel and Pane as selected.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
+        # Set the internal selected flag
         self.selected = False
         # Back to blue background
         self.canvas().setPalette(self._unselectedPalette)
 
     def invertselect(self):
+        """
+        The method invertselect inverts the selected status.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
         if self.selected:
             self.deselect()
         else:
             self.select()
 
     def wheelEvent(self, event):
+        """
+        The method wheelEvent uses the mouse wheel to adjust the vertical
+        scale of the pane.  Each click of the wheel expands or contracts
+        the range while trying to keep the value where the cursor is 
+        located stationary.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        event : type
+        """
         numDegrees = event.angleDelta() / 8
         vertDegrees = numDegrees.y()
 
@@ -528,11 +934,29 @@ class ChannelPane(qwt.QwtPlot):
         self.setDataRange(minval, maxval)
 
     def mousePressEvent(self, event):
+        """
+        The method mousePressEvent handles the mouse press events.  They
+        are:
+            Left: If on knot (see FindClosestWithinBox) grab it
+                else do nothing
+            Shift-Left: If on knot (see FindClosestWithinBox) grab it
+                else Add a new knot at clicked location and grab it
+            Control-Left: If on knot (see FindClosestWithinBox) grab it
+                else Select Channel
+            Middle: Does nothing as wheel and clicks are tricky
+            Right: Bring up pane menu
+
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        event : Event
+        """
         self.setOffsets()
         if event.buttons() == Qt.LeftButton :
             xplotval = self.invTransform(self.X_BOTTOM_AXIS_ID, event.pos().x() - self.xoffset)
             yplotval = self.invTransform(self.Y_LEFT_AXIS_ID, event.pos().y() - self.yoffset)
-            if self.channel.type == Channel.Digital:
+            if self.channel.type == Channel.DIGITAL:
                 if yplotval >= 0.5: yplotval = 1.0
                 elif yplotval < 0.5: yplotval = 0.0
             # Find nearest point
@@ -561,7 +985,7 @@ class ChannelPane(qwt.QwtPlot):
                 # Select/deselect this channel
                 self.invertselect()
             else:
-                # drag to adjust vertical zoom and pan of this pane
+                # do nothing
                 pass
         elif event.buttons()== Qt.MiddleButton :
             # Vertical pan of pane with wheel/mouse?
@@ -575,6 +999,16 @@ class ChannelPane(qwt.QwtPlot):
         pass
     
     def mouseReleaseEvent(self, event):
+        """
+        The method mouseReleaseEvent handles the mouse button release
+        event.  This basically entails redrawing the pane and updating
+        the XML display.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        event : type
+        """
         if self.selectedKey is not None:
             self.selectedKey = None
             self.replot()
@@ -582,11 +1016,20 @@ class ChannelPane(qwt.QwtPlot):
         pass
 
     def mouseMoveEvent(self, event):
+        """
+        The method mouseMoveEvent handles drag events in the pane.  Only
+        the Left mouse button is supported when dragging a point around.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        event : type
+        """
         if event.buttons() == Qt.LeftButton :
             if self.selectedKey is not None:
                 xplotval = self.invTransform(self.X_BOTTOM_AXIS_ID, event.pos().x() - self.xoffset)
                 yplotval = self.invTransform(self.Y_LEFT_AXIS_ID, event.pos().y() - self.yoffset)
-                if self.channel.type == Channel.Digital:
+                if self.channel.type == Channel.DIGITAL:
                     if yplotval >= 0.5: yplotval = 1.0
                     elif yplotval < 0.5: yplotval = 0.0
                 del self.channel.knots[self.selectedKey]
@@ -605,11 +1048,32 @@ class ChannelPane(qwt.QwtPlot):
         pass
 
     def setSlider(self, timeVal):
+        """
+        The method setSlider redraws the current time bar to the
+        specified time.  It is called during playback to match the
+        time in all the other panes.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        timeVal : float
+            The time at which the time bar should be set
+        """
         if self.timeSlider is not None:
             self.timeSlider.setData([timeVal], [30000.0])
             self.replot()
         
     def redrawme(self):
+        """
+        The method redrawme does an extensive redraw of the pane, more
+        extensive than just replot().  It regenerates the interpolated
+        data line, rescales to the data limits, and redraws the limit
+        bars.
+            member of class: ChannelPane
+        Parameters
+        ----------
+        self : ChannelPane
+        """
         # Recreate the data plot
         xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 100)
         if self.curve is not None and xdata is not None and ydata is not None:
@@ -630,7 +1094,51 @@ class ChannelPane(qwt.QwtPlot):
 # for an individual channel
 #####################################################################
 class ChannelMetadataWidget(QDialog):
+    """
+    Class: ChannelMetadataWidget
+        Derives from: (QDialog)
+
+    Implements a widget for editing the metadata for a channel.  It
+    customizes its appearance for the type of channel being edited.
+    The edits are either text entries or pulldown lists.
+
+    This widget is used both during creation of a channel and for
+    editing a channel.  When editing, it is not alowed to change the
+    channel name.  When creating, it is.  Should this be changed?
+    ...
+    Attributes
+    ----------
+    _channel : Channel
+        The channel whose metadata is being edited
+    title : str
+        The name of the popup widget
+    _nameedit : QLineEdit
+    _typeedit : QComboBox
+    _portedit : QComboBox
+    _minedit : QLineEdit
+    _maxedit : QLineEdit
+    okButton : QPushButton
+    cancelButton : QPushButton
+
+    Methods
+    -------
+    __init__(self, channel=None, parent=None, editable=True)
+    onAccepted(self)
+    """
     def __init__(self, channel=None, parent=None, editable=True):
+        """
+        The method __init__
+            member of class: ChannelMetadataWidget
+        Parameters
+        ----------
+        self : ChannelMetadataWidget
+        channel=None : Channel
+            The channel whose metadata is being edited
+        parent=None : QWidget
+            Parent widget
+        editable=True : boolean
+            Whether the Name of the channel can be changed as well
+        """
         super().__init__(parent)
 
         # Save animatronics channel for update if Save is selected
@@ -645,17 +1153,17 @@ class ChannelMetadataWidget(QDialog):
         self._nameedit.setText(self._channel.name)
         layout.addRow(QLabel('Name:'), self._nameedit)
 
-        if self._channel is not None and self._channel.type != Channel.Digital:
+        if self._channel is not None and self._channel.type != Channel.DIGITAL:
             self._typeedit = QComboBox()
             self._typeedit.addItems(('Linear', 'Spline', 'Step'))
             self._typeedit.setCurrentIndex(self._channel.type-1)
             layout.addRow(QLabel('Type:'), self._typeedit)
 
         self._portedit = QComboBox()
-        if self._channel.type != Channel.Digital:
-            chancount = MAXSERVOCHANNELS
+        if self._channel.type != Channel.DIGITAL:
+            chancount = MaxServoChannels
         else:
-            chancount = MAXDIGITALCHANNELS
+            chancount = MaxDigitalChannels
         self._portedit.addItem('Unassigned')
         for i in range(chancount):
             self._portedit.addItem(str(i))
@@ -664,7 +1172,7 @@ class ChannelMetadataWidget(QDialog):
                 self._portedit.setCurrentText(str(self._channel.port))
         layout.addRow(QLabel('Channel:'), self._portedit)
 
-        if self._channel is not None and self._channel.type != Channel.Digital:
+        if self._channel is not None and self._channel.type != Channel.DIGITAL:
             self._minedit = QLineEdit()
             layout.addRow(QLabel('Min:'), self._minedit)
             self._maxedit = QLineEdit()
@@ -693,7 +1201,16 @@ class ChannelMetadataWidget(QDialog):
         self.cancelButton.clicked.connect(self.reject)
 
     def onAccepted(self):
-        if self._channel.type != Channel.Digital:
+        """
+        The method onAccepted handles the user acceptance of the changes.
+        The values are validated and, if valid, the channel data is
+        updated and redrawn.
+            member of class: ChannelMetadataWidget
+        Parameters
+        ----------
+        self : ChannelMetadataWidget
+        """
+        if self._channel.type != Channel.DIGITAL:
             # Need to validate limits prior to changing things
             validate = False
             tstring = self._minedit.text()
@@ -712,9 +1229,12 @@ class ChannelMetadataWidget(QDialog):
                 minVal = 1.0e34
                 maxVal = -1.0e34
                 for keyval in self._channel.knots:
-                    if self._channel.knots[keyval] < minVal: minVal = self._channel.knots[keyval]
-                    if self._channel.knots[keyval] > maxVal: maxVal = self._channel.knots[keyval]
+                    if self._channel.knots[keyval] < minVal:
+                        minVal = self._channel.knots[keyval]
+                    if self._channel.knots[keyval] > maxVal:
+                        maxVal = self._channel.knots[keyval]
                 if minVal < minLimit or maxVal > maxLimit:
+                    # Get user concurrence to truncate values to new limits
                     msgBox = QMessageBox(parent=self)
                     msgBox.setText('Knots in the channel fall outside these limits.')
                     msgBox.setInformativeText("Proceed and modify them to fit?")
@@ -739,7 +1259,7 @@ class ChannelMetadataWidget(QDialog):
         if len(tstring) > 0:
             self._channel.name = tstring
 
-        if self._channel.type != Channel.Digital:
+        if self._channel.type != Channel.DIGITAL:
             self._channel.type = self._typeedit.currentIndex() + 1
 
         tstring = self._portedit.currentText()
@@ -749,7 +1269,7 @@ class ChannelMetadataWidget(QDialog):
             else:
                 self._channel.port = int(tstring)
 
-        if self._channel.type != Channel.Digital:
+        if self._channel.type != Channel.DIGITAL:
             tstring = self._minedit.text()
             if len(tstring) > 0:
                 self._channel.minLimit = float(tstring)
@@ -769,7 +1289,42 @@ class ChannelMetadataWidget(QDialog):
 # for the overall Animatronics file
 #####################################################################
 class MetadataWidget(QDialog):
+    """
+    Class: MetadataWidget
+        Derives from: (QDialog)
+
+    Implements a popup widget for editing the metadata in the
+    Animatronics file.
+    ...
+    Attributes
+    ----------
+    _animatronics : Animatronics
+        The Animatronics object being edited
+    title : str
+        Title of the popup widget
+    _startedit : QLineEdit
+    _endedit : QLineEdit
+    _rateedit : QLineEdit
+    _audioedit : QLineEdit
+    _audiofile : QLineEdit
+    okButton : QPushButton
+    cancelButton : QPushButton
+
+    Methods
+    -------
+    __init__(self, inanim, parent=None)
+    onAccepted(self)
+    """
     def __init__(self, inanim, parent=None):
+        """
+        The method __init__
+            member of class: MetadataWidget
+        Parameters
+        ----------
+        self : MetadataWidget
+        inanim : Animatronics
+        parent=None : QWidget
+        """
         super().__init__(parent)
 
         # Save animatronics object for update if Save is selected
@@ -816,6 +1371,14 @@ class MetadataWidget(QDialog):
         self.cancelButton.clicked.connect(self.reject)
 
     def onAccepted(self):
+        """
+        The method onAccepted handles user acceptance of the new values
+        and updates the Animatronics object.
+            member of class: MetadataWidget
+        Parameters
+        ----------
+        self : MetadataWidget
+        """
         # Push current state for undo
         pushState()
 
@@ -835,7 +1398,75 @@ class MetadataWidget(QDialog):
 # The Player class is a widget with playback controls
 #####################################################################
 class Player(QWidget):
+    """
+    Class: Player
+        Derives from: (QWidget)
+
+    Implements some features needed for playback of the animation.  It
+    uses a QTimer to establish the playback rate, implements playback
+    controls, and starts and stops audio playback when needed.  All
+    time units within this class are in milliseconds and are thus
+    actually positions within the playback for compatibility with the
+    QMediaPlayer position functions.
+
+    Generally, the Player plays the data within the time range of the
+    audio (and other) panes within the application.  During playback, it
+    continually looks to see if the audio should be playing and starts
+    and stops the audio playback at the appropriate time.  Note that
+    this is merely a request for the QMediaPlayer to play and is not
+    synced as the QMediaPlayer may need time to start streaming the
+    data.
+    ...
+    Attributes
+    ----------
+    _startPosition : int
+        milliseconds at which to start playback
+    _endPosition : int
+        milliseconds at which to end playback
+    _offset : int
+        start time of audio in milliseconds
+    mediaPlayer : QMediaPlayer
+    timer : QTimer
+    interval : int
+        step size of timer in milliseconds
+    currPosition : int
+        current playback position in milliseconds
+    playing : boolean
+        flag indicating play status
+    _rewindbutton : QPushButton
+    _playbutton : QPushButton
+    _setleftbutton : QPushButton
+    _setrightbutton : QPushButton
+    timeChangedCallbacks : function array
+        Array of functions to be called at each time interval
+
+    Methods
+    -------
+    __init__(self, parent=None, player=None, interval=20)
+    setRange(self, minTime, maxTime)
+    setOffset(self, audioStartTime)
+    addTimeChangedCallback(self, callback)
+    stepFunction(self)
+    rewind(self)
+    startplaying(self)
+    stopplaying(self)
+    play(self)
+    is_media_playing(self)
+    setLeftConnect(self, leftConnection)
+    setRightConnect(self, rightConnection)
+    """
     def __init__(self, parent=None, player=None, interval=20):
+        """
+        The method __init__
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        parent=None : QWidget
+        player=None : QMediaPlayer
+        interval=20 : int
+            timer interval in milliseconds
+        """
         super().__init__(parent)
 
         self._startPosition = 0
@@ -849,7 +1480,7 @@ class Player(QWidget):
         self.timer = QTimer(self)
         self.interval = interval
         self.timer.setInterval(self.interval)
-        self.timer.timeout.connect(self.tellme)
+        self.timer.timeout.connect(self.stepFunction)
         self.currPosition = 0
         self.playing = False
 
@@ -887,17 +1518,61 @@ class Player(QWidget):
         self.timeChangedCallbacks = []
 
     def setRange(self, minTime, maxTime):
+        """
+        The method setRange sets the playback time range.  This is
+        generally called by the MainWindow when rescaling the audio
+        pane.  The input floats are converted to milliseconds.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        minTime : float
+            Start time of playback range in seconds
+        maxTime : float
+            End time of playback range in seconds
+        """
         self._startPosition = int((minTime - self._offset) * 1000)
         self._endPosition = int((maxTime - self._offset) * 1000)
 
     def setOffset(self, audioStartTime):
+        """
+        The method setOffset sets the start time of the audio channel
+        relative to the start of the animation (generally 0.0).  The
+        input float value is converted to milliseconds.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        audioStartTime : float
+            Start time of audio track in seconds
+        """
         self._offset = int(audioStartTime * 1000.0)
 
     def addTimeChangedCallback(self, callback):
+        """
+        The method addTimeChangedCallback adds the specified callback
+        function to the list of callbacks to be called at each time
+        step.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        callback : function
+        """
         self.timeChangedCallbacks.append(callback)
 
     # Slots
-    def tellme(self):
+    def stepFunction(self):
+        """
+        The method stepFunction is called by the timer at each time step.
+        It checks to see if the media player should be playing and starts
+        or stops it as needed.  It also calls all the registered callbacks
+        and lets them know what time it is.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        """
         if self.currPosition >= self._endPosition:
             self.stopplaying()
         else:
@@ -914,6 +1589,14 @@ class Player(QWidget):
         self.currPosition += self.interval
 
     def rewind(self):
+        """
+        The method rewind sets the current time back to the start time
+        and notifies all the callbacks.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        """
         # Go to left side of playable area
         self.currPosition = self._startPosition
         self.stopplaying()
@@ -922,15 +1605,32 @@ class Player(QWidget):
         pass
 
     def startplaying(self):
+        """
+        The method startplaying starts the callback timer and does some UI
+        stuff to begin playing.  It also makes sure the time is within the
+        current time range.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        """
         if self.currPosition < self._startPosition or self.currPosition >= self._endPosition:
             self.currPosition = self._startPosition
         self._playbutton.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
         self.playing = True
         self.timer.start()
-        self.tellme()   # Call the timer function for time=0
+        self.stepFunction()   # Call the timer function for time=0
 
     def stopplaying(self):
+        """
+        The method stopplaying stops the timer and terminates any playing
+        conditions.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        """
         self.playing = False
         self._playbutton.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
@@ -938,12 +1638,27 @@ class Player(QWidget):
         self.timer.stop()
 
     def play(self):
+        """
+        The method play toggles the play state.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        """
         if self.playing:
             self.stopplaying()
         else:
             self.startplaying()
 
     def is_media_playing(self):
+        """
+        The method is_media_playing checks to see if the QMediaPlayer is
+        currently playing.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        """
         if self.mediaPlayer is not None:
             if usedPyQt == 5:    # PyQt5
                 state = self.mediaPlayer.state()
@@ -960,11 +1675,29 @@ class Player(QWidget):
             return False
 
     def setLeftConnect(self, leftConnection):
+        """
+        The method setLeftConnect specifies a callback to be called when
+        the user clicks the Set Left button in the playback UI.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        leftConnection : type
+        """
         # Set start of play range to current time and set left edge time to it
         self._setleftbutton.clicked.connect(leftConnection)
         pass
 
     def setRightConnect(self, rightConnection):
+        """
+        The method setRightConnect specifies a callback to be called when
+        the user clicks the Set Right button in the playback UI.
+            member of class: Player
+        Parameters
+        ----------
+        self : Player
+        rightConnection : type
+        """
         # Set start of play range to current time and set right edge time to it
         self._setrightbutton.clicked.connect(rightConnection)
         pass
@@ -973,12 +1706,211 @@ class Player(QWidget):
 # The MainWindow class represents the Qt main window.
 #####################################################################
 class MainWindow(QMainWindow):
+    """
+    Class: MainWindow
+        Derives from: (QMainWindow)
+
+    Implements the main window for the Animatronics editing application.
+    ...
+    Shared Attributes
+    ----------
+    # Creating enum to match what QWT uses
+    Y_LEFT_AXIS_ID = 0
+    Y_RIGHT_AXIS_ID = 1
+    X_BOTTOM_AXIS_ID = 2
+    X_TOP_AXIS_ID = 3
+
+    Attributes
+    ----------
+    filedialog : QFileDialog
+    XMLPane : TextDisplayDialog
+    helpPane : TextDisplayDialog
+    audioPlot : QwtPlot
+        The plot Pane for the mono or left stereo channel
+    audioCurve : QwtPlotCurve
+        The plot data for the mono or left stereo channel subsampled from
+        the full audio data
+    audioPlotRight : QwtPlot
+        The plot Pane for the right stereo channel
+    audioCurveRight : QwtPlotCurve
+        The plot data for the right stereo channel subsampled from
+        the full audio data
+    plots : dictionary
+        Set of ChannePane obbjects for displaying the individual channels
+        indexed by the channel name.
+    previousStates : array
+        Stack of XML and more of prechange states for Undo
+    pendingStates : type
+        Stack of XML and more of postchange states for Redo
+    saveStateOkay : boolean
+        Flag indicating that requested state saves be allowed
+        Used when processing many changes that should fall under one Undo
+    unsavedChanges : boolean
+        Flag indicating if changes have been made and not saved
+    lastXmin : float
+        Value of minimum displayed time prior to zooming and scrolling
+        Used for helping keep the zoom and scroll under control
+    lastXmax : float
+        Value of maximum displayed time prior to zooming and scrolling
+        Used for helping keep the zoom and scroll under control
+    audioMin : float
+        The current minimum displayed time
+    audioMax : float
+        The current maximum displayed time
+    totalMin : float
+        The minimum time of all data in the system
+    totalMax : float
+        The maximum time of all data in the system
+    _slideTime : float
+        The current time used for displaying the green slider bar
+    clipboard : QClipboard
+        Clipboard for Copy and Paste
+        This clipboard supports Copy/Paste between applications
+    player : qm.QMediaPlayer
+    animatronics : Animatronics
+        The main object being manipulated consisting of audio, data channels
+        and tags.
+    timeSlider : QwtPlotCurve
+        Implements the green bar showing current time in mono/left audio pane
+    timeSliderRight : QwtPlotCurve
+        Implements the green bar showing current time in right audio pane
+    _mainarea : QScrollArea
+        The central widget in the main window (everything but menubar) used
+        because it attaches to the sides of the main window and stretches
+        with changes in size.
+    _playwidget : Player
+        The Player object that controls playback and notifies channels of 
+        the current play time.
+    _plotarea : QWidget
+        The region of the main window containing all the data panes
+    selectedplots : dictionary
+        List of names of selected panes/plots from the user selecting and
+        deselecting channels
+    _audioOut : qm.QAudioOutput
+        Persistent audio object needed in PyQt6 to make it work
+    lastX : int
+    lastY : int
+        Pixel x and y coords of initial mouse click in audio panes used to keep
+        pan and zoom tidy.
+    centerX : float
+    centerY : float
+        Data x and y values at initial mouse click in audio panes used to keep
+        pan and zoom tidy.
+
+    # All the menus and action items for the menubar
+    file_menu : QMenu
+    _new_file_action : QAction
+    _open_file_action : QAction
+    _selectaudio_action : QAction
+    _merge_file_action : QAction
+    _save_file_action : QAction
+    _save_as_file_action : QAction
+    _export_file_menu : QMenu
+    _export_csv_file_action : QAction
+    _export_vsa_file_action : QAction
+    _exit_action : QAction
+    edit_menu : QMenu
+    _undo_action : QAction
+    _redo_action : QAction
+    _newchannel_action : QAction
+    _newdigital_action : QAction
+    _deletechannel_action : QAction
+    _editmetadata_action : QAction
+    view_menu : QMenu
+    _resetscales_action : QAction
+    _scaletoaudio_action : QAction
+    _showall_action : QAction
+    _showselector_action : QAction
+    _show_audio_menu : QMenu
+    _showmono_audio_action : QAction
+    _showleft_audio_action : QAction
+    _showright_audio_action : QAction
+    _audio_amplitude_action : QAction
+    _playbackcontrols_action : QAction
+    tools_menu : QMenu
+    _selectAll_action : QAction
+    _deselectAll_action : QAction
+    _selectorPane_action : QAction
+    _Copy_action : QAction
+    _Paste_action : QAction
+    _Shift_action : QAction
+    _Delete_action : QAction
+    help_menu : QMenu
+    _about_action : QAction
+    _help_action : QAction
+    _showXML_action : QAction
+
+    Methods
+    -------
+    __init__(self, parent=None)
+    setAnimatronics(self, inanim)
+    openAnimFile(self)
+    newAnimFile(self)
+    mergeAnimFile(self)
+    saveAnimFile(self)
+    saveAsFile(self)
+    exportCSVFile(self)
+    exportVSAFile(self)
+    handle_unsaved_changes(self)
+    exit_action(self)
+    undo_action(self)
+    pushState(self)
+    popState(self)
+    redo_action(self)
+    newdigital_action(self)
+    newchannel_action(self)
+    deleteChannels(self, chanList)
+    deletechannel_action(self)
+    selectaudio_action(self)
+    editmetadata_action(self)
+    timeChanged(self, currTime)
+    setSlider(self, timeVal)
+    playbackcontrols_action(self)
+    resetscales_action(self)
+    redrawAudio(self, minTime, maxTime)
+    scaletoaudio_action(self)
+    showall_action(self)
+    showselector_action(self)
+    showXML_action(self)
+    updateXMLPane(self)
+    getPlotValues(self, pixelX, pixelY)
+    mousePressEvent(self, event)
+    mouseMoveEvent(self, event)
+    mouseReleaseEvent(self, event)
+    setTimeRange(self, minval, maxval)
+    cutLeftSide(self)
+    cutRightSide(self)
+    about_action(self)
+    help_action(self)
+    showleft_audio_action(self, checked)
+    showright_audio_action(self, checked)
+    showaudio_amplitude_action(self, checked)
+    selectAll_action(self)
+    deselectAll_action(self)
+    Copy_action(self)
+    Paste_action(self)
+    Shift_action(self)
+    Delete_action(self)
+    selectorPane_action(self)
+    create_menus(self)
+    """
+    # Creating enum to match what QWT uses
     Y_LEFT_AXIS_ID = 0
     Y_RIGHT_AXIS_ID = 1
     X_BOTTOM_AXIS_ID = 2
     X_TOP_AXIS_ID = 3
 
     def __init__(self, parent=None):
+        """
+        The method __init__
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        parent=None : QWidget
+            Parent of main window, generally None but might be embedded in
+            a bigger application someday
+        """
         super().__init__(parent)
 
         # Create file dialog used only for saving files
@@ -998,6 +1930,7 @@ class MainWindow(QMainWindow):
         self.audioCurve = None
         self.audioPlotRight = None
         self.audioCurveRight = None
+
         # Initialize empty list of channel plots
         self.plots = {}
 
@@ -1020,7 +1953,7 @@ class MainWindow(QMainWindow):
         self.totalMin = 0.0
         self.totalMax = 1.0
         self._slideTime = 0.0
-        self.clipboard = None
+        self.clipboard = QGuiApplication.clipboard()
 
         # Create the media player
         self.player = qm.QMediaPlayer()
@@ -1029,6 +1962,16 @@ class MainWindow(QMainWindow):
         self.setAnimatronics(Animatronics())
 
     def setAnimatronics(self, inanim):
+        """
+        The method setAnimatronics
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        inanim : Animatronics
+            The Animatronics object to be manipulated and displayed
+        """
+
         """Set the active animatronics to the input"""
         self.animatronics = inanim
         self.updateXMLPane()
@@ -1042,6 +1985,13 @@ class MainWindow(QMainWindow):
         self.timeSliderRight = None
         self._show_audio_menu.clear()
         self._show_audio_menu.setEnabled(False)
+
+        # Add filename to window title
+        if self.animatronics.filename is not None:
+            self.setWindowTitle("Animation Editor - " +
+                self.animatronics.filename)
+        else:
+            self.setWindowTitle("Animation Editor")
 
         # Create the bottom level widget and make it the main widget
         self._mainarea = QScrollArea(self)
@@ -1072,12 +2022,13 @@ class MainWindow(QMainWindow):
 
         # Create layout to hold all the channels
         layout = QVBoxLayout(self._plotarea)
-        layout.setContentsMargins(10, 10, 0, 0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         # Remove all existing plot channels
         self.plots = {}
         self.selectedplots = []
 
+        # Add the audio channel pane(s)
         if self.animatronics.newAudio is not None:
             self.audioMin,self.audioMax = self.animatronics.newAudio.audioTimeRange()
             xdata, leftdata, rightdata = self.animatronics.newAudio.getPlotData(self.audioMin,self.audioMax,4000)
@@ -1110,6 +2061,8 @@ class MainWindow(QMainWindow):
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showright_audio_action)
                 self._showright_audio_action.setChecked(True)
+
+            # Set range to match length of audio
             if self.audioMax > self.totalMax: self.totalMax = self.audioMax
             self.lastXmin = self.audioMin
             self.lastXmax = self.audioMax
@@ -1149,6 +2102,7 @@ class MainWindow(QMainWindow):
             pass
 
 
+        # Add panes for all the channels
         for channel in self.animatronics.channels:
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(self._plotarea, chan, mainwindow=self)
@@ -1160,6 +2114,15 @@ class MainWindow(QMainWindow):
             
 
     def openAnimFile(self):
+        """
+        The method openAnimFile opens a file dialog for the user to select
+        an anim file to load.  It replaces all of the previous 
+        Animatronics object except Undo history.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         if self.handle_unsaved_changes():
             """Get filename and open as active animatronics"""
             fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
@@ -1174,7 +2137,7 @@ class MainWindow(QMainWindow):
                 try:
                     newAnim.parseXML(fileName)
                     self.setAnimatronics(newAnim)
-                    # Clear out edit history
+                    # Clear out Redo history
                     self.pendingStates = []
                     self.unsavedChanges = False
         
@@ -1186,6 +2149,14 @@ class MainWindow(QMainWindow):
 
 
     def newAnimFile(self):
+        """
+        The method newAnimFile clears out all of the previous
+        Animatronics object except Undo history and starts from scratch.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         if self.handle_unsaved_changes():
             # Push current state for undo
             pushState()
@@ -1198,6 +2169,22 @@ class MainWindow(QMainWindow):
             self.unsavedChanges = False
     
     def mergeAnimFile(self):
+        """
+        The method mergeAnimFile opens a file dialog for the user to select
+        an Animatronics file to load and then merges that file into the
+        current Animatronics. (Not implemented yet).
+
+        The merge process is intended to be used for combining multiple
+        people's work on different sections of the animation.  It adds
+        new channels to the current set and combines knots for channels
+        with the same name.  It does not replace the current audio file.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """Merge an animatronics file into the current one"""
         fileName, _ = QFileDialog.getOpenFileName(self,"Get Merge Filename", "",
                             "Anim Files (*.anim);;All Files (*)",
@@ -1219,6 +2206,18 @@ class MainWindow(QMainWindow):
         pass
 
     def saveAnimFile(self):
+        """
+        The method saveAnimFile saves the current animation file,
+        overwriting any previous content.  If the user built the
+        current animation from scratch and no filename has been set,
+        a file dialog will be opened to query the user for a filename.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """Save the current animatronics file"""
         if self.animatronics.filename is None:
             # If the filename is not set, use the forcing dialog to get it
@@ -1237,6 +2236,19 @@ class MainWindow(QMainWindow):
         pass
 
     def saveAsFile(self):
+        """
+        The method saveAsFile opens a file dialog to query the user for
+        a filename to which to save the animation.  If the file exists, the
+        user is prompted to confirm overwrite.  If the current animation
+        does not have a filename associated with it, the new filename is
+        associated with it.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """Save the current animatronics file"""
         self.filedialog.setDefaultSuffix('anim')
         self.filedialog.setNameFilter("Anim Files (*.anim);;All Files (*)")
@@ -1248,6 +2260,8 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = False
                 if self.animatronics.filename is None:
                     self.animatronics.filename = fileName
+                    self.setWindowTitle("Animation Editor - " + 
+                        self.animatronics.filename)
     
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
@@ -1257,6 +2271,23 @@ class MainWindow(QMainWindow):
         pass
 
     def exportCSVFile(self):
+        """
+        The method exportCSVFile opens a file dialog to query the user for
+        a filename and then saves a comma-separated values (CSV) file.
+        The rows in the CSV file will be at exact time intervals as
+        specified in the rate of the Animatronics (e.g. 50Hz or 20msec).
+
+        The content of the CSV file will be a column for time followed by
+        a column for each channel that contains at least one data point.
+        The time range in the file will cover the entire duration of the
+        current animation.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """Export the current animatronics file into a CSV format"""
         columns = {}
         timecolumn = []
@@ -1313,10 +2344,29 @@ class MainWindow(QMainWindow):
         pass
 
     def exportVSAFile(self):
+        """
+        The method exportVSAFile exports the current animatronics file
+        into a Brookshire VSA format.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """Export the current animatronics file into a Brookshire VSA format"""
         pass
 
     def handle_unsaved_changes(self):
+        """
+        The method handle_unsaved_changes detects unsaved changes and
+        queries the user to confirm Save or Don't Save.  It is called
+        when opening or creating a new animation or exiting.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         if self.unsavedChanges:
             msgBox = QMessageBox(parent=self)
             msgBox.setText('The current animation has unsaved changes')
@@ -1332,10 +2382,34 @@ class MainWindow(QMainWindow):
         return True
 
     def exit_action(self):
+        """
+        The method exit_action terminates the application.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         if self.handle_unsaved_changes():
             self.close()
 
     def undo_action(self):
+        """
+        The method undo_action undoes the last action performed by the user.
+        This is done by maintaining two stacks of state.  Each time an
+        action is performed by the user that changes the animation, the
+        entire XML is pushed onto the previous state stack.  This method
+        pushed the current state onto the Redo stack and then restores the
+        current state from the top of the previous state stack.
+
+        In addition to the XML of the animation, certain display state is
+        also pushed on the stack so the display may be restored to the
+        previous state as well. (Not implemented yet)
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         self.saveStateOkay = False
         if len(self.previousStates) > 0:
             if self.animatronics is not None:
@@ -1361,6 +2435,18 @@ class MainWindow(QMainWindow):
         pass
 
     def pushState(self):
+        """
+        The method pushState pushes the current animation state onto the
+        previous state stack.  It is called from a global function that is
+        called by any code that modifies the animation.  It also clears
+        out any pending states that Redo might have restored and notes
+        thatt changes have been that must be saved.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         if self.saveStateOkay:
             # Push current state onto previous states
             currState = self.animatronics.toXML()
@@ -1370,10 +2456,31 @@ class MainWindow(QMainWindow):
             self.unsavedChanges = True
 
     def popState(self):
+        """
+        The method popState simply discards the last saved state and is
+        called when some update failed to change the current state as
+        expected.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """Discard last state saved as some update failed"""
         self.previousStates.pop()
 
     def redo_action(self):
+        """
+        The method redo_action pushes the current state onto the Undo stack
+        and pulls the top state off the Redo stack to replace it.  The Undo
+        action pushes states onto the Redo stack and Redo does the opposite.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         print('Redo')
         self.saveStateOkay = False
         if len(self.pendingStates) > 0:
@@ -1400,24 +2507,38 @@ class MainWindow(QMainWindow):
         pass
 
     def newdigital_action(self):
+        """
+        The method newdigital_action creates a new Digital channel.  It
+        brings up the metadata widget to initialize the channel metadata
+        and adds the empty channel to the set of channels.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform newdigital action"""
         main_win.saveStateOkay = False
-        tempChannel = Channel(intype=Channel.Digital)
+        tempChannel = Channel(intype=Channel.DIGITAL)
         td = ChannelMetadataWidget(channel=tempChannel, parent=self)
         code = td.exec_()
         main_win.saveStateOkay = True
 
+        # If user signals accept
         if code == QDialog.Accepted:
             # Check to see if channel already exists
             ret = None
             text = tempChannel.name
             if len(text) <= 0:
+                # If channel name is empty it is an error
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('A channel MUST have a name of at least one character and must be unique')
                 msgBox.setStandardButtons(QMessageBox.Ok)
                 msgBox.setIcon(QMessageBox.Warning)
                 ret = msgBox.exec_()
             elif text in self.animatronics.channels:
+                # If the channel name is already in use so prompt user
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('The channel "%s" already exists.' % text)
                 msgBox.setInformativeText("Replace it?")
@@ -1430,11 +2551,20 @@ class MainWindow(QMainWindow):
 
                 self.animatronics.channels[text] = tempChannel
                 self.setAnimatronics(self.animatronics)
-                print('After set animatronics undo stack size is:', len(main_win.previousStates))
-                
         pass
 
     def newchannel_action(self):
+        """
+        The method newchannel_action creates a new Servo channel.  It
+        brings up the metadata widget to initialize the channel metadata
+        and adds the empty channel to the set of channels.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform newchannel action"""
         main_win.saveStateOkay = False
         tempChannel = Channel()
@@ -1447,12 +2577,14 @@ class MainWindow(QMainWindow):
             ret = None
             text = tempChannel.name
             if len(text) <= 0:
+                # If channel name is empty it is an error
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('A channel MUST have a name of at least one character and must be unique')
                 msgBox.setStandardButtons(QMessageBox.Ok)
                 msgBox.setIcon(QMessageBox.Warning)
                 ret = msgBox.exec_()
             elif text in self.animatronics.channels:
+                # If the channel name is already in use so prompt user
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('The channel "%s" already exists.' % text)
                 msgBox.setInformativeText("Replace it?")
@@ -1465,10 +2597,20 @@ class MainWindow(QMainWindow):
 
                 self.animatronics.channels[text] = tempChannel
                 self.setAnimatronics(self.animatronics)
-                
         pass
 
     def deleteChannels(self, chanList):
+        """
+        The method deleteChannels accepts a list of channels to be deleted
+        and does so, after prompting the user to confirm.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        chanList : str array
+            List of names of channels to be deleted
+        """
         # Confirm deletion with user
         inform_text = ''
         for name in chanList:
@@ -1489,6 +2631,17 @@ class MainWindow(QMainWindow):
             self.setAnimatronics(self.animatronics)
 
     def deletechannel_action(self):
+        """
+        The method deletechannel_action brings up a checklist of channels
+        for the user to select one or more to be deleted.  Once the user
+        signals accept, the list is sent for deletion.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform deletechannel action"""
         form = ChecklistDialog('Channels to Delete', self.animatronics.channels)
         if form.exec_() == QDialog.Accepted:
@@ -1503,6 +2656,16 @@ class MainWindow(QMainWindow):
         pass
 
     def selectaudio_action(self):
+        """
+        The method selectaudio_action opens a file dialog for the user to   
+        select an audio file for use with the animation.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform selectaudio action"""
         fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
                             "Wave Audio Files (*.wav);;All Files (*)",
@@ -1525,15 +2688,52 @@ class MainWindow(QMainWindow):
         pass
 
     def editmetadata_action(self):
+        """
+        The method editmetadata_action brings up the metadata widget for
+        the animation to allow the user to view or edit the metadata.
+        Some metadata is not editable and can only be viewed.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform editmetadata action"""
         qd = MetadataWidget(self.animatronics, parent=self)
         qd.exec_()
         pass
 
     def timeChanged(self, currTime):
+        """
+        The method timeChanged passes the new time value on to set all
+        the sliders.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        currTime : float
+            Time in seconds to set as the current time
+        """
         self.setSlider(currTime + self.animatronics.start)
 
     def setSlider(self, timeVal):
+        """
+        The method setSlider sets the green slider bars showing current
+        time in all the panes.  The 30000.0 is a constant that shows how
+        high the bar goes in the plot window.  It is approximately the
+        maximum value that a wave audio file can hold so it should cover
+        the entire vertical range of the audio panes.  SHOULD be set to
+        match the size of the audio samples.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        timeVal : float
+            Time in seconds to set as the current time
+        """
         if self.timeSlider is not None:
             self.timeSlider.setData([timeVal], [30000.0])
             self.audioPlot.replot()
@@ -1545,7 +2745,15 @@ class MainWindow(QMainWindow):
         self._slideTime = timeVal
 
     def playbackcontrols_action(self):
-        """ Perform playbackcontrols action"""
+        """
+        The method playbackcontrols_action toggles the visibility of the
+        playback widget with Rewind, Play, and Set Left and Right controls.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         if self._playwidget.isHidden():
             self._playwidget.show()
         else:
@@ -1553,23 +2761,46 @@ class MainWindow(QMainWindow):
         pass
 
     def resetscales_action(self):
-        """ Perform resetscales action"""
-        # Reset all horizontal and vertical scales to max X range and local Y range
+        """
+        The method resetscales_action resets the time range to match the
+        minimum and maximum times of all the channels.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
+        # Reset all horizontal and vertical scales to max X range but not local Y range
         minTime = 0.0
         maxTime = 0.0
         if self.audioPlot is not None:
+            # Check time range of audio
             minTime = self.audioMin
             maxTime = self.audioMax
         for i in self.plots:
+            # Check time range of every plot
             lmin,lmax = self.plots[i].getTimeRange()
             if lmin < minTime: minTime = lmin
             if lmax > maxTime: maxTime = lmax
 
-        # Actually set all the ranges
+        # Actually set all the ranges to the max
         self.setTimeRange(minTime, maxTime)
         pass
 
     def redrawAudio(self, minTime, maxTime):
+        """
+        The method redrawAudio resamples the audio channels and redraws them
+        between the specified min and max times.  It plots either value or
+        amplitude depending on the check state.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        minTime : type
+        maxTime : type
+        """
         if self.audioPlot is not None and self.audioCurve is not None:
             if self.animatronics.newAudio is not None:
                 if self._audio_amplitude_action.isChecked():
@@ -1588,12 +2819,33 @@ class MainWindow(QMainWindow):
                 
 
     def scaletoaudio_action(self):
+        """
+        The method scaletoaudio_action resets the visible time range to 
+        match the length of the audio data, even of come channels contain
+        data points outside that range.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform scaletoaudio action"""
-        # Reset all horizontal scales to audio range and vertical scales to local Y ranges
+        # Reset all horizontal scales to audio range but not vertical scales to local Y ranges
         self.setTimeRange(self.audioMin, self.audioMax)
         pass
 
     def showall_action(self):
+        """
+        The method showall_action causes all audio and data channels to be
+        displayed.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform showall action"""
         # Unhide audio channels
         if self.audioPlot is not None: self.audioPlot.show()
@@ -1608,6 +2860,16 @@ class MainWindow(QMainWindow):
         pass
 
     def showselector_action(self):
+        """
+        The method showselector_action brings up a checklist of channels for
+        the user to show or hide whatever channels they wish.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform showselector action"""
         # Pop up show/hide selector to choose visible channels
         form = ChecklistDialog('Channels to Show', self.animatronics.channels)
@@ -1619,6 +2881,7 @@ class MainWindow(QMainWindow):
                 checklist.append(Qt.Checked)
         form.setStates(checklist)
         if form.exec_() == QDialog.Accepted:
+            # Actually set the show/hide state
             for name in self.animatronics.channels:
                 if name in form.choices:
                     self.plots[name].show()
@@ -1627,16 +2890,51 @@ class MainWindow(QMainWindow):
         pass
 
     def showXML_action(self):
-        """ Perform showXML action"""
+        """
+        The method showXML_action brings up a text window that displays
+        the current XML of the animation.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         # Pop up text window containing XML to view (uneditable)
         self.XMLPane.setText(self.animatronics.toXML())
         self.XMLPane.show()
         pass
 
     def updateXMLPane(self):
+        """
+        The method updateXMLPane updates the text in the XML display window
+        to the current state.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         self.XMLPane.setText(self.animatronics.toXML())
 
     def getPlotValues(self, pixelX, pixelY):
+        """
+        The method getPlotValues converts cursor coordinates in the audio
+        pane of the display into time and magnitude values.  These are
+        used to control the zoom and pan within the time range.
+
+        The pixel coordinates are relative to the upper left corner of the
+        rectangle containing the plot and scales and margins.  The size of
+        the scale and margin and title and such not at the top and left
+        must be determined and subtracted to get the coordinates within
+        the plot area.  Then the transforms work to convert to data values.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        pixelX : type
+        pixelY : type
+        """
         # Get the rectangle containing the stuff to left of plot
         rect = self.audioPlot.plotLayout().scaleRect(self.Y_LEFT_AXIS_ID)
         # Get the width of that rectangle to use as offset in X
@@ -1652,26 +2950,68 @@ class MainWindow(QMainWindow):
         return valueX,valueY
 
     def mousePressEvent(self, event):
+        """
+        The method mousePressEvent marks the initial press of the left mouse
+        button within an audio window and saves the data values at that
+        point.  These are used to control the zoom and scroll when the mouse
+        is dragged.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        event : type
+        """
         if event.buttons() == Qt.LeftButton:
             self.lastX = event.pos().x()
             self.lastY = event.pos().y()
             self.centerX,self.centerY = self.getPlotValues(event.pos().x(), event.pos().y())
 
     def mouseMoveEvent(self, event):
+        """
+        The method mouseMoveEvent performs zoom and drag within the audio
+        panes.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        event : type
+        """
         if event.buttons() == Qt.LeftButton:
+            # Compute how far the cursor has moved vertically and horizontally
             deltaX = self.lastX - event.pos().x()
             deltaY = self.lastY - event.pos().y()
             self.lastY = event.pos().y()
+            # Use horizontal motion to drag
             newCenterX,_ = self.getPlotValues(event.pos().x(), event.pos().y())
+            # Use vertical motion to zoom
             yScaler = pow(2.0, float(deltaY)/50.0)
             self.setTimeRange(self.centerX + (self.lastXmin - self.centerX) / yScaler + (self.centerX - newCenterX),
                 self.centerX + (self.lastXmax - self.centerX) / yScaler + (self.centerX - newCenterX))
             
                 
     def mouseReleaseEvent(self, event):
+        """
+        The method mouseReleaseEvent does nothing at this time
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        event : type
+        """
         pass
 
     def setTimeRange(self, minval, maxval):
+        """
+        The method setTimeRange sets the displayed time range for all panes.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        minval : type
+        maxval : type
+        """
         if minval < maxval:
             self.lastXmax = maxval
             self.lastXmin = minval
@@ -1681,32 +3021,100 @@ class MainWindow(QMainWindow):
                 self.plots[i].settimerange(self.lastXmin, self.lastXmax)
 
     def cutLeftSide(self):
+        """
+        The method cutLeftSide sets the left edge time value to be the
+        current slider position to support using it to set the playback
+        range.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         self.setTimeRange(self._slideTime, self.lastXmax)
     
     def cutRightSide(self):
+        """
+        The method cutRightSide sets the right edge time value to be the
+        current slider position to support using it to set the playback
+        range.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         self.setTimeRange(self.lastXmin, self._slideTime)
 
     def about_action(self):
+        """
+        The method about_action brings up the About text in a popup.  About
+        and Help use the same popup so only one can be displayed at a time.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         self.helpPane.setSource('docs/About.md')
         self.helpPane.resize(500, 180)
         self.helpPane.show()
 
     def help_action(self):
+        """
+        The method help_action brings up the Help text in a popup.  About
+        and Help use the same popup so only one can be displayed at a time.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         self.helpPane.setSource('docs/Help.md')
         self.helpPane.resize(600, 700)
         self.helpPane.show()
 
     def showleft_audio_action(self, checked):
+        """
+        The method showleft_audio_action displays or hides the left/mono
+        audio channel per the menu checkbox.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        checked : boolean
+            Indicates visibility of the audio channel
+        """
         if self.audioPlot is not None:
             if checked: self.audioPlot.show()
             else: self.audioPlot.hide()
 
     def showright_audio_action(self, checked):
+        """
+        The method showright_audio_action displays or hides the right
+        audio channel per the menu checkbox.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        checked : boolean
+            Indicates visibility of the audio channel
+        """
         if self.audioPlotRight is not None:
             if checked: self.audioPlotRight.show()
             else: self.audioPlotRight.hide()
 
     def showaudio_amplitude_action(self, checked):
+        """
+        The method showaudio_amplitude_action optionally displays the audio
+        channels in a value or amplitude mode.  Value mode shows the plus
+        and minus values of the signal.  Amplitude mode picks maximum values
+        within a window and displays those.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        checked : type
+        """
         if checked:
             # Convert audio data to amplitude and set in audio pane
             xdata, leftdata, rightdata = self.animatronics.newAudio.getAmplitudeData(self.audioMin, self.audioMax, 4000)
@@ -1734,19 +3142,42 @@ class MainWindow(QMainWindow):
         pass
 
     def selectAll_action(self):
+        """
+        The method selectAll_action selects all channels via the ctrl-A hot
+        key or the corresponding menu item.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         for name in self.plots:
             self.plots[name].select()
         pass
 
     def deselectAll_action(self):
-        """ Perform deselectAll action"""
+        """
+        The method deselectAll_action deselects all channels via the 
+        ctrl-shift-A hot key or the corresponding menu item.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         for name in self.plots:
             self.plots[name].deselect()
         pass
 
-        pass
-
     def Copy_action(self):
+        """
+        The method Copy_action copies the content of a single channel to
+        the clipboard to be pasted elsewhere.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform Copy action"""
         # Make sure there is only one channel selected
         selection = []
@@ -1767,7 +3198,7 @@ class MainWindow(QMainWindow):
                     channame = name
                     break
             if channame is not None:
-                self.clipboard = self.animatronics.channels[name].toXML()
+                self.clipboard.setText(self.animatronics.channels[name].toXML())
         elif len(selection) > 1:
             # Warn that they need to select only one channel to copy
             msgBox = QMessageBox(parent=self)
@@ -1780,14 +3211,24 @@ class MainWindow(QMainWindow):
         else:
             # Copy to clipboard
             name = selection[0]
-            self.clipboard = self.animatronics.channels[name].toXML()
+            self.clipboard.setText(self.animatronics.channels[name].toXML())
             # Deselect the copied channel to avoid pasting right back over it
             self.plots[name].deselect()
         pass
 
     def Paste_action(self):
+        """
+        The method Paste_action pastes the content of the clipboard, if
+        not empty, to all selected channels or the channel under the cursor.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform Paste action"""
-        if self.clipboard is None:
+        if len(self.clipboard.text()) == 0:
             # Warn that they need to have copied something
             msgBox = QMessageBox(parent=self)
             msgBox.setText('Whoops - Empty clipboard')
@@ -1822,27 +3263,51 @@ class MainWindow(QMainWindow):
                 pushState()
 
                 # Paste from clipboard
-                root = ET.fromstring(self.clipboard)
-                self.animatronics.channels[channame].parseXML(root)
-                self.plots[channame].redrawme()
-                main_win.updateXMLPane()
+                try:
+                    root = ET.fromstring(self.clipboard.text())
+                    self.animatronics.channels[channame].parseXML(root)
+                    self.plots[channame].redrawme()
+                    main_win.updateXMLPane()
+                except:
+                    popState()
+                    pass
         else:
             # Push current state for undo
             pushState()
 
             # Paste the clipboard into all selected channels
-            root = ET.fromstring(self.clipboard)
-            for name in selection:
-                self.animatronics.channels[name].parseXML(root)
-                self.plots[name].redrawme()
-            main_win.updateXMLPane()
+            try:
+                root = ET.fromstring(self.clipboard.text())
+                for name in selection:
+                    self.animatronics.channels[name].parseXML(root)
+                    self.plots[name].redrawme()
+                main_win.updateXMLPane()
+            except:
+                popState()
+                pass
         pass
 
     def Shift_action(self):
-        """ Perform Shift action"""
+        """
+        The method Shift_action pops up a widget allowing the user to
+        shift the data points in selected channels left or right in time.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         pass
 
     def Delete_action(self):
+        """
+        The method Delete_action optionally deletes all the selected channels.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
         """ Perform Delete action"""
         dellist = []
         for name in self.plots:
@@ -1853,13 +3318,29 @@ class MainWindow(QMainWindow):
         pass
 
     def selectorPane_action(self):
-        """ Perform selectorPane action"""
+        """
+        The method selectorPane_action brings up a checklist for the user
+        to select specific channels. (Not implemented yet)
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         print('Hit selectorPane action')
+
         pass
 
     def create_menus(self):
-        """Creates all the dropdown menus for the toolbar and associated actions"""
+        """
+        The method create_menus creates all the dropdown menus for the 
+        toolbar and associated actions.
 
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
         # Create the File dropdown menu #################################
         self.file_menu = self.menuBar().addMenu("&File")
         # New action
@@ -2064,8 +3545,51 @@ class MainWindow(QMainWindow):
 # animatronics.
 #####################################################################
 class AudioChannel:
+    """
+    Class: AudioChannel
+
+    Implements an audio channel for the Animatronics application.  It
+    reads a .wav file and provides information on the audio.  It also
+    subsamples the audio to speed up plotting of the data.
+    ...
+    Attributes
+    ----------
+    audiofile : str
+        Name of the audio file
+    audio_data : byte array
+        Raw binary data from the file
+    samplerate : int
+        Samples per second
+    numchannels : int
+        Number of channels (1 for mono, 2 for stereo)
+    samplesize : int
+        Sample size in bytes
+    audiostart : float
+        Time at which audio should start playing in overall animation
+    audioend : float
+        Time at which audio should stop playing in overall animation
+
+    Methods
+    -------
+    __init__(self, filename=None)
+    audioTimeRange(self)
+    getPlotData(self, minTime, maxTime, maxCount)
+    getAmplitudeData(self, minTime, maxTime, maxCount)
+    setAudioFile(self, infilename)
+    toXML(self)
+    parseXML(self, inXML)
+    """
 
     def __init__(self, filename=None):
+        """
+        The method __init__
+            member of class: AudioChannel
+        Parameters
+        ----------
+        self : AudioChannel
+        filename=None : str
+            Name of .wav file to play
+        """
 
         self.audiofile = filename
         self.audio_data = None
@@ -2078,6 +3602,16 @@ class AudioChannel:
             self.setAudioFile(filename)
 
     def audioTimeRange(self):
+        """
+        The method audioTimeRange returns the audio start and end times,
+        in seconds.  End time is just start time plus length of the
+        audio.
+            member of class: AudioChannel
+        Parameters
+        ----------
+        self : AudioChannel
+        """
+
         """Return the start and end times for the audio"""
         print('Audio file:', self.audiofile)
         print('Audio samplerate:', self.samplerate)
@@ -2088,7 +3622,22 @@ class AudioChannel:
         return self.audiostart,self.audioend
 
     def getPlotData(self, minTime, maxTime, maxCount):
+        """
+        The method getPlotData returns the requested number of samples
+        by subsampling the audio data within the requested range.
+            member of class: AudioChannel
+        Parameters
+        ----------
+        self : AudioChannel
+        minTime : float
+            Start of desired time range in seconds
+        maxTime : float
+            End of desired time range in seconds
+        maxCount : int
+            Number of samples desired
+        """
         if self.numchannels == 1:
+            # Process mono data
             structformat = '<h'
             currTime = minTime
             xdata = []
@@ -2103,6 +3652,7 @@ class AudioChannel:
                 currTime += timeStep
             return xdata, ydata, None
         else:
+            # Process stereo data
             structformat = '<hh'
             currTime = minTime
             xdata = []
@@ -2120,6 +3670,21 @@ class AudioChannel:
             return xdata, leftdata , rightdata
 
     def getAmplitudeData(self, minTime, maxTime, maxCount):
+        """
+        The method getAmplitudeData returns subsampled audio data that
+        has been converted to an amplitude by taking the maximum of a 
+        local window.
+            member of class: AudioChannel
+        Parameters
+        ----------
+        self : AudioChannel
+        minTime : float
+            Start of desired time range in seconds
+        maxTime : float
+            End of desired time range in seconds
+        maxCount : int
+            Number of samples desired
+        """
 
         intSize = 30
         """ Get intSize times as much data as needed, then pick max amplitude in each intSize sample window"""
@@ -2173,6 +3738,16 @@ class AudioChannel:
         
 
     def setAudioFile(self, infilename):
+        """
+        The method setAudioFile attempts to open the specified file and,
+        if successful, sets all the internal data to that read from
+        the file.
+            member of class: AudioChannel
+        Parameters
+        ----------
+        self : AudioChannel
+        infilename : str
+        """
         # Now read the audio data
         if os.path.exists(infilename):
             try:
@@ -2192,6 +3767,15 @@ class AudioChannel:
                 return
 
     def toXML(self):
+        """
+        The method toXML writes a block of text containing the XML
+        representation of the AudioChannel object for writing to a
+        file.
+            member of class: AudioChannel
+        Parameters
+        ----------
+        self : AudioChannel
+        """
         output = StringIO()
         if self.audiofile is not None:
             output.write('<Audio file="%s">\n' % self.audiofile)
@@ -2200,6 +3784,15 @@ class AudioChannel:
         return output.getvalue()
 
     def parseXML(self, inXML):
+        """
+        The method parseXML processes an etree object containing parsed
+        XML and populates the AudioChannel object.
+            member of class: AudioChannel
+        Parameters
+        ----------
+        self : AudioChannel
+        inXML : etree Element
+        """
         if inXML.tag == 'Audio':
             if 'file' in inXML.attrib:
                 self.setAudioFile(inXML.attrib['file'])
@@ -2216,20 +3809,80 @@ class AudioChannel:
 # animatronics with a single control channel.
 #####################################################################
 class Channel:
-    Linear = 1      # Servo/CAN channel with linear interpolation
-    Spline = 2      # Servo/CAN channel with Lagrange interpolation
-    Step = 3        # Servo/CAN channel with step changes
-    Digital = 4     # Digital (on/off) channel limited to 0 and 1
+    """
+    Class: Channel
 
-    def __init__(self, inname = '', intype = Linear):
+    Implements a single editable channel of data of any type.  The
+    Channel class stores a set of discrete points or knots representing
+    a function such that no two points have the same X (time) value.  It
+    provides for interpolating the data points via various methods and
+    for reading from and writing to XML.
+    ...
+    Shared Attributes
+    ----------
+    DIGITAL = 0     # Digital (on/off) channel limited to 0 and 1
+    LINEAR = 1      # Servo/CAN channel with linear interpolation
+    SPLINE = 2      # Servo/CAN channel with Lagrange interpolation
+    STEP = 3        # Servo/CAN channel with step changes
+
+    Attributes
+    ----------
+    name : str
+        The name of the channel
+    knots : dictionary
+        Dictionary of floats (Y values) with float keys (X values)
+    knottitles : dictionary
+        Dictionary of str (Y labels) with float keys (X values)
+    type : int
+        Enum of DIGITAL, LINEAR, SPLINE, or STEP
+    minLimit : float
+        Lowest legal Y value
+    maxLimit : float
+        Highest legal Y value
+    port : int
+        Index of port on controller for this channel (-1 means unassigned)
+    rateLimit : float
+        Maximum rate of change allowed for this channel in units per second
+
+    Methods
+    -------
+    __init__(self, inname = '', intype = LINEAR)
+    add_knot(self, key, value)
+    delete_knot(self, key)
+    set_name(self, inname)
+    num_knots(self)
+    getValueAtTime(self, inTime)
+    getKnotData(self, minTime, maxTime, maxCount)
+    getPlotData(self, minTime, maxTime, maxCount)
+    getValuesAtTimeSteps(self, startTime, endTime, timeStep)
+    toXML(self)
+    parseXML(self, inXML)
+    """
+    DIGITAL = 0     # Digital (on/off) channel limited to 0 and 1
+    LINEAR = 1      # Servo/CAN channel with linear interpolation
+    SPLINE = 2      # Servo/CAN channel with Lagrange interpolation
+    STEP = 3        # Servo/CAN channel with step changes
+
+    def __init__(self, inname = '', intype = LINEAR):
+        """
+        The method __init__
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        inname='' : str
+            name of channel
+        intype=LINEAR : int
+            enum type of channel
+        """
         self.name = inname
         self.knots = {}
         self.knottitles = {}
         self.type = intype
-        if intype == self.Digital:
+        if intype == self.DIGITAL:
             self.minLimit = 0.0
             self.maxLimit = 1.0
-        elif intype == self.Linear or intype == self.Spline:
+        elif intype == self.LINEAR or intype == self.SPLINE:
             self.minLimit = 0.0
             self.maxLimit = 180.0
         else:
@@ -2239,21 +3892,87 @@ class Channel:
         self.rateLimit = -1.0
 
     def add_knot(self, key, value):
+        """
+        The method add_knot adds or replaces the Y value associated with
+        time (X) key.
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        key : float
+            Time (X) value for the knot
+        value : float
+            Data (Y) value for the knot
+        """
         self.knots[key] = value
 
     def delete_knot(self, key):
+        """
+        The method delete_knot removes the knot at time key.
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        key : float
+            Time (X) value for the knot to be removed
+        """
         self.knots.pop(key)
 
     def set_name(self, inname):
+        """
+        The method set_name sets the name of the channel to the input value.
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        inname : str
+            New name
+        """
         self.name = inname
 
     def num_knots(self):
+        """
+        The method num_knots returns the number of knots in the channel.
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        """
         return len(self.knots)
 
     def getValueAtTime(self, inTime):
+        """
+        The method getValueAtTime may eventually provide single point
+        interpolation of the channel but may not.  Not currently used.
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        inTime : type
+        """
         pass
 
     def getKnotData(self, minTime, maxTime, maxCount):
+        """
+        The method getKnotData returns arrays containing time (X) and data (Y)
+        values for all the knots in the array within the specified time range.
+        If there are more knots in the range than maxCount, they are
+        subsampled somehow (not implemented yet).
+
+        Currently, ALL knots are returned ALL the time.  Mostly good enough
+
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        minTime : float
+            Minimum time, in seconds, of desired time range
+        maxTime : float
+            Maximum time, in seconds, of desired time range
+        maxCount : int
+            Maximum number of knots to return (not currently used)
+        """
+
         """Returns up to maxCount of the knots along the visible part of the curve"""
         keys = sorted(self.knots.keys())
         if len(keys) < 1:
@@ -2278,17 +3997,43 @@ class Channel:
         return xdata,ydata
 
     def getPlotData(self, minTime, maxTime, maxCount):
+        """
+        The method getPlotData returns arrays of interpolated points along
+        the channel data curve.  Interpolation is determined by the channel
+        type with Step, Linear, and Spline currently supported.  Returns
+        a pair of Nones of the channel is empty.
+
+        The QwtPlot class plots curves with lines connecting the points so
+        it is not necessary to interpolate in the Linear case.  In the Step
+        case, an additional point is inserted just before each knot with
+        the previous knots value causing a step function appearance.  For
+        Spline, Lagrange interpolation is used to compute up to maxCount
+        values along the curve from minTime to maxTime.  The Spline case is
+        currently the only one that pays attention to maxCount other than
+        the special case of a single knot.  In the latter case, maxCount
+        values are returned with the full range of time values but the same
+        data value.
+
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        minTime : float
+            
+        maxTime : type
+        maxCount : type
+        """
+
         """Returns up to maxCount points along the visible part of the curve"""
         keys = sorted(self.knots.keys())
         if len(keys) < 1:
             # Return Nones if channel is empty
             return None,None
         if len(keys) < 2:
-            # Return a constant value
-            xdata = [minTime + i * (maxTime - minTime) for i in range(maxCount+1)]
-            ydata = [self.knots[keys[0]] for i in range(maxCount+1)]
-
-        elif self.type == self.Linear:
+            # Return a constant value between minTime and maxTime
+            xdata = [minTime, maxTime]
+            ydata = [self.knots[keys[0]], self.knots[keys[0]]]
+        elif self.type == self.LINEAR:
             # Just return the points within the time range plus some on either side
             if len(keys) < maxCount:
                 # Just send them all
@@ -2299,9 +4044,10 @@ class Channel:
                 # Just send them all for now
                 xdata = keys
                 ydata = [self.knots[key] for key in keys]
-        elif self.type == self.Step or self.type == self.Digital:
+        elif self.type == self.STEP or self.type == self.DIGITAL:
             # To simulate a step function, output a value at the beginning and end
-            # of its interval
+            # of each interval
+            # Add value from left side of window to first point (?)
             xdata = [min(minTime, keys[0])]
             ydata = [self.knots[keys[0]]]
             if len(keys) < maxCount:
@@ -2312,9 +4058,10 @@ class Channel:
                     ydata.append(self.knots[keys[i-1]])
                     xdata.append(keys[i])
                     ydata.append(self.knots[keys[i]])
+            # Add value from last point to right side of window (?)
             xdata.append(max(maxTime, keys[-1]))
             ydata.append(self.knots[keys[-1]])
-        elif self.type == self.Spline:
+        elif self.type == self.SPLINE:
             # Use Lagrangian interpolation of knots
             timeStep = (maxTime - minTime) / maxCount
             currTime = minTime
@@ -2328,6 +4075,13 @@ class Channel:
                 # Wants two knots before and two after for best results
                 interpKeys = keys[max(0,i-2):min(i+2,len(keys))]
                 def _basis(j):
+                    """
+                    The method _basis
+                    Parameters
+                    ----------
+                    j : int
+                        index of basis to be calculated
+                    """
                     k = len(interpKeys)
                     p = [(currTime - interpKeys[m])/(interpKeys[j] - interpKeys[m]) for m in range(k) if m != j]
                     return reduce(operator.mul, p)
@@ -2341,10 +4095,12 @@ class Channel:
 
         else:
             # Better never get here
-            print('Type is Invalid')
+            sys.error.write('Whoops - Type is Invalid')
             exit(10)
 
         # Limit the range of plot data to min and max values
+        # Linear and Step curves should be self-limiting so this really
+        # applies only to Spline curves
         for i in range(len(ydata)):
             if ydata[i] > self.maxLimit:
                 ydata[i] = self.maxLimit
@@ -2355,12 +4111,27 @@ class Channel:
 
 
     def getValuesAtTimeSteps(self, startTime, endTime, timeStep):
-        """Returns an array of values along the curve at each time step from start to end"""
+        """
+        The method getValuesAtTimeSteps interpolates the curve at equal
+        sized steps from startTime to endTime.  This is primarily used for
+        creating CSV data at regular intervals.
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        startTime : float
+            Start time in seconds
+        endTime : float
+            End time in seconds
+        timeStep : float
+            Time step in seconds
+        """
+
         if len(self.knots) == 0:
             return None
 
         # Short cut for spline and smooth curves
-        if self.type == self.Spline:
+        if self.type == self.SPLINE:
             maxCount = int((endTime - startTime) / timeStep)
             _, values = self.getPlotData(startTime, endTime, maxCount)
             return values
@@ -2372,23 +4143,23 @@ class Channel:
         values = []
         while currTime <= endTime:
             if currTime < keys[0]:
-                if self.type == self.Linear or self.type == self.Step or self.type == self.Digital:
+                if self.type == self.LINEAR or self.type == self.STEP or self.type == self.DIGITAL:
                     values.append(self.knots[keys[0]])
             elif currTime > keys[-1]:
-                if self.type == self.Linear or self.type == self.Step or self.type == self.Digital:
+                if self.type == self.LINEAR or self.type == self.STEP or self.type == self.DIGITAL:
                     values.append(self.knots[keys[-1]])
             else:
                 # Somewhere in range so find interval
                 while nextkeyindex < len(keys) and keys[nextkeyindex] <= currTime:
                     nextkeyindex += 1
-                if self.type == self.Linear:
+                if self.type == self.LINEAR:
                     # interpolate
                     tval = ((self.knots[keys[nextkeyindex]] * (currTime - keys[nextkeyindex-1]) +
                         self.knots[keys[nextkeyindex-1]] * (keys[nextkeyindex] - currTime)) /
                         (keys[nextkeyindex] - keys[nextkeyindex-1]))
                     values.append(tval)
                     pass
-                elif self.type == self.Step or self.type == self.Digital:
+                elif self.type == self.STEP or self.type == self.DIGITAL:
                     values.append(self.knots[keys[nextkeyindex-1]])
 
             currTime += timeStep
@@ -2396,6 +4167,14 @@ class Channel:
         return values
 
     def toXML(self):
+        """
+        The method toXML builds a block of XML from the data within the
+        Channel and returns a string.
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        """
         output = StringIO()
         output.write('<Channel name="%s"' % self.name)
         if self.minLimit >= -1.0e33:
@@ -2406,13 +4185,13 @@ class Channel:
             output.write(' channel="%d"' % self.port)
         if self.rateLimit > 0.0:
             output.write(' rateLimit="%f"' % self.rateLimit)
-        if self.type == self.Linear:
+        if self.type == self.LINEAR:
             output.write(' type="Linear">\n')
-        elif self.type == self.Spline:
+        elif self.type == self.SPLINE:
             output.write(' type="Spline">\n')
-        elif self.type == self.Step:
+        elif self.type == self.STEP:
             output.write(' type="Step">\n')
-        elif self.type == self.Digital:
+        elif self.type == self.DIGITAL:
             output.write(' type="Digital">\n')
         for ttime in sorted(self.knots.keys()):
             if ttime not in self.knottitles:
@@ -2425,7 +4204,18 @@ class Channel:
         return output.getvalue()
 
     def parseXML(self, inXML):
+        """
+        The method parseXML parses an etree ElementTree and populates the
+        channel fields from the XML.
+            member of class: Channel
+        Parameters
+        ----------
+        self : Channel
+        inXML : etree ElementTree
+            The preparsed XML object
+        """
         if inXML.tag == 'Channel':
+            # Populate metadata from attributes
             if 'name' in inXML.attrib and len(self.name) == 0:
                 self.name = inXML.attrib['name']
             if 'minLimit' in inXML.attrib:
@@ -2438,13 +4228,13 @@ class Channel:
                 self.port = int(inXML.attrib['channel'])
             if 'type' in inXML.attrib:
                 if inXML.attrib['type'] == 'Linear':
-                    self.type = self.Linear
+                    self.type = self.LINEAR
                 elif inXML.attrib['type'] == 'Spline':
-                    self.type = self.Spline
+                    self.type = self.SPLINE
                 elif inXML.attrib['type'] == 'Step':
-                    self.type = self.Step
+                    self.type = self.STEP
                 elif inXML.attrib['type'] == 'Digital':
-                    self.type = self.Digital
+                    self.type = self.DIGITAL
                 else:
                     raise Exception('Invalid Channel Type:%s' % inXML.attrib['type'])
         else:
@@ -2452,6 +4242,7 @@ class Channel:
 
         # Clean out all current knots
         self.knots = {}
+        # Populate knots from Point blocks
         for point in inXML:
             if point.tag == 'Point':
                 if 'time' in point.attrib:
@@ -2471,7 +4262,44 @@ class Channel:
 # animatronics synced with an audio file.
 #####################################################################
 class Animatronics:
+    """
+    Class: Animatronics
+
+    Implements the entire Animatronics construct with audio, data channels,
+    tags, and useful metadata.
+    ...
+    Attributes
+    ----------
+    filename : str
+        Name of file parsed for this object (None if newly created)
+    newAudio : AudioChannel
+        An object holding the audio information
+    channels : dictionary
+        A dictionary of channels keyed to the channel name
+    start : float
+        Start time of the animation (ALWAYS 0.0)
+    end : float
+        End time of the animation (defaults to end of audio)
+    sample_rate : float
+        Sample rate in samples per second (defaults to 50Hz)
+        Used for writing CSV files and for real-time control whenever done
+
+    Methods
+    -------
+    __init__(self)
+    parseXML(self, inXMLFilename)
+    fromXML(self, testtext)
+    toXML(self)
+    set_audio(self, infilename)
+    """
     def __init__(self):
+        """
+        The method __init__
+            member of class: Animatronics
+        Parameters
+        ----------
+        self : Animatronics
+        """
         self.filename = None
         self.newAudio = None
         self.channels = {}
@@ -2480,12 +4308,33 @@ class Animatronics:
         self.sample_rate = 50.0
 
     def parseXML(self, inXMLFilename):
+        """
+        The method parseXML accepts a filename of an XML file containing an
+        Animatronics specification and parses it, preserving the filename
+        for later saves.
+            member of class: Animatronics
+        Parameters
+        ----------
+        self : Animatronics
+        inXMLFilename : str
+            Filename of XML file to read
+        """
         with open(inXMLFilename, 'r') as infile:
             testtext = infile.read()
             self.fromXML(testtext)
             self.filename = inXMLFilename
 
     def fromXML(self, testtext):
+        """
+        The method fromXML parses a block of XML text and populates the
+        class members, deleting all existing data.  It is used both for
+        parsing files and for parsing Undo and Redo state information.
+            member of class: Animatronics
+        Parameters
+        ----------
+        self : Animatronics
+        testtext : type
+        """
         # Clean up existing stuff
         self.newAudio = None
         self.channels = {}
@@ -2509,6 +4358,15 @@ class Animatronics:
                     self.sample_rate = float(child.attrib['rate'])
 
     def toXML(self):
+        """
+        The method toXML creates and returns a block of XML text from i
+        the object's members.  The text may be written to a file or saved
+        as state for Undo and Redo.
+            member of class: Animatronics
+        Parameters
+        ----------
+        self : Animatronics
+        """
         output = StringIO()
         output.write('<?xml version="1.0"?>\n')
         output.write('<Animatronics starttime="%f"' % self.start)
@@ -2524,15 +4382,31 @@ class Animatronics:
         return output.getvalue()
 
     def set_audio(self, infilename):
+        """
+        The method set_audio accepts the specified audio filename and
+        creates a new AudioChannel object for that audio file.  This
+        associates the audio file with this animation.
+            member of class: Animatronics
+        Parameters
+        ----------
+        self : Animatronics
+        infilename : type
+        """
         self.newAudio = AudioChannel(infilename)
 
 
 #/* Main */
-def main():
+def doAnimatronics():
+    """
+    The method doAnimatronics is the main function of the application.
+    It parses the command line arguments, handles them, and then opens
+    the main window and proceeds.
+    """
     # Make main window global to support saving state for undo/redo
     global main_win
 
-    # Local Variables
+    # Local Variables to support parsing an Animatronics file specified
+    # on the command line
     infilename = None
     root = None
     animation = Animatronics()
@@ -2572,11 +4446,12 @@ def main():
 
         main_win.saveStateOkay = True
 
+    # Open the main window and process events
     main_win.setAnimatronics(animation)
     main_win.show()
     app.exec_()
 
 
 if __name__ == "__main__":
-    main()
+    doAnimatronics()
 
