@@ -1086,6 +1086,9 @@ class ChannelPane(qwt.QwtPlot):
                 margin = (self.maxVal - self.minVal) * 0.05
                 self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal-margin, self.maxVal+margin)
 
+        if xdata is not None:
+            # Erase tip on how to add points
+            self.setToolTip('')
         self.redrawLimits()
         self.replot()
 
@@ -1724,6 +1727,7 @@ class MainWindow(QMainWindow):
     ----------
     filedialog : QFileDialog
     XMLPane : TextDisplayDialog
+    ClipboardPane : TextDisplayDialog
     helpPane : TextDisplayDialog
     audioPlot : QwtPlot
         The plot Pane for the mono or left stereo channel
@@ -1827,7 +1831,7 @@ class MainWindow(QMainWindow):
     _showright_audio_action : QAction
     _audio_amplitude_action : QAction
     _playbackcontrols_action : QAction
-    tools_menu : QMenu
+    channel_menu : QMenu
     _selectAll_action : QAction
     _deselectAll_action : QAction
     _selectorPane_action : QAction
@@ -1873,6 +1877,7 @@ class MainWindow(QMainWindow):
     showselector_action(self)
     showXML_action(self)
     updateXMLPane(self)
+    updateClipboardPane(self)
     getPlotValues(self, pixelX, pixelY)
     mousePressEvent(self, event)
     mouseMoveEvent(self, event)
@@ -1921,6 +1926,7 @@ class MainWindow(QMainWindow):
 
         # Create the XML display dialog for constant refresh
         self.XMLPane = TextDisplayDialog('XML', parent=self)
+        self.ClipboardPane = TextDisplayDialog('Clipboard', parent=self)
 
         # Create the Help Popup
         self.helpPane = TextDisplayDialog('Animator Help', parent=self)
@@ -2013,6 +2019,13 @@ class MainWindow(QMainWindow):
         self._plotarea = QWidget()
         tlayout.addWidget(self._plotarea)
 
+        # Add some tooltips to get user started
+        if self.animatronics.newAudio is None and len(self.animatronics.channels) == 0:
+            # Just beginning so help a lot
+            self._plotarea.setToolTip('Hit File->Open Audio File to add audio or\nCtrl-N or Ctrl-D to add a new control channel')
+        elif len(self.animatronics.channels) == 0:
+            self._plotarea.setToolTip('Ctrl-N to add a new servo channel or\nCtrl-D to add a new digital channel')
+
         # Set the background color
         p = self._plotarea.palette()
         backcolor = QColor()
@@ -2039,6 +2052,8 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
+                self.audioPlot.setMaximumHeight(200)
+                self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showmono_audio_action)
                 self._showmono_audio_action.setChecked(True)
@@ -2049,6 +2064,8 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
+                self.audioPlot.setMaximumHeight(200)
+                self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showleft_audio_action)
                 self._showleft_audio_action.setChecked(True)
@@ -2058,6 +2075,8 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlotRight = newplot
+                self.audioPlotRight.setMaximumHeight(200)
+                self.audioPlotRight.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showright_audio_action)
                 self._showright_audio_action.setChecked(True)
@@ -2101,12 +2120,17 @@ class MainWindow(QMainWindow):
             # Not sure what I want to do here
             pass
 
+        # Improve layout by sticking audio to the top
+        if len(self.animatronics.channels) == 0:
+            layout.addStretch()
 
         # Add panes for all the channels
         for channel in self.animatronics.channels:
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(self._plotarea, chan, mainwindow=self)
             newplot.settimerange(self.lastXmin, self.lastXmax)
+            if len(chan.knots) == 0:
+                newplot.setToolTip('Use Shift-LeftMouseButton to add control points')
             layout.addWidget(newplot)
             self.plots[chan.name] = newplot
 
@@ -2889,6 +2913,22 @@ class MainWindow(QMainWindow):
                     self.plots[name].hide()
         pass
 
+    def showClipboard_action(self):
+        """
+        The method showClipboard_action brings up a text window that displays
+        the current clipboard content.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+        # Pop up text window containing XML to view (uneditable)
+        self.ClipboardPane.setText(self.clipboard.text())
+        self.ClipboardPane.setWindowTitle('Clipboard')
+        self.ClipboardPane.show()
+        pass
+
     def showXML_action(self):
         """
         The method showXML_action brings up a text window that displays
@@ -2901,6 +2941,7 @@ class MainWindow(QMainWindow):
         """
         # Pop up text window containing XML to view (uneditable)
         self.XMLPane.setText(self.animatronics.toXML())
+        self.XMLPane.setWindowTitle('XML')
         self.XMLPane.show()
         pass
 
@@ -2935,6 +2976,9 @@ class MainWindow(QMainWindow):
         pixelX : type
         pixelY : type
         """
+        if self.audioPlot is None:
+            return None, None
+
         # Get the rectangle containing the stuff to left of plot
         rect = self.audioPlot.plotLayout().scaleRect(self.Y_LEFT_AXIS_ID)
         # Get the width of that rectangle to use as offset in X
@@ -2962,6 +3006,7 @@ class MainWindow(QMainWindow):
         self : MainWindow
         event : type
         """
+        if self.audioPlot is None: return
         if event.buttons() == Qt.LeftButton:
             self.lastX = event.pos().x()
             self.lastY = event.pos().y()
@@ -2977,6 +3022,7 @@ class MainWindow(QMainWindow):
         self : MainWindow
         event : type
         """
+        if self.audioPlot is None: return
         if event.buttons() == Qt.LeftButton:
             # Compute how far the cursor has moved vertically and horizontally
             deltaX = self.lastX - event.pos().x()
@@ -2999,6 +3045,7 @@ class MainWindow(QMainWindow):
         self : MainWindow
         event : type
         """
+        if self.audioPlot is None: return
         pass
 
     def setTimeRange(self, minval, maxval):
@@ -3057,6 +3104,7 @@ class MainWindow(QMainWindow):
         """
         self.helpPane.setSource('docs/About.md')
         self.helpPane.resize(500, 180)
+        self.helpPane.setWindowTitle('About Animator')
         self.helpPane.show()
 
     def help_action(self):
@@ -3070,6 +3118,21 @@ class MainWindow(QMainWindow):
         """
         self.helpPane.setSource('docs/Help.md')
         self.helpPane.resize(600, 700)
+        self.helpPane.setWindowTitle('Animator Help')
+        self.helpPane.show()
+
+    def hotkeys_action(self):
+        """
+        The method help_action brings up the Hot Kyes text in a popup.  About
+        and Help use the same popup so only one can be displayed at a time.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+        self.helpPane.setSource('docs/HotKeys.md')
+        self.helpPane.resize(600, 700)
+        self.helpPane.setWindowTitle('Hot Key Cheat Sheet')
         self.helpPane.show()
 
     def showleft_audio_action(self, checked):
@@ -3199,6 +3262,7 @@ class MainWindow(QMainWindow):
                     break
             if channame is not None:
                 self.clipboard.setText(self.animatronics.channels[name].toXML())
+                self.ClipboardPane.setText(self.clipboard.text())
         elif len(selection) > 1:
             # Warn that they need to select only one channel to copy
             msgBox = QMessageBox(parent=self)
@@ -3212,6 +3276,7 @@ class MainWindow(QMainWindow):
             # Copy to clipboard
             name = selection[0]
             self.clipboard.setText(self.animatronics.channels[name].toXML())
+            self.ClipboardPane.setText(self.clipboard.text())
             # Deselect the copied channel to avoid pasting right back over it
             self.plots[name].deselect()
         pass
@@ -3344,7 +3409,7 @@ class MainWindow(QMainWindow):
         # Create the File dropdown menu #################################
         self.file_menu = self.menuBar().addMenu("&File")
         # New action
-        self._new_file_action = QAction("&New Anim File",
+        self._new_file_action = QAction("&New Animation",
                 self, triggered=self.newAnimFile)
         self.file_menu.addAction(self._new_file_action)
 
@@ -3474,52 +3539,52 @@ class MainWindow(QMainWindow):
 
 
         # Create the Tools dropdown menu #################################
-        self.tools_menu = self.menuBar().addMenu("&Tools")
+        self.channel_menu = self.menuBar().addMenu("&Channels")
 
         # selectAll menu item
-        self._selectAll_action = QAction("selectAll", self,
+        self._selectAll_action = QAction("Select All", self,
             shortcut="Ctrl+A",
             triggered=self.selectAll_action)
-        self.tools_menu.addAction(self._selectAll_action)
+        self.channel_menu.addAction(self._selectAll_action)
 
         # deselectAll menu item
-        self._deselectAll_action = QAction("deselectAll", self,
+        self._deselectAll_action = QAction("Deselect All", self,
             shortcut="Ctrl+Shift+A",
             triggered=self.deselectAll_action)
-        self.tools_menu.addAction(self._deselectAll_action)
+        self.channel_menu.addAction(self._deselectAll_action)
 
         # selectorPane menu item
         self._selectorPane_action = QAction("selectorPane", self,
             shortcut="P",
             triggered=self.selectorPane_action)
-        self.tools_menu.addAction(self._selectorPane_action)
+        self.channel_menu.addAction(self._selectorPane_action)
 
-        self.tools_menu.addSeparator()
+        self.channel_menu.addSeparator()
 
         # Copy menu item
         self._Copy_action = QAction("Copy", self,
             shortcut="Ctrl+C",
             triggered=self.Copy_action)
-        self.tools_menu.addAction(self._Copy_action)
+        self.channel_menu.addAction(self._Copy_action)
 
         # Paste menu item
         self._Paste_action = QAction("Paste", self,
             shortcut="Ctrl+V",
             triggered=self.Paste_action)
-        self.tools_menu.addAction(self._Paste_action)
+        self.channel_menu.addAction(self._Paste_action)
 
         # Shift menu item
         self._Shift_action = QAction("Shift", self,
             triggered=self.Shift_action)
         self._Shift_action.setEnabled(False)
-        self.tools_menu.addAction(self._Shift_action)
+        self.channel_menu.addAction(self._Shift_action)
 
-        self.tools_menu.addSeparator()
+        self.channel_menu.addSeparator()
 
         # Delete menu item
         self._Delete_action = QAction("Delete", self,
             triggered=self.Delete_action)
-        self.tools_menu.addAction(self._Delete_action)
+        self.channel_menu.addAction(self._Delete_action)
 
 
         self.menuBar().addSeparator()
@@ -3533,6 +3598,15 @@ class MainWindow(QMainWindow):
         self._help_action = QAction("Help", self,
             triggered=self.help_action)
         self.help_menu.addAction(self._help_action)
+
+        self._hotkeys_action = QAction("Hot Keys", self,
+            triggered=self.hotkeys_action)
+        self.help_menu.addAction(self._hotkeys_action)
+
+        # showClipboard menu item
+        self._showClipboard_action = QAction("Show Clipboard", self,
+            triggered=self.showClipboard_action)
+        self.help_menu.addAction(self._showClipboard_action)
 
         # showXML menu item
         self._showXML_action = QAction("Show XML", self,
