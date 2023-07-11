@@ -60,7 +60,7 @@ except:
         from PyQt6 import QtMultimedia as qm
         usedPyQt = 6
     except:
-        print('Whoops - Unable to find PyQt5 or PyQt6 - Quitting')
+        sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
         exit(10)
 import qwt
 
@@ -72,11 +72,15 @@ verbosity = False
 SystemPreferences = {
 'MaxDigitalChannels':48,
 'MaxServoChannels':32,
+'ServoDefaultMinimum':0.0,
+'ServoDefaultMaximum':180.0,
 'Ordering':'Numeric',
 }
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
 'MaxServoChannels':'int',
+'ServoDefaultMinimum':float,
+'ServoDefaultMaximum':float,
 'Ordering':['Alphabetic','Numeric','Creation'],
 }
 
@@ -89,8 +93,6 @@ def print_usage(name):
     name : str
         The name of the application from argv[0]
     """
-
-    """ Simple method to output usage when needed """
     sys.stderr.write("\nUsage: %s [-/-h/-help] [-f/-file infilename]\n")
     sys.stderr.write("Create and edit animatronics control channels.\n");
     sys.stderr.write("-/-h/-help             :show this information\n");
@@ -1345,6 +1347,8 @@ class MetadataWidget(QDialog):
         """
         super().__init__(parent)
 
+        self._parent = parent
+
         # Save animatronics object for update if Save is selected
         self._animatronics = inanim
 
@@ -1408,9 +1412,11 @@ class MetadataWidget(QDialog):
             self._animatronics.sample_rate = float(tstring)
         tstring = self._audioedit.text()
         if len(tstring) > 0:
-            self._animatronics.audiostart = float(tstring)
+            self._animatronics.newAudio.audiostart = float(tstring)
         self.accept()
-        main_win.updateXMLPane()
+        if self._parent is not None:
+            self._parent.redraw()
+            self._parent.updateXMLPane()
 
 #####################################################################
 # The PreferencesWidget is used to view and edit the Preferences
@@ -1532,7 +1538,6 @@ class PreferencesWidget(QDialog):
 
                 # If MainWindow is set as parent do a redraw
                 if self.parent is not None:
-                    print('Doing redraw after preferences')
                     self.parent.redraw()
                     pass
         except:
@@ -1554,9 +1559,9 @@ class PreferencesWidget(QDialog):
             with open(preffile, 'r') as prefs:
                 line = prefs.readline()
                 while line:
-                    vals = line.split(':')
+                    # Strip off trailing whitespace and split on :
+                    vals = line.rstrip().split(':')
                     if len(vals) == 2:
-                        print('Setting pref:',vals[0], 'to:', vals[1])
                         if SystemPreferenceTypes[vals[0]] == 'int':
                             SystemPreferences[vals[0]] = int(vals[1])
                         elif SystemPreferenceTypes[vals[0]] == 'float':
@@ -1601,7 +1606,7 @@ class Player(QWidget):
         milliseconds at which to end playback
     _offset : int
         start time of audio in milliseconds
-    mediaPlayer : QMediaPlayer
+    _audio : Audio
     timer : QTimer
     interval : int
         step size of timer in milliseconds
@@ -1618,7 +1623,7 @@ class Player(QWidget):
 
     Methods
     -------
-    __init__(self, parent=None, player=None, interval=20)
+    __init__(self, parent=None, audio=None, interval=20)
     setRange(self, minTime, maxTime)
     setOffset(self, audioStartTime)
     addTimeChangedCallback(self, callback)
@@ -1631,7 +1636,7 @@ class Player(QWidget):
     setLeftConnect(self, leftConnection)
     setRightConnect(self, rightConnection)
     """
-    def __init__(self, parent=None, player=None, interval=20):
+    def __init__(self, parent=None, audio=None, interval=20):
         """
         The method __init__
             member of class: Player
@@ -1639,7 +1644,7 @@ class Player(QWidget):
         ----------
         self : Player
         parent=None : QWidget
-        player=None : QMediaPlayer
+        audio=None : Audio
         interval=20 : int
             timer interval in milliseconds
         """
@@ -1647,12 +1652,26 @@ class Player(QWidget):
 
         self._startPosition = 0
         self._endPosition = 10000   # 10 seconds
-        # The offset is the start time of the audio in case it is not 0
         self._offset = 0
 
-        self.mediaPlayer = player
+        self._audio = None
+        self.mediaPlayer = None
 
-        # Create timer to provide time steps in place of media player
+        if audio is not None:
+            self._offset = int(audio.audiostart*1000)
+            self._audio = audio
+            # Create/open QtMediaPlayer
+            self.mediaPlayer = qm.QMediaPlayer()
+            if usedPyQt == 5:
+                # PyQt5 way
+                self.mediaPlayer.setMedia(qm.QMediaContent(QUrl.fromLocalFile(self._audio.audiofile)))
+            elif usedPyQt == 6:
+                # PyQt6 way
+                self.mediaPlayer.setSource(QUrl.fromLocalFile(self._audio.audiofile))
+                self._audioOut = qm.QAudioOutput()
+                self.mediaPlayer.setAudioOutput(self._audioOut)
+
+        # Create timer to provide time steps in place of media
         self.timer = QTimer(self)
         self.interval = interval
         self.timer.setInterval(self.interval)
@@ -1707,22 +1726,8 @@ class Player(QWidget):
         maxTime : float
             End time of playback range in seconds
         """
-        self._startPosition = int((minTime - self._offset) * 1000)
-        self._endPosition = int((maxTime - self._offset) * 1000)
-
-    def setOffset(self, audioStartTime):
-        """
-        The method setOffset sets the start time of the audio channel
-        relative to the start of the animation (generally 0.0).  The
-        input float value is converted to milliseconds.
-            member of class: Player
-        Parameters
-        ----------
-        self : Player
-        audioStartTime : float
-            Start time of audio track in seconds
-        """
-        self._offset = int(audioStartTime * 1000.0)
+        self._startPosition = int(minTime * 1000)
+        self._endPosition = int(maxTime * 1000)
 
     def addTimeChangedCallback(self, callback):
         """
@@ -2136,9 +2141,6 @@ class MainWindow(QMainWindow):
         self._slideTime = 0.0
         self.clipboard = QGuiApplication.clipboard()
 
-        # Create the media player
-        self.player = qm.QMediaPlayer()
-
         # Initialize with an empty animatronics object
         self.setAnimatronics(Animatronics())
 
@@ -2181,7 +2183,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._mainarea)
 
         # Set up the playback widget
-        self._playwidget = Player(player=self.player)
+        self._playwidget = Player(audio=self.animatronics.newAudio)
         shortcut = QShortcut(QKeySequence("Ctrl+P"), self._mainarea)
         shortcut.activated.connect(self._playwidget.play)
         self._playwidget.setLeftConnect(self.cutLeftSide)
@@ -2280,16 +2282,6 @@ class MainWindow(QMainWindow):
                 self.timeSliderRight.setBaseline(-30000.0)
                 self.timeSliderRight.attach(self.audioPlotRight)
 
-
-            # Create/open QtMediaPlayer
-            if usedPyQt == 5:
-                # PyQt5 way
-                self.player.setMedia(qm.QMediaContent(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile)))
-            elif usedPyQt == 6:
-                # PyQt6 way
-                self.player.setSource(QUrl.fromLocalFile(self.animatronics.newAudio.audiofile))
-                self._audioOut = qm.QAudioOutput()
-                self.player.setAudioOutput(self._audioOut)
         else:
             # Mute the player because it does not seem to clear out old audio quite rightly
             # Not sure what I want to do here
@@ -2320,6 +2312,7 @@ class MainWindow(QMainWindow):
                 channelList.append(index[i])
         else:
             channelList = self.animatronics.channels
+
         for channel in channelList:
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(self._plotarea, chan, mainwindow=self)
@@ -2548,7 +2541,6 @@ class MainWindow(QMainWindow):
                             if portnum >= 0:
                                 theport = "(%d)" % portnum
                         outfile.write('"%s%s"' % (channel,theport))
-                        print('Length of column:', channel, 'is:', len(columns[channel]))
                     outfile.write('\n')
                     # Write out all the data in columns
                     for indx in range(len(timecolumn)):
@@ -2710,7 +2702,6 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        print('Redo')
         self.saveStateOkay = False
         if len(self.pendingStates) > 0:
             if self.animatronics is not None:
@@ -3395,31 +3386,8 @@ class MainWindow(QMainWindow):
         self : MainWindow
         checked : type
         """
-        if checked:
-            # Convert audio data to amplitude and set in audio pane
-            xdata, leftdata, rightdata = self.animatronics.newAudio.getAmplitudeData(self.audioMin, self.audioMax, 4000)
-            if self.audioCurve is not None and self.audioPlot is not None:
-                self.audioCurve.setSamples(xdata, leftdata)
-                self.audioPlot.replot()
-                pass
-            if self.audioCurveRight is not None and self.audioPlotRight is not None:
-                self.audioCurveRight.setSamples(xdata, rightdata)
-                self.audioPlotRight.replot()
-                pass
-            pass
-        else:
-            # Display non amplitude audio data
-            xdata, leftdata, rightdata = self.animatronics.newAudio.getPlotData(self.audioMin, self.audioMax, 4000)
-            if self.audioCurve is not None and self.audioPlot is not None:
-                self.audioCurve.setSamples(xdata, leftdata)
-                self.audioPlot.replot()
-                pass
-            if self.audioCurveRight is not None and self.audioPlotRight is not None:
-                self.audioCurveRight.setSamples(xdata, rightdata)
-                self.audioPlotRight.replot()
-                pass
-            pass
-        pass
+        self.redrawAudio(self.lastXmin, self.lastXmax)
+        return
 
     def selectAll_action(self):
         """
@@ -3535,8 +3503,6 @@ class MainWindow(QMainWindow):
                 widgetpos = self.plots[name].mapFromGlobal(cursorpos)
                 width = self.plots[name].size().width()
                 height = self.plots[name].size().height()
-                # print('Checking cursor posn:', widgetpos.x(), widgetpos.y())
-                # print('Against channel:', name, 'width, height:', width, height)
                 if widgetpos.x() > 0 and widgetpos.x() < width and widgetpos.y() > 0 and widgetpos.y() < height:
                     channame = name
                     break
@@ -3686,7 +3652,7 @@ class MainWindow(QMainWindow):
 
         self.edit_menu.addSeparator()
 
-        self._newchannel_action = QAction("New Servo Channel", self, shortcut="Ctrl+N",
+        self._newchannel_action = QAction("New Numeric Channel", self, shortcut="Ctrl+N",
             triggered=self.newchannel_action)
         self.edit_menu.addAction(self._newchannel_action)
 
@@ -4183,8 +4149,8 @@ class Channel:
             self.minLimit = 0.0
             self.maxLimit = 1.0
         elif intype == self.LINEAR or intype == self.SPLINE:
-            self.minLimit = 0.0
-            self.maxLimit = 180.0
+            self.minLimit = SystemPreferenceTypes['ServoDefaultMinimum']
+            self.maxLimit = SystemPreferenceTypes['ServoDefaultMaximum']
         else:
             self.maxLimit = 1.0e34
             self.minLimit = -1.0e34
@@ -4729,9 +4695,9 @@ def doAnimatronics():
         i += 1
 
     # Create the global main window
-    PreferencesWidget.readPreferences()
     app = QApplication(sys.argv)
     main_win = MainWindow()
+    PreferencesWidget.readPreferences()
 
     # If an input file was specified, parse it or die trying
     if infilename is not None:
