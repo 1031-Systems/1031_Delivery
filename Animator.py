@@ -1093,13 +1093,13 @@ class ChannelPane(qwt.QwtPlot):
         """
         # Recreate the data plot
         xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 100)
-        if self.curve is not None and xdata is not None and ydata is not None:
+        if self.curve is not None:
             self.curve.setData(xdata, ydata)
         # Recreate the knot plot
         xdata,ydata = self.channel.getKnotData(self.minTime, self.maxTime, 100)
-        if self.curve2 is not None and xdata is not None and ydata is not None:
+        if self.curve2 is not None:
             self.curve2.setData(xdata, ydata)
-            if len(xdata) > 1:
+            if xdata is not None and len(xdata) > 1:
                 margin = (self.maxVal - self.minVal) * 0.05
                 self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal-margin, self.maxVal+margin)
 
