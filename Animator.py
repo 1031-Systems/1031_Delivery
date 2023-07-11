@@ -970,30 +970,37 @@ class ChannelPane(qwt.QwtPlot):
             # Find nearest point
             modifiers = QApplication.keyboardModifiers()
             nearkey = self.findClosestPointWithinBox(event.pos().x(), event.pos().y())
-            if nearkey is not None:
-                # If close enough, select it and drag it around
-                self.selectedKey = nearkey
-                # Push current state for undo
-                pushState()
-            elif modifiers == Qt.ShiftModifier:
-                # If shift key is down then we want to insert a new point
+            if modifiers == Qt.ShiftModifier:
+                # If shift key is down then we want to insert or delete a point
                 # Push current state for undo
                 pushState()
 
-                # Apply limits
-                if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
-                    if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
-                    if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
-                # Insert a new point and drag it around
-                nearkey = xplotval
-                self.channel.knots[nearkey] = yplotval
-                self.selectedKey = nearkey
+                if nearkey is not None:
+                    # Delete currently selected point
+                    del self.channel.knots[nearkey]
+                    self.selectedKey = None
+                    pass
+                else:
+                    # Insert a new point
+                    if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                        # Apply limits
+                        if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
+                        if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
+                    # Insert a new point and drag it around
+                    nearkey = xplotval
+                    self.channel.knots[nearkey] = yplotval
+                    self.selectedKey = nearkey
                 self.redrawme()
             elif modifiers == Qt.ControlModifier:
                 # Select/deselect this channel
                 self.invertselect()
             else:
-                # do nothing
+                # Select a point
+                if nearkey is not None:
+                    # If close enough, select it and drag it around
+                    self.selectedKey = nearkey
+                    # Push current state for undo
+                    pushState()
                 pass
         elif event.buttons()== Qt.MiddleButton :
             # Vertical pan of pane with wheel/mouse?
@@ -2598,7 +2605,10 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """ Catch main close event and pass it to our handler """
-        self.handle_unsaved_changes()
+        if self.handle_unsaved_changes():
+            event.accept()
+        else:
+            event.ignore()
 
     def exit_action(self):
         """
@@ -2608,8 +2618,8 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        if self.handle_unsaved_changes():
-            self.close()
+        # Just closing here puts the onus on eventClose to handle cleanup
+        self.close()
 
     def undo_action(self):
         """

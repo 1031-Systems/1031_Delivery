@@ -17,8 +17,8 @@
 - Ctrl-Shift-Z - Redo
 
 ### Mouse Actions
-- Shift-Left - Insert new control point in channel
+- Shift-Left - Insert or delete control point in channel
 - Ctrl-Left - Toggle selection of channel
 - Left - Select and modify control point OR pan/zoom audio
 - Right - Bring up channel submenu
-- Wheel - Zoom range of channel
+- Wheel - Zoom vertical range of channel
