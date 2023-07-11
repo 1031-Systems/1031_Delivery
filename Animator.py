@@ -69,8 +69,16 @@ import qwt
 verbosity = False
 
 # System Preferences Block
-MaxDigitalChannels = 48
-MaxServoChannels = 32
+SystemPreferences = {
+'MaxDigitalChannels':48,
+'MaxServoChannels':32,
+'Ordering':'Numeric',
+}
+SystemPreferenceTypes = {
+'MaxDigitalChannels':'int',
+'MaxServoChannels':'int',
+'Ordering':['Alphabetic','Numeric','Creation'],
+}
 
 #/* Usage method */
 def print_usage(name):
@@ -427,7 +435,7 @@ class ChannelMenu(QMenu):
 
         if code == QDialog.Accepted:
             # Need to trigger redraw
-            self.parent.holder.setAnimatronics(self.parent.holder.animatronics)
+            self.parent.holder.redraw()
             pass
             
         pass
@@ -1164,9 +1172,9 @@ class ChannelMetadataWidget(QDialog):
 
         self._portedit = QComboBox()
         if self._channel.type != Channel.DIGITAL:
-            chancount = MaxServoChannels
+            chancount = SystemPreferences['MaxServoChannels']
         else:
-            chancount = MaxDigitalChannels
+            chancount = SystemPreferences['MaxDigitalChannels']
         self._portedit.addItem('Unassigned')
         for i in range(chancount):
             self._portedit.addItem(str(i))
@@ -1396,6 +1404,164 @@ class MetadataWidget(QDialog):
             self._animatronics.audiostart = float(tstring)
         self.accept()
         main_win.updateXMLPane()
+
+#####################################################################
+# The PreferencesWidget is used to view and edit the Preferences
+# for the overall application
+#####################################################################
+class PreferencesWidget(QDialog):
+    """
+    Class: PreferencesWidget
+        Derives from: (QDialog)
+
+    Implements a popup widget for editing the metadata in the
+    Animatronics file.
+    ...
+    Attributes
+    ----------
+    _animatronics : Animatronics
+        The Animatronics object being edited
+    title : str
+        Title of the popup widget
+    _widgets: dictionary
+        Dictionary of the editing widgets that can be autoexpanded by just adding
+        new variables to the SystemPreferences dictionary
+    okButton : QPushButton
+    cancelButton : QPushButton
+
+    Methods
+    -------
+    __init__(self, parent=None)
+    onAccepted(self)
+    readPreferences()
+    """
+    def __init__(self, parent=None):
+        """
+        The method __init__
+            member of class: PreferencesWidget
+        Parameters
+        ----------
+        self : PreferencesWidget
+        parent=None : QWidget
+        """
+        super().__init__(parent)
+
+        self.parent = parent
+
+        self.title = 'Preferences Editor'
+        widget = QWidget()
+        self._layout = QFormLayout()
+        
+        self._widgets = {}
+
+        for pref in SystemPreferences:
+            if type(SystemPreferenceTypes[pref]) is list:
+                newedit = QComboBox()
+                newedit.addItems(SystemPreferenceTypes[pref])
+                newedit.setCurrentText(SystemPreferences[pref])
+                self._layout.addRow(QLabel(pref), newedit)
+                self._widgets[pref] = newedit
+                pass
+            else:
+                newedit = QLineEdit(str(SystemPreferences[pref]))
+                self._layout.addRow(QLabel(pref), newedit)
+                self._widgets[pref] = newedit
+        widget.setLayout(self._layout)
+
+        self.okButton = QPushButton('Save')
+        self.cancelButton = QPushButton('Cancel')
+
+        hbox = QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addWidget(self.okButton)
+        hbox.addWidget(self.cancelButton)
+
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(widget)
+        vbox.addStretch(1)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+        self.okButton.clicked.connect(self.onAccepted)
+        self.cancelButton.clicked.connect(self.reject)
+
+    def onAccepted(self):
+        """
+        The method onAccepted handles user acceptance of the new values
+        and updates the Animatronics object.
+            member of class: PreferencesWidget
+        Parameters
+        ----------
+        self : PreferencesWidget
+        """
+        for pref in self._widgets:
+            if type(SystemPreferenceTypes[pref]) is list:
+                SystemPreferences[pref] = self._widgets[pref].currentText()
+            elif type(SystemPreferenceTypes[pref]) == 'int':
+                SystemPreferences[pref] = int(self._widgets[pref].text())
+            elif type(SystemPreferenceTypes[pref]) == 'float':
+                SystemPreferences[pref] = float(self._widgets[pref].text())
+            elif type(SystemPreferenceTypes[pref]) == 'bool':
+                SystemPreferences[pref] = bool(self._widgets[pref].text())
+            else:
+                SystemPreferences[pref] = self._widgets[pref].text()
+            pass
+        self.accept()
+        # Write out changes to preferences file wherever we put it
+        try:
+            preffile = os.path.join(os.path.expanduser("~"), '.animrc')
+            with open(preffile, 'w') as prefs:
+                for pref in SystemPreferences:
+                    if type(SystemPreferenceTypes[pref]) is list:
+                        prefs.write('%s:%s\n' % ( pref, SystemPreferences[pref]))
+                    elif type(SystemPreferenceTypes[pref]) == 'float':
+                        prefs.write('%s:%f\n' % ( pref, float(SystemPreferences[pref])))
+                    elif type(SystemPreferenceTypes[pref]) == 'int':
+                        prefs.write('%s:%d\n' % ( pref, int(SystemPreferences[pref])))
+                    elif type(SystemPreferenceTypes[pref]) == 'bool':
+                        prefs.write('%s:%d\n' % ( pref, int(SystemPreferences[pref])))
+                    else:
+                        prefs.write('%s:%s\n' % ( pref, SystemPreferences[pref]))
+
+                # If MainWindow is set as parent do a redraw
+                if self.parent is not None:
+                    print('Doing redraw after preferences')
+                    self.parent.redraw()
+                    pass
+        except:
+            # Unable to write preferences file
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Unable to write preferences file:')
+            msgBox.setInformativeText(preffile)
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            pass
+
+    @staticmethod
+    def readPreferences():
+        """ Static method to read the preferences file if it exists """
+        #try:
+        if True:
+            preffile = os.path.join(os.path.expanduser("~"), '.animrc')
+            with open(preffile, 'r') as prefs:
+                line = prefs.readline()
+                while line:
+                    vals = line.split(':')
+                    if len(vals) == 2:
+                        print('Setting pref:',vals[0], 'to:', vals[1])
+                        if SystemPreferenceTypes[vals[0]] == 'int':
+                            SystemPreferences[vals[0]] = int(vals[1])
+                        elif SystemPreferenceTypes[vals[0]] == 'float':
+                            SystemPreferences[vals[0]] = float(vals[1])
+                        elif SystemPreferenceTypes[vals[0]] == 'bool':
+                            SystemPreferences[vals[0]] = bool(vals[1])
+                        else:
+                            SystemPreferences[vals[0]] = vals[1]
+                    line = prefs.readline()
+        #except:
+            # Unable to read preferences file but that's okay
+            pass
 
 #####################################################################
 # The Player class is a widget with playback controls
@@ -1820,6 +1986,7 @@ class MainWindow(QMainWindow):
     _newdigital_action : QAction
     _deletechannel_action : QAction
     _editmetadata_action : QAction
+    _editpreferences_action : QAction
     view_menu : QMenu
     _resetscales_action : QAction
     _scaletoaudio_action : QAction
@@ -1867,6 +2034,7 @@ class MainWindow(QMainWindow):
     deletechannel_action(self)
     selectaudio_action(self)
     editmetadata_action(self)
+    editpreferences_action(self)
     timeChanged(self, currTime)
     setSlider(self, timeVal)
     playbackcontrols_action(self)
@@ -2125,7 +2293,27 @@ class MainWindow(QMainWindow):
             layout.addStretch()
 
         # Add panes for all the channels
-        for channel in self.animatronics.channels:
+        if SystemPreferences['Ordering'] == 'Alphabetic':
+            channelList = sorted(self.animatronics.channels.keys())
+        elif SystemPreferences['Ordering'] == 'Numeric':
+            index = {}
+            minIndex = -1000
+            for channel in self.animatronics.channels:
+                if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                    offset = 2000
+                else:
+                    offset = 0
+                if self.animatronics.channels[channel].port >= 0:
+                    index[self.animatronics.channels[channel].port + offset] = channel
+                else:
+                    index[minIndex + offset] = channel
+                    minIndex += 1
+            channelList = []
+            for i in sorted(index.keys()):
+                channelList.append(index[i])
+        else:
+            channelList = self.animatronics.channels
+        for channel in channelList:
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(self._plotarea, chan, mainwindow=self)
             newplot.settimerange(self.lastXmin, self.lastXmax)
@@ -2171,6 +2359,9 @@ class MainWindow(QMainWindow):
                     sys.stderr.write("Message: %s\n" % e)
                     return
 
+    def redraw(self):
+        self.setAnimatronics(self.animatronics)
+        
 
     def newAnimFile(self):
         """
@@ -2404,6 +2595,10 @@ class MainWindow(QMainWindow):
             elif ret == QMessageBox.Cancel:
                 return False
         return True
+
+    def closeEvent(self, event):
+        """ Catch main close event and pass it to our handler """
+        self.handle_unsaved_changes()
 
     def exit_action(self):
         """
@@ -2722,9 +2917,21 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-
-        """ Perform editmetadata action"""
         qd = MetadataWidget(self.animatronics, parent=self)
+        qd.exec_()
+        pass
+
+    def editpreferences_action(self):
+        """
+        The method editpreferences_action brings up a preferences widget for
+        the animation to allow the user to view or edit the preferences.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+        qd = PreferencesWidget(parent=self)
         qd.exec_()
         pass
 
@@ -3394,6 +3601,8 @@ class MainWindow(QMainWindow):
         """
         print('Hit selectorPane action')
 
+        # Make it crash to test saving
+        root = ET.fromstring('XXX')
         pass
 
     def create_menus(self):
@@ -3451,7 +3660,7 @@ class MainWindow(QMainWindow):
 
         # exit action
         self.file_menu.addSeparator()
-        self._exit_action = QAction("E&xit", self, shortcut="Ctrl+Q",
+        self._exit_action = QAction("&Quit", self, shortcut="Ctrl+Q",
                 triggered=self.exit_action)
         self.file_menu.addAction(self._exit_action)
 
@@ -3485,6 +3694,11 @@ class MainWindow(QMainWindow):
         self._editmetadata_action = QAction("Edit Metadata", self,
             triggered=self.editmetadata_action)
         self.edit_menu.addAction(self._editmetadata_action)
+
+        # editpreferences menu item
+        self._editpreferences_action = QAction("Edit Preferences", self,
+            triggered=self.editpreferences_action)
+        self.edit_menu.addAction(self._editpreferences_action)
 
         # Create the View dropdown menu #################################
         self.view_menu = self.menuBar().addMenu("&View")
@@ -3602,6 +3816,8 @@ class MainWindow(QMainWindow):
         self._hotkeys_action = QAction("Hot Keys", self,
             triggered=self.hotkeys_action)
         self.help_menu.addAction(self._hotkeys_action)
+
+        self.help_menu.addSeparator()
 
         # showClipboard menu item
         self._showClipboard_action = QAction("Show Clipboard", self,
@@ -4503,6 +4719,7 @@ def doAnimatronics():
         i += 1
 
     # Create the global main window
+    PreferencesWidget.readPreferences()
     app = QApplication(sys.argv)
     main_win = MainWindow()
 
