@@ -671,7 +671,7 @@ class ChannelPane(qwt.QwtPlot):
         self.setAxisScale(self.X_BOTTOM_AXIS_ID, self.minTime, self.maxTime)
         self.redrawme()
 
-    def setDataRange(self, minval, maxval):
+    def setDataRange(self, minval, maxval, axisstep=0):
         """
         The method setDataRange sets the data range (Y axis) to be
         displayed.  This method is called internally as the user scrolls
@@ -685,7 +685,8 @@ class ChannelPane(qwt.QwtPlot):
         """
         self.minVal = minval
         self.maxVal = maxval
-        self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal, self.maxVal)
+        print('Setting axisstep to:', axisstep)
+        self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal, self.maxVal, axisstep)
         self.redrawme()
 
     def resetDataRange(self):
@@ -712,7 +713,19 @@ class ChannelPane(qwt.QwtPlot):
             margin = 0.5
         else:
             margin = 0.05 * (self.maxVal - self.minVal)
-        self.setDataRange(self.minVal - margin, self.maxVal + margin)
+
+        # Set y axis style for various types of plots
+        if self.channel.type == Channel.DIGITAL:
+            print('Setting axisstep to 1.0')
+            self.setAxisMaxMinor(self.Y_LEFT_AXIS_ID, 2)
+            self.setDataRange(self.minVal - margin, self.maxVal + margin, axisstep=1.0)
+        else:
+            if int(self.channel.maxLimit - self.channel.minLimit +0.1) % 30 == 0:
+                # Likely to be in units of degrees so set scale to multiple of 30
+                self.setAxisMaxMinor(self.Y_LEFT_AXIS_ID, 2)
+                self.setDataRange(self.minVal - margin, self.maxVal + margin, axisstep=30.0)
+            else:
+                self.setDataRange(self.minVal - margin, self.maxVal + margin)
 
     def getTimeRange(self):
         """
@@ -1099,9 +1112,6 @@ class ChannelPane(qwt.QwtPlot):
         xdata,ydata = self.channel.getKnotData(self.minTime, self.maxTime, 100)
         if self.curve2 is not None:
             self.curve2.setData(xdata, ydata)
-            if xdata is not None and len(xdata) > 1:
-                margin = (self.maxVal - self.minVal) * 0.05
-                self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal-margin, self.maxVal+margin)
 
         if xdata is not None:
             # Erase tip on how to add points
