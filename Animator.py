@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
 #**********************************
@@ -79,8 +79,8 @@ SystemPreferences = {
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
 'MaxServoChannels':'int',
-'ServoDefaultMinimum':float,
-'ServoDefaultMaximum':float,
+'ServoDefaultMinimum':'float',
+'ServoDefaultMaximum':'float',
 'Ordering':['Alphabetic','Numeric','Creation'],
 }
 
@@ -704,9 +704,9 @@ class ChannelPane(qwt.QwtPlot):
                 self.minVal = self.channel.knots[keyval]
             if self.channel.knots[keyval] > self.maxVal: 
                 self.maxVal = self.channel.knots[keyval]
-        if self.channel.minLimit < self.minVal: 
+        if self.channel.minLimit < self.minVal and self.channel.minLimit > -1.0e33: 
                 self.minVal = self.channel.minLimit
-        if self.channel.maxLimit > self.maxVal: 
+        if self.channel.maxLimit > self.maxVal and self.channel.maxLimit <  1.0e33: 
                 self.maxVal = self.channel.maxLimit
         if self.minVal == self.maxVal:
             margin = 0.5
@@ -1365,14 +1365,14 @@ class MetadataWidget(QDialog):
         layout.addRow(QLabel('End Time:'), self._endedit)
         self._rateedit = QLineEdit(str(self._animatronics.sample_rate))
         layout.addRow(QLabel('Sample Rate (Hz):'), self._rateedit)
-        self._audioedit = QLineEdit(str(self._animatronics.newAudio.audiostart))
-        layout.addRow(QLabel('Audio Start Time:'), self._audioedit)
-        layout.addRow(QLabel('Audio File:'))
-        self._audiofile = QLineEdit('')
-        if inanim.newAudio.audiofile is not None:
-            self._audiofile.setText(inanim.newAudio.audiofile)
-        self._audiofile.setReadOnly(True)
-        layout.addRow(self._audiofile)
+        if self._animatronics.newAudio is not None:
+            self._audioedit = QLineEdit(str(self._animatronics.newAudio.audiostart))
+            layout.addRow(QLabel('Audio Start Time:'), self._audioedit)
+            layout.addRow(QLabel('Audio File:'))
+            self._audiofile = QLineEdit('')
+            self._audiofile.setText(self._animatronics.newAudio.audiofile)
+            self._audiofile.setReadOnly(True)
+            layout.addRow(self._audiofile)
         widget.setLayout(layout)
 
         self.okButton = QPushButton('Save')
@@ -4149,8 +4149,8 @@ class Channel:
             self.minLimit = 0.0
             self.maxLimit = 1.0
         elif intype == self.LINEAR or intype == self.SPLINE:
-            self.minLimit = SystemPreferenceTypes['ServoDefaultMinimum']
-            self.maxLimit = SystemPreferenceTypes['ServoDefaultMaximum']
+            self.minLimit = SystemPreferences['ServoDefaultMinimum']
+            self.maxLimit = SystemPreferences['ServoDefaultMaximum']
         else:
             self.maxLimit = 1.0e34
             self.minLimit = -1.0e34
