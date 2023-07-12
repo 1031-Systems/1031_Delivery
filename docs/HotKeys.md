@@ -2,6 +2,7 @@
 # Hot Key Cheat Sheet
 ---
 ## Normal Keys
+- P - Toggle Playback controls display
 - T - Toggle Tag panel display
 
 ## Control Keys
@@ -24,12 +25,16 @@
 ### In Control Channel Pane
 - Shift-Left - Insert or delete control point in channel
 - Ctrl-Left - Toggle selection of channel
-- Left - Select and modify control point
+- Left - Select to modify control point
 - Right - Bring up channel submenu
 - Wheel - Zoom vertical range of channel
 ### In Tag Pane
-- Shift-Left - Insert or delete tag
-- Left - Select and modify tag time
+- Shift-Left on tag - Delete tag
+- Shift-Left off tag - Insert tag
+- Ctrl-Left on tag - Zoom display to tag
+- Left on tag - Select to modify tag time
+- Left Drag Up and Down - Zoom time range
+- Left Drag Side to Side - Pan time range left and right
 ### In Audio Pane
 - Left Drag Up and Down - Zoom time range
 - Left Drag Side to Side - Pan time range left and right

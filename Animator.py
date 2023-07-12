@@ -228,18 +228,33 @@ class TagPane(qwt.QwtPlot):
                 else:
                     # Insert a new tag
                     neartag = xplotval
-                    neartag = self.addTag(neartag, 'Temp')
+                    neartag = self.addTag(neartag, '')
                     self.selectedtag = neartag
 
-                event.ignore()
+                event.accept()
+            elif modifiers == Qt.ControlModifier:
+                # Zoom to that tag
+                if neartag is not None:
+                    # First find next tag after the selected one
+                    slist = sorted(self._tags.keys())
+                    indx = slist.index(neartag)
+                    self.mainwindow.setLeftEdge(neartag)
+                    if indx < len(slist) -1:
+                        # Use the next tag as zoom limit
+                        self.mainwindow.setRightEdge(slist[indx+1])
+                        pass
             else:
                 # Not shift so select near one to drag or pass to main window
                 if neartag is not None:
+                    # Push current state for undo
+                    pushState()
+
                     self.selectedtag = neartag
                     event.accept()
                 else:
                     # Nobody is selected so pass to main window
                     self.selectedtag = None
+                    event.ignore()
 
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.LeftButton :
@@ -259,13 +274,18 @@ class TagPane(qwt.QwtPlot):
     def mouseReleaseEvent(self, event):
         if self.selectedtag is not None:
             # We are dragging a tag around - see if it needs a new label
-            if self._tags[self.selectedtag] == 'Temp':
+            if self._tags[self.selectedtag] == '':
                 # Bring up window to get actual label from user
                 text, ok = QInputDialog().getText(self, "Tag Entry", "Enter Tag:",
                     QLineEdit.Normal, self._tags[self.selectedtag])
                 self.deleteTag(self.selectedtag)
                 if ok and text:
                     self.addTag(self.selectedtag, text)
+                else:
+                    # Forget that we were trying to put in a tag
+                    popState()
+            self.mainwindow.updateXMLPane()
+
 #####################################################################
 class TextDisplayDialog(QDialog):
     """
@@ -1702,8 +1722,7 @@ class PreferencesWidget(QDialog):
     @staticmethod
     def readPreferences():
         """ Static method to read the preferences file if it exists """
-        #try:
-        if True:
+        try:
             preffile = os.path.join(os.path.expanduser("~"), '.animrc')
             with open(preffile, 'r') as prefs:
                 line = prefs.readline()
@@ -1720,7 +1739,7 @@ class PreferencesWidget(QDialog):
                         else:
                             SystemPreferences[vals[0]] = vals[1]
                     line = prefs.readline()
-        #except:
+        except:
             # Unable to read preferences file but that's okay
             pass
 
@@ -2432,32 +2451,8 @@ class MainWindow(QMainWindow):
             # Not sure what I want to do here
             pass
 
-        # Optionally add the tags pane here
-        tags = self.animatronics.tags
-        self.tagPlot = TagPane(self, tags, self)
-        """
-        if len(tags) > 0:
-            self.tagPlot = qwt.QwtPlot('Tags')
-            for tag in tags:
-                marker = qwt.QwtPlotMarker(tags[tag])
-                marker.setValue(tag, 0.0)
-                marker.setLabel(tags[tag])
-                marker.attach(self.tagPlot)
-                marker.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                marker.setLineStyle(qwt.QwtPlotMarker.VLine)
-            self.tagPlot.setAxisScale(qwt.QwtPlot.yLeft, -1.0, 1.0, 2.0)
-            self.tagPlot.setAxisTitle(qwt.QwtPlot.yLeft, 'Tags')
-            self.tagPlot.setAxisMaxMinor(qwt.QwtPlot.yLeft, 1)
-            layout.addWidget(self.tagPlot)
-
-            self.tagSlider = qwt.QwtPlotCurve()
-            self.tagSlider.setStyle(qwt.QwtPlotCurve.Sticks)
-            self.tagSlider.setData([self.audioMin], [30000.0])
-            self.tagSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
-            self.tagSlider.setBaseline(-30000.0)
-            self.tagSlider.attach(self.tagPlot)
-
-        """
+        # Add the tags pane here
+        self.tagPlot = TagPane(self, self.animatronics.tags, self)
         self.tagPlot.redrawTags(self.lastXmin, self.lastXmax)
         layout.addWidget(self.tagPlot)
 
@@ -3180,7 +3175,7 @@ class MainWindow(QMainWindow):
         """
 
         # Reset all horizontal and vertical scales to max X range but not local Y range
-        minTime = 0.0
+        minTime = 0.0   # Playback always starts at 0.0 so use this as initial min
         maxTime = 0.0
         if self.audioPlot is not None:
             # Check time range of audio
@@ -3191,6 +3186,9 @@ class MainWindow(QMainWindow):
             lmin,lmax = self.plots[i].getTimeRange()
             if lmin < minTime: minTime = lmin
             if lmax > maxTime: maxTime = lmax
+        for i in self.animatronics.tags:
+            if i < minTime: minTime = i
+            if i+1.0 > maxTime: maxTime = i + 1.0   # Give a bit of margin so it's not right at edge
 
         # Actually set all the ranges to the max
         self.setTimeRange(minTime, maxTime)
@@ -3466,7 +3464,10 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.setTimeRange(self._slideTime, self.lastXmax)
+        self.setLeftEdge(self._slideTime)
+
+    def setLeftEdge(self, intime):
+        self.setTimeRange(intime, self.lastXmax)
     
     def cutRightSide(self):
         """
@@ -3479,7 +3480,10 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.setTimeRange(self.lastXmin, self._slideTime)
+        self.setRightEdge(self._slideTime)
+
+    def setRightEdge(self, intime):
+        self.setTimeRange(self.lastXmin, intime)
 
     def about_action(self):
         """
@@ -3790,6 +3794,18 @@ class MainWindow(QMainWindow):
         print('Perform tagSelector action')
         pass
 
+    def tagInsert_action(self):
+        # Grab the slider time as soon as we can
+        ttime = self._slideTime
+        text, ok = QInputDialog().getText(self, "Tag Entry", "Enter Tag:",
+            QLineEdit.Normal, '')
+        if ok and text:
+            # Save state for undo
+            pushState()
+            self.tagPlot.addTag(ttime, text)
+            self.updateXMLPane()
+        pass
+
     def create_menus(self):
         """
         The method create_menus creates all the dropdown menus for the 
@@ -3933,6 +3949,7 @@ class MainWindow(QMainWindow):
 
         # playbackcontrols menu item
         self._playbackcontrols_action = QAction("Toggle Playback Controls", self,
+            shortcut="P",
             triggered=self.playbackcontrols_action)
         self.view_menu.addAction(self._playbackcontrols_action)
 
@@ -3954,7 +3971,7 @@ class MainWindow(QMainWindow):
 
         # selectorPane menu item
         self._selectorPane_action = QAction("selectorPane", self,
-            shortcut="P",
+            shortcut="Q",
             triggered=self.selectorPane_action)
         self.channel_menu.addAction(self._selectorPane_action)
 
@@ -3989,11 +4006,11 @@ class MainWindow(QMainWindow):
         # Create the Help dropdown menu #################################
         self.tag_menu = self.menuBar().addMenu("&Tags")
 
-        # togglePane menu item
-        self._togglePane_action = QAction("togglePane", self,
-            shortcut="T",
-            triggered=self.togglePane_action)
-        self.tag_menu.addAction(self._togglePane_action)
+        # tagInsert menu item
+        self._tagInsert_action = QAction("tagInsert", self,
+            shortcut="Ctrl+T",
+            triggered=self.tagInsert_action)
+        self.tag_menu.addAction(self._tagInsert_action)
 
         # tagSelector menu item
         self._tagSelector_action = QAction("tagSelector", self,
@@ -4004,6 +4021,12 @@ class MainWindow(QMainWindow):
         self._importScript_action = QAction("importScript", self,
             triggered=self.importScript_action)
         self.tag_menu.addAction(self._importScript_action)
+
+        # togglePane menu item
+        self._togglePane_action = QAction("togglePane", self,
+            shortcut="T",
+            triggered=self.togglePane_action)
+        self.tag_menu.addAction(self._togglePane_action)
 
         # Create the Help dropdown menu #################################
         self.help_menu = self.menuBar().addMenu("&Help")
@@ -4833,6 +4856,7 @@ class Animatronics:
         # Clean up existing stuff
         self.newAudio = None
         self.channels = {}
+        self.tags = {}
         self.sample_rate = 50.0
 
         # Scan the XML text
