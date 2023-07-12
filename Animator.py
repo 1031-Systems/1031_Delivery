@@ -27,6 +27,7 @@ usedPyQt = None
 try:
     # Qt import block for all widgets
     from PyQt5.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
+        QFile, QIODevice, QBuffer,
         QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
     from PyQt5.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
         QClipboard, QGuiApplication,
@@ -45,6 +46,7 @@ except:
     try:
         # Qt import block for all widgets
         from PyQt6.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
+            QFile, QIODevice, QBuffer,
             QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
         from PyQt6.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen, QPalette,
             QClipboard, QGuiApplication,
@@ -63,7 +65,6 @@ except:
         sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
         exit(10)
 import qwt
-
 
 #/* Define block */
 verbosity = False
@@ -115,6 +116,156 @@ def popState():
     global main_win
     main_win.popState()
 
+#####################################################################
+class TagPane(qwt.QwtPlot):
+    def __init__(self, parent=None, intags = None, mainwindow=None):
+        super().__init__(parent)
+
+        self.parent = parent
+        self._tags = intags
+        self.mainwindow = mainwindow
+
+        self.selectedtag = None
+        self.minTime = 0.0
+        self.maxTime = 1.0
+
+        self.allMarkers = {}
+
+        if intags is None or len(intags) == 0:
+            self.hide()
+
+        self.setAxisScale(qwt.QwtPlot.yLeft, -1.0, 1.0, 2.0)
+        self.setAxisTitle(qwt.QwtPlot.yLeft, 'Tags')
+        self.setAxisMaxMinor(qwt.QwtPlot.yLeft, 1)
+
+        self.tagSlider = qwt.QwtPlotCurve()
+        self.tagSlider.setStyle(qwt.QwtPlotCurve.Sticks)
+        self.tagSlider.setData([0.0], [3.0])
+        self.tagSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
+        self.tagSlider.setBaseline(-3.0)
+        self.tagSlider.attach(self)
+
+        self.redrawme()
+
+    def redrawTags(self, tMin, tMax):
+        self.minTime = tMin
+        self.maxTime = tMax
+        self.setAxisScale(qwt.QwtPlot.xBottom, tMin, tMax)
+        self.replot()
+
+    def redrawme(self):
+        for marker in self.allMarkers:
+            self.allMarkers[marker].detach()
+        self.allMarkers = {}
+        for tag in self._tags:
+            marker = qwt.QwtPlotMarker(self._tags[tag])
+            marker.setValue(tag, 0.0)
+            marker.setLabel(self._tags[tag])
+            marker.attach(self)
+            marker.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            marker.setLineStyle(qwt.QwtPlotMarker.VLine)
+            self.allMarkers[tag] = marker
+        self.replot()
+
+    def addTag(self, time, text):
+        while time in self._tags:
+            time += 0.000001
+        self._tags[time] = text
+        marker = qwt.QwtPlotMarker(text)
+        marker.setValue(time, 0.0)
+        marker.setLabel(text)
+        marker.attach(self)
+        marker.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        marker.setLineStyle(qwt.QwtPlotMarker.VLine)
+        self.allMarkers[time] = marker
+        self.replot()
+        # Return time just in case we tweaked it
+        return time
+
+    def deleteTag(self, time):
+        if time in self._tags:
+            del self._tags[time]
+        if time in self.allMarkers:
+            self.allMarkers[time].detach()
+            del self.allMarkers[time]
+            self.replot()
+
+    def setSlider(self, time):
+        self.tagSlider.setData([time], [30000.0])
+        self.replot()
+
+    def findClickedTag(self, i):
+        for tagX in self._tags:
+            pnti = self.transform(qwt.QwtPlot.xBottom, tagX) + self.xoffset
+            if abs(i-pnti) <= 5:
+                return tagX
+        return None
+
+    def mousePressEvent(self, event):
+        # Get left offset
+        rect = self.plotLayout().scaleRect(qwt.QwtPlot.yLeft)
+        self.xoffset = rect.width()
+
+        if event.buttons() == Qt.LeftButton :
+            # Get time at point of click
+            xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
+
+            # Check to see if we are clicking on an existing tag
+            neartag = self.findClickedTag(event.pos().x())
+
+            # Check for Shift Key
+            modifiers = QApplication.keyboardModifiers()
+            if modifiers == Qt.ShiftModifier:
+                # If shift key is down then we want to insert or delete a tag
+                # Push current state for undo
+                pushState()
+
+                if neartag is not None:
+                    # Delete currently selected tag
+                    self.deleteTag(neartag)
+                    self.selectedtag = None
+                    pass
+                else:
+                    # Insert a new tag
+                    neartag = xplotval
+                    neartag = self.addTag(neartag, 'Temp')
+                    self.selectedtag = neartag
+
+                event.ignore()
+            else:
+                # Not shift so select near one to drag or pass to main window
+                if neartag is not None:
+                    self.selectedtag = neartag
+                    event.accept()
+                else:
+                    # Nobody is selected so pass to main window
+                    self.selectedtag = None
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton :
+            # If dragging something
+            if self.selectedtag is not None:
+                # Get time at point of click
+                xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
+                # Move marker from old time to new time
+                tlabel = self._tags[self.selectedtag]
+                self.deleteTag(self.selectedtag)
+                self.selectedtag = self.addTag(xplotval, tlabel)
+                self.redrawme()
+            else:
+                # Send the event up to the main window
+                event.ignore()
+
+    def mouseReleaseEvent(self, event):
+        if self.selectedtag is not None:
+            # We are dragging a tag around - see if it needs a new label
+            if self._tags[self.selectedtag] == 'Temp':
+                # Bring up window to get actual label from user
+                text, ok = QInputDialog().getText(self, "Tag Entry", "Enter Tag:",
+                    QLineEdit.Normal, self._tags[self.selectedtag])
+                self.deleteTag(self.selectedtag)
+                if ok and text:
+                    self.addTag(self.selectedtag, text)
 #####################################################################
 class TextDisplayDialog(QDialog):
     """
@@ -550,12 +701,6 @@ class ChannelPane(qwt.QwtPlot):
     ...
     Shared Attributes
     ----------
-    # Creating enum to match what QWT uses
-    Y_LEFT_AXIS_ID = 0
-    Y_RIGHT_AXIS_ID = 1
-    X_BOTTOM_AXIS_ID = 2
-    X_TOP_AXIS_ID = 3
-
     # The size of the square around each knot in the channel
     BoxSize = 10
 
@@ -605,11 +750,6 @@ class ChannelPane(qwt.QwtPlot):
     setSlider(self, timeVal)
     redrawme(self)
     """
-    # Creating enum to match what QWT uses
-    Y_LEFT_AXIS_ID = 0
-    Y_RIGHT_AXIS_ID = 1
-    X_BOTTOM_AXIS_ID = 2
-    X_TOP_AXIS_ID = 3
     BoxSize = 10
 
     def __init__(self, parent=None, inchannel=None, mainwindow=None):
@@ -649,7 +789,7 @@ class ChannelPane(qwt.QwtPlot):
         # If port number is set, append it to the displayed channel name
         if self.channel.port >= 0:
             channelname += '(%d)' % self.channel.port
-        self.setAxisTitle(self.Y_LEFT_AXIS_ID, channelname)
+        self.setAxisTitle(qwt.QwtPlot.yLeft, channelname)
 
         self.create()
 
@@ -668,7 +808,7 @@ class ChannelPane(qwt.QwtPlot):
         """
         self.minTime = mintime
         self.maxTime = maxtime
-        self.setAxisScale(self.X_BOTTOM_AXIS_ID, self.minTime, self.maxTime)
+        self.setAxisScale(qwt.QwtPlot.xBottom, self.minTime, self.maxTime)
         self.redrawme()
 
     def setDataRange(self, minval, maxval, axisstep=0):
@@ -685,8 +825,7 @@ class ChannelPane(qwt.QwtPlot):
         """
         self.minVal = minval
         self.maxVal = maxval
-        print('Setting axisstep to:', axisstep)
-        self.setAxisScale(self.Y_LEFT_AXIS_ID, self.minVal, self.maxVal, axisstep)
+        self.setAxisScale(qwt.QwtPlot.yLeft, self.minVal, self.maxVal, axisstep)
         self.redrawme()
 
     def resetDataRange(self):
@@ -717,12 +856,12 @@ class ChannelPane(qwt.QwtPlot):
         # Set y axis style for various types of plots
         if self.channel.type == Channel.DIGITAL:
             print('Setting axisstep to 1.0')
-            self.setAxisMaxMinor(self.Y_LEFT_AXIS_ID, 2)
+            self.setAxisMaxMinor(qwt.QwtPlot.yLeft, 2)
             self.setDataRange(self.minVal - margin, self.maxVal + margin, axisstep=1.0)
         else:
             if int(self.channel.maxLimit - self.channel.minLimit +0.1) % 30 == 0:
                 # Likely to be in units of degrees so set scale to multiple of 30
-                self.setAxisMaxMinor(self.Y_LEFT_AXIS_ID, 2)
+                self.setAxisMaxMinor(qwt.QwtPlot.yLeft, 2)
                 self.setDataRange(self.minVal - margin, self.maxVal + margin, axisstep=30.0)
             else:
                 self.setDataRange(self.minVal - margin, self.maxVal + margin)
@@ -760,10 +899,10 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         """
         # Compute axis offset from size of anything displayed at top
-        rect = self.plotLayout().scaleRect(self.X_TOP_AXIS_ID)
+        rect = self.plotLayout().scaleRect(qwt.QwtPlot.xTop)
         self.yoffset = rect.height()
         # Compute axis offset
-        rect = self.plotLayout().scaleRect(self.Y_LEFT_AXIS_ID)
+        rect = self.plotLayout().scaleRect(qwt.QwtPlot.yLeft)
         self.xoffset = rect.width()
 
     def hidePane(self):
@@ -889,8 +1028,8 @@ class ChannelPane(qwt.QwtPlot):
         """
         for keyval in self.channel.knots:
             # First convert each data point to pixel coordinates
-            pnti = self.transform(self.X_BOTTOM_AXIS_ID, keyval) + self.xoffset
-            pntj = self.transform(self.Y_LEFT_AXIS_ID, self.channel.knots[keyval]) + self.yoffset
+            pnti = self.transform(qwt.QwtPlot.xBottom, keyval) + self.xoffset
+            pntj = self.transform(qwt.QwtPlot.yLeft, self.channel.knots[keyval]) + self.yoffset
             # Check to see if converted point is close enough
             if abs(i-pnti) <= self.BoxSize/2 and abs(j-pntj) <= self.BoxSize/2:
                 return keyval
@@ -951,7 +1090,7 @@ class ChannelPane(qwt.QwtPlot):
         vertDegrees = numDegrees.y()
 
         # Get the data value where the cursor is located
-        yplotval = self.invTransform(self.Y_LEFT_AXIS_ID, event.pos().y() - self.yoffset)
+        yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
         minval = yplotval - (yplotval - self.minVal) * (1.0 - vertDegrees/100.0)
         maxval = yplotval - (yplotval - self.maxVal) * (1.0 - vertDegrees/100.0)
         self.setDataRange(minval, maxval)
@@ -977,8 +1116,8 @@ class ChannelPane(qwt.QwtPlot):
         """
         self.setOffsets()
         if event.buttons() == Qt.LeftButton :
-            xplotval = self.invTransform(self.X_BOTTOM_AXIS_ID, event.pos().x() - self.xoffset)
-            yplotval = self.invTransform(self.Y_LEFT_AXIS_ID, event.pos().y() - self.yoffset)
+            xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
+            yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
             if self.channel.type == Channel.DIGITAL:
                 if yplotval >= 0.5: yplotval = 1.0
                 elif yplotval < 0.5: yplotval = 0.0
@@ -1057,8 +1196,8 @@ class ChannelPane(qwt.QwtPlot):
         """
         if event.buttons() == Qt.LeftButton :
             if self.selectedKey is not None:
-                xplotval = self.invTransform(self.X_BOTTOM_AXIS_ID, event.pos().x() - self.xoffset)
-                yplotval = self.invTransform(self.Y_LEFT_AXIS_ID, event.pos().y() - self.yoffset)
+                xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
+                yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
                 if self.channel.type == Channel.DIGITAL:
                     if yplotval >= 0.5: yplotval = 1.0
                     elif yplotval < 0.5: yplotval = 0.0
@@ -1905,11 +2044,6 @@ class MainWindow(QMainWindow):
     ...
     Shared Attributes
     ----------
-    # Creating enum to match what QWT uses
-    Y_LEFT_AXIS_ID = 0
-    Y_RIGHT_AXIS_ID = 1
-    X_BOTTOM_AXIS_ID = 2
-    X_TOP_AXIS_ID = 3
 
     Attributes
     ----------
@@ -2089,11 +2223,6 @@ class MainWindow(QMainWindow):
     selectorPane_action(self)
     create_menus(self)
     """
-    # Creating enum to match what QWT uses
-    Y_LEFT_AXIS_ID = 0
-    Y_RIGHT_AXIS_ID = 1
-    X_BOTTOM_AXIS_ID = 2
-    X_TOP_AXIS_ID = 3
 
     def __init__(self, parent=None):
         """
@@ -2142,6 +2271,10 @@ class MainWindow(QMainWindow):
         # Initialize some stuff
         self.setWindowTitle("Animation Editor")
         self.resize(500, 600)
+        self.lastX = 0.0
+        self.lastY = 1.0
+        self.centerX = 0.0
+        self.centerY = 1.0
         self.lastXmin = 0.0
         self.lastXmax = 1.0
         self.audioMin = 0.0
@@ -2174,8 +2307,10 @@ class MainWindow(QMainWindow):
         self.audioCurve = None
         self.audioPlotRight = None
         self.audioCurveRight = None
+        self.tagPlot = None
         self.timeSlider = None
         self.timeSliderRight = None
+        self.tagSlider = None
         self._show_audio_menu.clear()
         self._show_audio_menu.setEnabled(False)
 
@@ -2296,6 +2431,35 @@ class MainWindow(QMainWindow):
             # Mute the player because it does not seem to clear out old audio quite rightly
             # Not sure what I want to do here
             pass
+
+        # Optionally add the tags pane here
+        tags = self.animatronics.tags
+        self.tagPlot = TagPane(self, tags, self)
+        """
+        if len(tags) > 0:
+            self.tagPlot = qwt.QwtPlot('Tags')
+            for tag in tags:
+                marker = qwt.QwtPlotMarker(tags[tag])
+                marker.setValue(tag, 0.0)
+                marker.setLabel(tags[tag])
+                marker.attach(self.tagPlot)
+                marker.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                marker.setLineStyle(qwt.QwtPlotMarker.VLine)
+            self.tagPlot.setAxisScale(qwt.QwtPlot.yLeft, -1.0, 1.0, 2.0)
+            self.tagPlot.setAxisTitle(qwt.QwtPlot.yLeft, 'Tags')
+            self.tagPlot.setAxisMaxMinor(qwt.QwtPlot.yLeft, 1)
+            layout.addWidget(self.tagPlot)
+
+            self.tagSlider = qwt.QwtPlotCurve()
+            self.tagSlider.setStyle(qwt.QwtPlotCurve.Sticks)
+            self.tagSlider.setData([self.audioMin], [30000.0])
+            self.tagSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
+            self.tagSlider.setBaseline(-30000.0)
+            self.tagSlider.attach(self.tagPlot)
+
+        """
+        self.tagPlot.redrawTags(self.lastXmin, self.lastXmax)
+        layout.addWidget(self.tagPlot)
 
         # Improve layout by sticking audio to the top
         if len(self.animatronics.channels) == 0:
@@ -2982,6 +3146,8 @@ class MainWindow(QMainWindow):
         if self.timeSliderRight is not None:
             self.timeSliderRight.setData([timeVal], [30000.0])
             self.audioPlotRight.replot()
+        if self.tagPlot is not None:
+            self.tagPlot.setSlider(timeVal)
         for plot in self.plots:
             self.plots[plot].setSlider(timeVal)
         self._slideTime = timeVal
@@ -3052,12 +3218,15 @@ class MainWindow(QMainWindow):
                 self.audioCurve.setData(xdata, ydata)
                 if self.audioCurveRight is not None and rightdata is not None:
                     self.audioCurveRight.setData(xdata, rightdata)
-            self.audioPlot.setAxisScale(self.X_BOTTOM_AXIS_ID, minTime, maxTime)
+            self.audioPlot.setAxisScale(qwt.QwtPlot.xBottom, minTime, maxTime)
             self.audioPlot.replot()
             if self.audioPlotRight is not None:
-                self.audioPlotRight.setAxisScale(self.X_BOTTOM_AXIS_ID, minTime, maxTime)
+                self.audioPlotRight.setAxisScale(qwt.QwtPlot.xBottom, minTime, maxTime)
                 self.audioPlotRight.replot()
                 
+    def redrawTags(self, minTime, maxTime):
+        if self.tagPlot is not None:
+            self.tagPlot.redrawTags(minTime, maxTime)
                 
 
     def scaletoaudio_action(self):
@@ -3198,16 +3367,16 @@ class MainWindow(QMainWindow):
             return None, None
 
         # Get the rectangle containing the stuff to left of plot
-        rect = self.audioPlot.plotLayout().scaleRect(self.Y_LEFT_AXIS_ID)
+        rect = self.audioPlot.plotLayout().scaleRect(qwt.QwtPlot.yLeft)
         # Get the width of that rectangle to use as offset in X
         xoffset = rect.width()
-        valueX = self.audioPlot.invTransform(self.X_BOTTOM_AXIS_ID, pixelX - xoffset)
+        valueX = self.audioPlot.invTransform(qwt.QwtPlot.xBottom, pixelX - xoffset)
 
         # Get the rectangle containing the stuff above top of plot
-        rect = self.audioPlot.plotLayout().scaleRect(self.X_TOP_AXIS_ID)
+        rect = self.audioPlot.plotLayout().scaleRect(qwt.QwtPlot.xTop)
         # Get the height of that rectangle to use as offset in Y
         yoffset = rect.height()
-        valueY = self.audioPlot.invTransform(self.Y_LEFT_AXIS_ID, pixelY - yoffset)
+        valueY = self.audioPlot.invTransform(qwt.QwtPlot.yLeft, pixelY - yoffset)
 
         return valueX,valueY
 
@@ -3282,6 +3451,7 @@ class MainWindow(QMainWindow):
             self.lastXmin = minval
             self._playwidget.setRange(self.lastXmin, self.lastXmax)
             self.redrawAudio(self.lastXmin, self.lastXmax)
+            self.redrawTags(self.lastXmin, self.lastXmax)
             for i in self.plots:
                 self.plots[i].settimerange(self.lastXmin, self.lastXmax)
 
@@ -3587,8 +3757,37 @@ class MainWindow(QMainWindow):
         """
         print('Hit selectorPane action')
 
-        # Make it crash to test saving
-        root = ET.fromstring('XXX')
+        """
+        # Testing of preloading wave file into QByteArray to play - fails
+        player = qm.QMediaPlayer(self);
+
+        file = QFile("drama.wav");
+        file.open(QIODevice.ReadOnly);
+        arr = QByteArray();
+        arr.append(file.readAll());
+        file.close();
+        buffer = QBuffer(arr);
+        buffer.open(QIODevice.ReadWrite);
+
+        player.setMedia(qm.QMediaContent(QUrl.fromLocalFile("drama.wav")), buffer);
+        player.play();
+        """
+        pass
+
+    def togglePane_action(self):
+        if self.tagPlot is None: return
+        if self.tagPlot.isHidden():
+            self.tagPlot.show()
+        else:
+            self.tagPlot.hide()
+        pass
+
+    def importScript_action(self):
+        print('Perform importScript action')
+        pass
+
+    def tagSelector_action(self):
+        print('Perform tagSelector action')
         pass
 
     def create_menus(self):
@@ -3787,7 +3986,24 @@ class MainWindow(QMainWindow):
         self.channel_menu.addAction(self._Delete_action)
 
 
-        self.menuBar().addSeparator()
+        # Create the Help dropdown menu #################################
+        self.tag_menu = self.menuBar().addMenu("&Tags")
+
+        # togglePane menu item
+        self._togglePane_action = QAction("togglePane", self,
+            shortcut="T",
+            triggered=self.togglePane_action)
+        self.tag_menu.addAction(self._togglePane_action)
+
+        # tagSelector menu item
+        self._tagSelector_action = QAction("tagSelector", self,
+            triggered=self.tagSelector_action)
+        self.tag_menu.addAction(self._tagSelector_action)
+
+        # importScript menu item
+        self._importScript_action = QAction("importScript", self,
+            triggered=self.importScript_action)
+        self.tag_menu.addAction(self._importScript_action)
 
         # Create the Help dropdown menu #################################
         self.help_menu = self.menuBar().addMenu("&Help")
@@ -4552,6 +4768,8 @@ class Animatronics:
         An object holding the audio information
     channels : dictionary
         A dictionary of channels keyed to the channel name
+    tags : dictionary
+        A dictionary of strings keyed to time
     start : float
         Start time of the animation (ALWAYS 0.0)
     end : float
@@ -4578,6 +4796,7 @@ class Animatronics:
         """
         self.filename = None
         self.newAudio = None
+        self.tags = {}
         self.channels = {}
         self.start = 0.0
         self.end = -1.0
@@ -4632,10 +4851,19 @@ class Animatronics:
             elif child.tag == 'Control':
                 if 'rate' in child.attrib:
                     self.sample_rate = float(child.attrib['rate'])
+            elif child.tag == 'Tags':
+                print('Found Tags block')
+                for tag in child:
+                    if tag.tag == 'Tag':
+                        if 'time' in tag.attrib:
+                            time = float(tag.attrib['time'])
+                            self.tags[time] = tag.text.strip()
+
+        print('Number of tags found:', len(self.tags))
 
     def toXML(self):
         """
-        The method toXML creates and returns a block of XML text from i
+        The method toXML creates and returns a block of XML text from 
         the object's members.  The text may be written to a file or saved
         as state for Undo and Redo.
             member of class: Animatronics
@@ -4652,6 +4880,13 @@ class Animatronics:
         output.write('<Control rate="%f"/>\n' % self.sample_rate)
         if self.newAudio is not None:
             output.write(self.newAudio.toXML())
+        if len(self.tags) > 0:
+            output.write('<Tags>\n')
+            for tag in self.tags:
+                output.write('    <Tag time="%f">\n' % tag)
+                output.write(self.tags[tag] + '\n')
+                output.write('    </Tag>\n')
+            output.write('</Tags>\n')
         for channel in self.channels.values():
             output.write(channel.toXML())
         output.write('</Animatronics>\n')
