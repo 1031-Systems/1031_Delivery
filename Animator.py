@@ -54,6 +54,7 @@ SystemPreferences = {
 'ServoDefaultMinimum':0.0,
 'ServoDefaultMaximum':180.0,
 'Ordering':'Numeric',
+'AutoSave':True,
 }
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
@@ -61,6 +62,7 @@ SystemPreferenceTypes = {
 'ServoDefaultMinimum':'float',
 'ServoDefaultMaximum':'float',
 'Ordering':['Alphabetic','Numeric','Creation'],
+'AutoSave':'bool',
 }
 
 #/* Usage method */
@@ -144,6 +146,9 @@ class TagPane(qwt.QwtPlot):
         self.tagSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
         self.tagSlider.setBaseline(-3.0)
         self.tagSlider.attach(self)
+
+        # Limit Tag Pane height
+        self.setMaximumHeight(60)
 
         self.redrawme()
 
@@ -821,6 +826,9 @@ class ChannelPane(qwt.QwtPlot):
         if self.channel.port >= 0:
             channelname += '(%d)' % self.channel.port
         self.setAxisTitle(qwt.QwtPlot.yLeft, channelname)
+
+        if self.channel.type == Channel.DIGITAL:
+            self.setMaximumHeight(100)
 
         self.create()
 
@@ -1655,6 +1663,16 @@ class PreferencesWidget(QDialog):
                 self._layout.addRow(QLabel(pref), newedit)
                 self._widgets[pref] = newedit
                 pass
+            elif SystemPreferenceTypes[pref] is 'bool':
+                newedit = QComboBox()
+                newedit.addItems(('True','False'))
+                self._layout.addRow(QLabel(pref), newedit)
+                self._widgets[pref] = newedit
+                if SystemPreferences[pref]:
+                    newedit.setCurrentText('True')
+                else:
+                    newedit.setCurrentText('False')
+                pass
             else:
                 newedit = QLineEdit(str(SystemPreferences[pref]))
                 self._layout.addRow(QLabel(pref), newedit)
@@ -1694,8 +1712,8 @@ class PreferencesWidget(QDialog):
                 SystemPreferences[pref] = int(self._widgets[pref].text())
             elif type(SystemPreferenceTypes[pref]) == 'float':
                 SystemPreferences[pref] = float(self._widgets[pref].text())
-            elif type(SystemPreferenceTypes[pref]) == 'bool':
-                SystemPreferences[pref] = bool(self._widgets[pref].text())
+            elif SystemPreferenceTypes[pref] == 'bool':
+                SystemPreferences[pref] = self._widgets[pref].currentText() == 'True'
             else:
                 SystemPreferences[pref] = self._widgets[pref].text()
             pass
@@ -1711,8 +1729,11 @@ class PreferencesWidget(QDialog):
                         prefs.write('%s:%f\n' % ( pref, float(SystemPreferences[pref])))
                     elif type(SystemPreferenceTypes[pref]) == 'int':
                         prefs.write('%s:%d\n' % ( pref, int(SystemPreferences[pref])))
-                    elif type(SystemPreferenceTypes[pref]) == 'bool':
-                        prefs.write('%s:%d\n' % ( pref, int(SystemPreferences[pref])))
+                    elif SystemPreferenceTypes[pref] == 'bool':
+                        if SystemPreferences[pref]:
+                            prefs.write('%s:%s\n' % ( pref, 'True'))
+                        else:
+                            prefs.write('%s:%s\n' % ( pref, 'False'))
                     else:
                         prefs.write('%s:%s\n' % ( pref, SystemPreferences[pref]))
 
@@ -1746,13 +1767,15 @@ class PreferencesWidget(QDialog):
                         elif SystemPreferenceTypes[vals[0]] == 'float':
                             SystemPreferences[vals[0]] = float(vals[1])
                         elif SystemPreferenceTypes[vals[0]] == 'bool':
-                            SystemPreferences[vals[0]] = bool(vals[1])
+                            print('Pref:', vals[0], vals[1])
+                            SystemPreferences[vals[0]] = vals[1] == 'True'
                         else:
                             SystemPreferences[vals[0]] = vals[1]
                     line = prefs.readline()
         except:
             # Unable to read preferences file but that's okay
             pass
+        print('After read AutoSave set to:', SystemPreferences['AutoSave'])
 
 #####################################################################
 # The Player class is a widget with playback controls
@@ -2419,7 +2442,7 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
-                self.audioPlot.setMaximumHeight(200)
+                self.audioPlot.setMaximumHeight(150)
                 self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showleft_audio_action)
@@ -2430,7 +2453,7 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlotRight = newplot
-                self.audioPlotRight.setMaximumHeight(200)
+                self.audioPlotRight.setMaximumHeight(150)
                 self.audioPlotRight.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showright_audio_action)
@@ -2470,10 +2493,6 @@ class MainWindow(QMainWindow):
         self.tagPlot.redrawTags(self.lastXmin, self.lastXmax)
         layout.addWidget(self.tagPlot)
 
-        # Improve layout by sticking audio to the top
-        if len(self.animatronics.channels) == 0:
-            layout.addStretch()
-
         # Add panes for all the channels
         if SystemPreferences['Ordering'] == 'Alphabetic':
             channelList = sorted(self.animatronics.channels.keys())
@@ -2504,6 +2523,9 @@ class MainWindow(QMainWindow):
                 newplot.setToolTip('Use Shift-LeftMouseButton to add control points')
             layout.addWidget(newplot)
             self.plots[chan.name] = newplot
+
+        # Improve layout by sticking audio to the top
+        layout.addStretch()
 
         self._playwidget.setRange(self.lastXmin, self.lastXmax)
             
@@ -2839,6 +2861,26 @@ class MainWindow(QMainWindow):
             
         pass
 
+    def autoSave(self):
+        if SystemPreferences['AutoSave']:
+            if self.animatronics.filename is not None:
+                backupFilename = self.animatronics.filename + '.autosave'
+            else:
+                backupFilename = 'unnamedfile.anim.autosave'
+            try:
+                with open(backupFilename, 'w') as bakfile:
+                    currState = self.animatronics.toXML()
+                    bakfile.write(currState)
+            except Exception as e:
+                sys.stderr.write("\nWhoops - Error writing autosave file %s\n" % backupFilename)
+                sys.stderr.write("Message: %s\n" % e)
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Whoops - Unable to write to autosave file:')
+                msgBox.setInformativeText(backupFilename)
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
+
     def pushState(self):
         """
         The method pushState pushes the current animation state onto the
@@ -2907,6 +2949,7 @@ class MainWindow(QMainWindow):
         self.saveStateOkay = True
         # Keep XML display pane up to date with latest
         self.XMLPane.setText(self.animatronics.toXML())
+        self.tagSelectUpdate()
             
         pass
 
@@ -3356,6 +3399,7 @@ class MainWindow(QMainWindow):
         self : MainWindow
         """
         self.XMLPane.setText(self.animatronics.toXML())
+        self.autoSave()
 
     def getPlotValues(self, pixelX, pixelY):
         """
