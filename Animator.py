@@ -25,40 +25,18 @@ import xml.etree.ElementTree as ET
 usedPyQt = None
 
 try:
-    # Qt import block for all widgets
-    from PyQt5.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
-        QFile, QIODevice, QBuffer,
-        QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
-    from PyQt5.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen,
-        QClipboard, QGuiApplication,
-        QDoubleValidator, QRegularExpressionValidator, QValidator, QCursor,
-        QStandardItem, QStandardItemModel, QFont, QKeySequence, QPalette)
-    from PyQt5.QtWidgets import (QAbstractItemView, QAction, QApplication,
-        QCheckBox, QComboBox, QFileDialog, QDialog, QDialogButtonBox, QGridLayout,
-        QGroupBox, QHeaderView, QInputDialog, QItemDelegate, QLabel, QLineEdit, QListView,
-        QMainWindow, QMessageBox, QScrollArea, QStyle, QSpinBox, QStyleOptionViewItem,
-        QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
-        QHBoxLayout, QWidget, QPushButton, QTextEdit, QFormLayout, QTextBrowser,
-        QErrorMessage, QMenu, QShortcut)
+    # PyQt5 import block for all widgets
+    from PyQt5.QtCore import *
+    from PyQt5.QtGui import *
+    from PyQt5.QtWidgets import *
     from PyQt5 import QtMultimedia as qm
     usedPyQt = 5
 except:
     try:
-        # Qt import block for all widgets
-        from PyQt6.QtCore import (QByteArray, QDate, QDateTime, QDir, QEvent, QPoint,
-            QFile, QIODevice, QBuffer,
-            QRect, QRegularExpression, QSettings, QSize, QTime, QTimer, Qt, pyqtSlot, QUrl)
-        from PyQt6.QtGui import (QBrush, QColor, QIcon, QIntValidator, QPen, QPalette,
-            QClipboard, QGuiApplication,
-            QDoubleValidator, QRegularExpressionValidator, QValidator, QCursor,
-            QStandardItem, QStandardItemModel, QAction, QFont, QKeySequence, QShortcut)
-        from PyQt6.QtWidgets import (QAbstractItemView, QApplication,
-            QCheckBox, QComboBox, QFileDialog, QDialog, QDialogButtonBox, QGridLayout,
-            QGroupBox, QHeaderView, QInputDialog, QItemDelegate, QLabel, QLineEdit, QListView,
-            QMainWindow, QMessageBox, QScrollArea, QStyle, QSpinBox, QStyleOptionViewItem,
-            QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
-            QHBoxLayout, QWidget, QPushButton, QTextEdit, QFormLayout, QTextBrowser,
-            QErrorMessage, QMenu)
+        # PyQt6 import block for all widgets
+        from PyQt6.QtCore import *
+        from PyQt6.QtGui import *
+        from PyQt6.QtWidgets import *
         from PyQt6 import QtMultimedia as qm
         usedPyQt = 6
     except:
@@ -115,6 +93,28 @@ def popState():
     """
     global main_win
     main_win.popState()
+
+def toHMS(seconds):
+    flag = seconds < 0
+    if flag:
+        seconds = -seconds
+    hours = int(seconds/3600.0)
+    seconds -= hours*3600
+    minutes = int(seconds/60.0)
+    seconds -= minutes*60
+    time = '%02d:%02d:%05.2f' % (hours, minutes, seconds)
+    if flag: time = '-' + time
+    return time
+
+def fromHMS(string):
+    seconds = 0.0
+    m = re.match('^(-?)(\d+):(\d+):(\d+\.?\d*)', string)
+    if m:
+        seconds = int(m.group(2)) * 3600.0
+        seconds += int(m.group(3)) * 60
+        seconds += float(m.group(4))
+        if m.group(0) == '-': seconds = -seconds
+    return seconds
 
 #####################################################################
 class TagPane(qwt.QwtPlot):
@@ -182,6 +182,21 @@ class TagPane(qwt.QwtPlot):
         # Return time just in case we tweaked it
         return time
 
+    def tagZoom(self, neartag):
+        # First find next tag after the selected one
+        slist = sorted(self._tags.keys())
+        indx = slist.index(neartag)
+        # qwt does not seem to like setting left edge to something greater than right edge
+        # so we push the right edge out past where we will set the left edge temporarily
+        if self.mainwindow.lastXmax < neartag + 1.0:
+            self.mainwindow.setRightEdge(neartag + 10.0)
+        self.mainwindow.setLeftEdge(neartag)
+        if indx < len(slist) -1:
+            # Use the next tag as zoom limit
+            self.mainwindow.setRightEdge(slist[indx+1])
+        else:
+            self.mainwindow.setRightEdge(self.mainwindow.lastXmax)
+
     def deleteTag(self, time):
         if time in self._tags:
             del self._tags[time]
@@ -224,6 +239,8 @@ class TagPane(qwt.QwtPlot):
                     # Delete currently selected tag
                     self.deleteTag(neartag)
                     self.selectedtag = None
+                    self.mainwindow.updateXMLPane()
+                    self.mainwindow.tagSelectUpdate()
                     pass
                 else:
                     # Insert a new tag
@@ -235,14 +252,7 @@ class TagPane(qwt.QwtPlot):
             elif modifiers == Qt.ControlModifier:
                 # Zoom to that tag
                 if neartag is not None:
-                    # First find next tag after the selected one
-                    slist = sorted(self._tags.keys())
-                    indx = slist.index(neartag)
-                    self.mainwindow.setLeftEdge(neartag)
-                    if indx < len(slist) -1:
-                        # Use the next tag as zoom limit
-                        self.mainwindow.setRightEdge(slist[indx+1])
-                        pass
+                    self.tagZoom(neartag)
             else:
                 # Not shift so select near one to drag or pass to main window
                 if neartag is not None:
@@ -285,6 +295,7 @@ class TagPane(qwt.QwtPlot):
                     # Forget that we were trying to put in a tag
                     popState()
             self.mainwindow.updateXMLPane()
+            self.mainwindow.tagSelectUpdate()
 
 #####################################################################
 class TextDisplayDialog(QDialog):
@@ -2262,6 +2273,9 @@ class MainWindow(QMainWindow):
         self.filedialog.setAcceptMode(QFileDialog.AcceptSave)
         self.filedialog.setFileMode(QFileDialog.AnyFile)
 
+        # Initially Tag Selector Dialog is None
+        self.tagSelectDialog = None
+
         # Create the XML display dialog for constant refresh
         self.XMLPane = TextDisplayDialog('XML', parent=self)
         self.ClipboardPane = TextDisplayDialog('Clipboard', parent=self)
@@ -2821,6 +2835,7 @@ class MainWindow(QMainWindow):
         self.saveStateOkay = True
         # Keep XML display pane up to date with latest
         self.XMLPane.setText(self.animatronics.toXML())
+        self.tagSelectUpdate()
             
         pass
 
@@ -3787,12 +3802,96 @@ class MainWindow(QMainWindow):
         pass
 
     def importScript_action(self):
-        print('Perform importScript action')
+        fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
+                            ";;All Files (*)",
+                            options=QFileDialog.DontUseNativeDialog)
+
+        if fileName:
+            if self.tagPlot is not None:
+                # Push current state for undo
+                pushState()
+
+                offset = 0.0
+                if self.animatronics.newAudio is not None:
+                    offset = self.animatronics.newAudio.audiostart
+                with open(fileName, 'r') as scfile:
+                    script = scfile.readlines()
+                    for line in script:
+                        self.tagPlot.addTag(offset, line.rstrip())
+                        # Guesstimate duration of audio and add to time (0.09 seconds per character)
+                        offset += len(line) * 0.09
+                    self.resetscales_action()
+                    self.updateXMLPane()
+                    self.tagSelectUpdate()
+
         pass
 
     def tagSelector_action(self):
-        print('Perform tagSelector action')
+        # Build and pop up tag selector widget
+        self.tagSelectDialog = QDialog(parent=self)
+        self.tagSelectDialog.rejected.connect(self.tagSelectClose)
+        self._tagListWidget = QListWidget(self.tagSelectDialog)
+        layout = QFormLayout()
+        self.tagSelectDialog.setLayout(layout)
+        layout.addRow(self._tagListWidget)
+        maxWidth = 0
+        for tagTime in sorted(self.animatronics.tags):
+            self._tagListWidget.addItem(toHMS(tagTime) + ' - ' + self.animatronics.tags[tagTime])
+            tWidth = len(self.animatronics.tags[tagTime])
+            if tWidth > maxWidth: maxWidth = tWidth
+        self.tagSelectDialog.setGeometry(
+            self.pos().x(),
+            self.pos().y(),
+            min((maxWidth + 18) * 7, 800),
+            min(22*len(self.animatronics.tags), 600))   
+            
+        self._tagListWidget.itemSelectionChanged.connect(self.tagSelected)
+        self.tagSelectDialog.show()
         pass
+
+    def tagSelectClose(self):
+        self.tagSelectDialog = None
+
+    def tagSelectUpdate(self):
+        # If it is not visible don't bother updating
+        if self.tagSelectDialog is None: return
+
+        self._tagListWidget.clear()
+        maxWidth = 0
+        for tagTime in sorted(self.animatronics.tags):
+            self._tagListWidget.addItem(toHMS(tagTime) + ' - ' + self.animatronics.tags[tagTime])
+            tWidth = len(self.animatronics.tags[tagTime])
+            if tWidth > maxWidth: maxWidth = tWidth
+        geom = self.tagSelectDialog.geometry()
+        self.tagSelectDialog.setGeometry(
+            geom.x(),
+            geom.y(),
+            min((maxWidth + 18) * 7, 800),
+            min(22*len(self.animatronics.tags), 600))   
+            
+    def findNearestTag(self, time):
+        nearest = None
+        for tagTime in self.animatronics.tags:
+            if nearest is None:
+                nearest = tagTime
+                distance = abs(tagTime - time)
+            elif abs(tagTime - time) < distance:
+                nearest = tagTime
+                distance = abs(tagTime - time)
+        return nearest
+
+    def tagSelected(self):
+        if len(self._tagListWidget.selectedItems()) == 0: return
+        # Get the text string
+        text = self._tagListWidget.selectedItems()[0].text()
+        # Convert string back to float time
+        time = fromHMS(text)
+        # Find nearest tag
+        tagTime = self.findNearestTag(time)
+        if abs(tagTime - time) < 0.01:
+            # Select and display that tag
+            self.tagPlot.tagZoom(tagTime)
+            pass
 
     def tagInsert_action(self):
         # Grab the slider time as soon as we can
@@ -3804,6 +3903,7 @@ class MainWindow(QMainWindow):
             pushState()
             self.tagPlot.addTag(ttime, text)
             self.updateXMLPane()
+            self.tagSelectUpdate()
         pass
 
     def create_menus(self):

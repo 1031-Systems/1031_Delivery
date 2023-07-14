@@ -1,4 +1,8 @@
 <!-- john Fri Jun 27 07:35:16 PDT 2023 -->
+<a name="top">
+&nbsp;
+</a>
+
 # Help for Animator.py
 
 1.0.0(a)
@@ -18,6 +22,10 @@ output to the hardware controller to operate the mechanisms.
 + x. [Specialized Tools](#specialized-tools)
 + x. [Requirements](#requirements)
 
+<a name="process">
+&nbsp;
+</a>
+
 ## Process
 
 The Animator process is similar to that used by other tools that perform
@@ -28,11 +36,15 @@ other movements, lighting controls,  and other activities to the audio.
 1. Using an audio editor, create sound files for each character’s dialog, and a separate mix file which contains all of the characters, effects, and background music.
 2. Start Animator.
 3. Load an audio file to work with
-4. Generate the mouth commands.
-5. Generate the head motion.
-6. Generate the remaining servo and motor tracks.
-7. Program the lighting tracks.
+4. Generate the mouth control channel(s).
+5. Generate the head motion control channels.
+6. Generate the remaining servo and motor channels.
+7. Program the lighting channels.
 8. Output the control information for use by the hardware controller.
+
+<a name="overview">
+&nbsp;
+</a>
 
 ## Overview
 
@@ -102,10 +114,10 @@ Animator has a number of dropdown menus available on the menubar at the top
 of the Animator main window or at the top of the screen in MacOS.  They are:
 
 1. [File](#file) - to save and load your work
-2. [Edit](#edit) - to add and delete channels, change audio, or edit metadata
+2. [Edit](#edit) - to add and delete channels or edit metadata
 3. [View](#view) - to fit data to the screen or hide channels currently unneeded
-4. [Playback](#playback) - to toggle visibility of the audio playback gui
-5. [Tools](#tools) - for specialized tools
+4. [Channels](#channels) - to select, copy, and paste channels
+5. [Tags](#tags) - for Tag-related activities
 6. [Help](#help) - to find out more
 
 <a name="requirements">
