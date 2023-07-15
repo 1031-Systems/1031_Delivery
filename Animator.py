@@ -148,7 +148,7 @@ class TagPane(qwt.QwtPlot):
         self.tagSlider.attach(self)
 
         # Limit Tag Pane height
-        self.setMaximumHeight(60)
+        self.setMaximumHeight(150)
 
         self.redrawme()
 
@@ -894,7 +894,6 @@ class ChannelPane(qwt.QwtPlot):
 
         # Set y axis style for various types of plots
         if self.channel.type == Channel.DIGITAL:
-            print('Setting axisstep to 1.0')
             self.setAxisMaxMinor(qwt.QwtPlot.yLeft, 2)
             self.setDataRange(self.minVal - margin, self.maxVal + margin, axisstep=1.0)
         else:
@@ -1767,7 +1766,6 @@ class PreferencesWidget(QDialog):
                         elif SystemPreferenceTypes[vals[0]] == 'float':
                             SystemPreferences[vals[0]] = float(vals[1])
                         elif SystemPreferenceTypes[vals[0]] == 'bool':
-                            print('Pref:', vals[0], vals[1])
                             SystemPreferences[vals[0]] = vals[1] == 'True'
                         else:
                             SystemPreferences[vals[0]] = vals[1]
@@ -1775,7 +1773,6 @@ class PreferencesWidget(QDialog):
         except:
             # Unable to read preferences file but that's okay
             pass
-        print('After read AutoSave set to:', SystemPreferences['AutoSave'])
 
 #####################################################################
 # The Player class is a widget with playback controls
@@ -2836,17 +2833,22 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.saveStateOkay = False
+        self.saveStateOkay = False  # Do not save state for any changes here
         if len(self.previousStates) > 0:
             if self.animatronics is not None:
                 # Push current state onto pending states
                 currState = self.animatronics.toXML()
-                self.pendingStates.append((currState, self.unsavedChanges))
+                self.pendingStates.append((currState,
+                    self.animatronics.filename,
+                    self.lastXmin, self.lastXmax,
+                    self.unsavedChanges))
                 # Pop last previous state
                 currState = self.previousStates.pop()
                 self.animatronics.fromXML(currState[0])
                 self.setAnimatronics(self.animatronics)
-                self.unsavedChanges = currState[1]
+                self.animatronics.filename = currState[1]
+                self.setTimeRange(currState[2], currState[3])
+                self.unsavedChanges = currState[4]
                 print('Number of undos left:', len(self.previousStates))
         else:
             msgBox = QMessageBox(parent=self)
@@ -2854,7 +2856,7 @@ class MainWindow(QMainWindow):
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.setIcon(QMessageBox.Information)
             ret = msgBox.exec_()
-        self.saveStateOkay = True
+        self.saveStateOkay = True   # Allow saving state again
         # Keep XML display pane up to date with latest
         self.XMLPane.setText(self.animatronics.toXML())
         self.tagSelectUpdate()
@@ -2897,7 +2899,10 @@ class MainWindow(QMainWindow):
         if self.saveStateOkay:
             # Push current state onto previous states
             currState = self.animatronics.toXML()
-            self.previousStates.append((currState, self.unsavedChanges))
+            self.previousStates.append((currState,
+                self.animatronics.filename,
+                self.lastXmin, self.lastXmax,
+                self.unsavedChanges))
             # Taking a new path so clear out pending states
             self.pendingStates = []
             self.unsavedChanges = True
@@ -2933,12 +2938,17 @@ class MainWindow(QMainWindow):
             if self.animatronics is not None:
                 # Push current state onto pending states
                 currState = self.animatronics.toXML()
-                self.previousStates.append((currState, self.unsavedChanges))
+                self.previousStates.append((currState,
+                    self.animatronics.filename,
+                    self.lastXmin, self.lastXmax,
+                    self.unsavedChanges))
                 # Pop next pending state
                 currState = self.pendingStates.pop()
                 self.animatronics.fromXML(currState[0])
                 self.setAnimatronics(self.animatronics)
-                self.unsavedChanges = currState[1]
+                self.animatronics.filename = currState[1]
+                self.setTimeRange(currState[2], currState[3])
+                self.unsavedChanges = currState[4]
                 print('Number of redos left:', len(self.pendingStates))
         else:
             msgBox = QMessageBox(parent=self)
@@ -4272,11 +4282,6 @@ class AudioChannel:
         """
 
         """Return the start and end times for the audio"""
-        print('Audio file:', self.audiofile)
-        print('Audio samplerate:', self.samplerate)
-        print('Audio numchannels:', self.numchannels)
-        print('Audio samplesize:', self.samplesize)
-        print('Audio datasize:', len(self.audio_data))
         self.audioend = self.audiostart + float(len(self.audio_data))/self.numchannels/self.samplerate/self.samplesize
         return self.audiostart,self.audioend
 
@@ -5020,14 +5025,12 @@ class Animatronics:
                 if 'rate' in child.attrib:
                     self.sample_rate = float(child.attrib['rate'])
             elif child.tag == 'Tags':
-                print('Found Tags block')
                 for tag in child:
                     if tag.tag == 'Tag':
                         if 'time' in tag.attrib:
                             time = float(tag.attrib['time'])
                             self.tags[time] = tag.text.strip()
 
-        print('Number of tags found:', len(self.tags))
 
     def toXML(self):
         """
