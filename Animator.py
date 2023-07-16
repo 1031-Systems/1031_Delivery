@@ -43,6 +43,7 @@ except:
         sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
         exit(10)
 import qwt
+from qwt import plot_layout
 
 #/* Define block */
 verbosity = False
@@ -117,6 +118,23 @@ def fromHMS(string):
         seconds += float(m.group(4))
         if m.group(0) == '-': seconds = -seconds
     return seconds
+
+#####################################################################
+class LeftAlignLayout(plot_layout.QwtPlotLayout):
+    # Shared width of all left scales
+    leftScaleWidth = 50.0;
+
+    def __init__(self):
+        super().__init__()
+
+    def expandLineBreaks(self, options, rect):
+        dimTitle, dimFooter, dimAxes = super().expandLineBreaks(options, rect)
+        dimAxes[qwt.QwtPlot.yLeft] = self.leftScaleWidth
+        return dimTitle, dimFooter, dimAxes
+
+    @classmethod
+    def setMaxScaleWidth(cls, width):
+        cls.leftScaleWidth = width
 
 #####################################################################
 class TagPane(qwt.QwtPlot):
@@ -828,7 +846,7 @@ class ChannelPane(qwt.QwtPlot):
         self.setAxisTitle(qwt.QwtPlot.yLeft, channelname)
 
         if self.channel.type == Channel.DIGITAL:
-            self.setMaximumHeight(100)
+            self.setMaximumHeight(150)
 
         self.create()
 
@@ -2367,6 +2385,9 @@ class MainWindow(QMainWindow):
         self._show_audio_menu.clear()
         self._show_audio_menu.setEnabled(False)
 
+        # Set all the left axes to align
+        LeftAlignLayout.setMaxScaleWidth(60.0)
+
         # Add filename to window title
         if self.animatronics.filename is not None:
             self.setWindowTitle("Animation Editor - " +
@@ -2422,6 +2443,7 @@ class MainWindow(QMainWindow):
             xdata, leftdata, rightdata = self.animatronics.newAudio.getPlotData(self.audioMin,self.audioMax,4000)
             if rightdata is None:
                 newplot = qwt.QwtPlot('Audio Mono')
+                newplot.setPlotLayout(LeftAlignLayout())
                 self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=leftdata,
                     title='Audio', plot=newplot,
                     )
@@ -2434,6 +2456,7 @@ class MainWindow(QMainWindow):
                 self._showmono_audio_action.setChecked(True)
             else:
                 newplot = qwt.QwtPlot('Audio Left')
+                newplot.setPlotLayout(LeftAlignLayout())
                 self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=leftdata,
                     title='Audio', plot=newplot,
                     )
@@ -2445,6 +2468,7 @@ class MainWindow(QMainWindow):
                 self._show_audio_menu.addAction(self._showleft_audio_action)
                 self._showleft_audio_action.setChecked(True)
                 newplot = qwt.QwtPlot('Audio Right')
+                newplot.setPlotLayout(LeftAlignLayout())
                 self.audioCurveRight = qwt.QwtPlotCurve.make(xdata=xdata, ydata=rightdata,
                     title='Audio', plot=newplot,
                     )
@@ -2487,6 +2511,7 @@ class MainWindow(QMainWindow):
 
         # Add the tags pane here
         self.tagPlot = TagPane(self, self.animatronics.tags, self)
+        self.tagPlot.setPlotLayout(LeftAlignLayout())
         self.tagPlot.redrawTags(self.lastXmin, self.lastXmax)
         layout.addWidget(self.tagPlot)
 
@@ -2515,6 +2540,7 @@ class MainWindow(QMainWindow):
         for channel in channelList:
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(self._plotarea, chan, mainwindow=self)
+            newplot.setPlotLayout(LeftAlignLayout())
             newplot.settimerange(self.lastXmin, self.lastXmax)
             if len(chan.knots) == 0:
                 newplot.setToolTip('Use Shift-LeftMouseButton to add control points')
@@ -2525,8 +2551,8 @@ class MainWindow(QMainWindow):
         layout.addStretch()
 
         self._playwidget.setRange(self.lastXmin, self.lastXmax)
+        self.setSlider(self.lastXmin)
             
-
     def openAnimFile(self):
         """
         The method openAnimFile opens a file dialog for the user to select
@@ -3430,20 +3456,24 @@ class MainWindow(QMainWindow):
         pixelX : type
         pixelY : type
         """
-        if self.audioPlot is None:
+        if self.audioPlot is not None:
+            thePlot = self.audioPlot
+        elif self.tagPlot is not None:
+            thePlot = self.tagPlot
+        else:
             return None, None
 
         # Get the rectangle containing the stuff to left of plot
-        rect = self.audioPlot.plotLayout().scaleRect(qwt.QwtPlot.yLeft)
+        rect = thePlot.plotLayout().scaleRect(qwt.QwtPlot.yLeft)
         # Get the width of that rectangle to use as offset in X
         xoffset = rect.width()
-        valueX = self.audioPlot.invTransform(qwt.QwtPlot.xBottom, pixelX - xoffset)
+        valueX = thePlot.invTransform(qwt.QwtPlot.xBottom, pixelX - xoffset)
 
         # Get the rectangle containing the stuff above top of plot
-        rect = self.audioPlot.plotLayout().scaleRect(qwt.QwtPlot.xTop)
+        rect = thePlot.plotLayout().scaleRect(qwt.QwtPlot.xTop)
         # Get the height of that rectangle to use as offset in Y
         yoffset = rect.height()
-        valueY = self.audioPlot.invTransform(qwt.QwtPlot.yLeft, pixelY - yoffset)
+        valueY = thePlot.invTransform(qwt.QwtPlot.yLeft, pixelY - yoffset)
 
         return valueX,valueY
 
@@ -3460,7 +3490,6 @@ class MainWindow(QMainWindow):
         self : MainWindow
         event : type
         """
-        if self.audioPlot is None: return
         if event.buttons() == Qt.LeftButton:
             self.lastX = event.pos().x()
             self.lastY = event.pos().y()
@@ -3476,7 +3505,6 @@ class MainWindow(QMainWindow):
         self : MainWindow
         event : type
         """
-        if self.audioPlot is None: return
         if event.buttons() == Qt.LeftButton:
             # Compute how far the cursor has moved vertically and horizontally
             deltaX = self.lastX - event.pos().x()
@@ -3499,7 +3527,6 @@ class MainWindow(QMainWindow):
         self : MainWindow
         event : type
         """
-        if self.audioPlot is None: return
         pass
 
     def setTimeRange(self, minval, maxval):
