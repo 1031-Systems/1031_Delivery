@@ -38,3 +38,19 @@
 ### In Audio Pane
 - Left Drag Up and Down - Zoom time range
 - Left Drag Side to Side - Pan time range left and right
+
+---
+## General Mouse Usage
+The left mouse button is used for most activities.  Without Shift or
+Control, it is used for editing tags or control points.  With Shift
+it is used for inserting or deleting tags or control points.  With
+Control it is used to Select or Deselect a channel, adding it to or
+removing it from the set of selected channels.
+
+Outside of a channel pane, the left mouse button without shift or 
+control, zooms and pans the time range for the entire display unless
+on a tag in the Tag pane.
+
+Within a channel pane, the wheel zooms the vertical data range about
+the location of the cursor.  The right mouse button brings up the
+tools menu for the channel pane.

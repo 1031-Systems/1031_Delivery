@@ -45,27 +45,28 @@ except:
         exit(10)
 import qwt
 from qwt import plot_layout
-from LimitsWidget import *
 
 #/* Define block */
 verbosity = False
 
 # System Preferences Block
 SystemPreferences = {
-'MaxDigitalChannels':48,
-'MaxServoChannels':32,
-'ServoDefaultMinimum':0.0,
-'ServoDefaultMaximum':180.0,
-'Ordering':'Numeric',
-'AutoSave':True,
+'MaxDigitalChannels':48,        # Maximum number of digital channels controller can handle
+'MaxServoChannels':32,          # Maximum number of servo/numeric channels controller cah handle
+'ServoDefaultMinimum':0.0,      # Default minimum servo angle
+'ServoDefaultMaximum':180.0,    # Default maximum servo angle
+'Ordering':'Numeric',           # Ordering for channels in window
+'AutoSave':True,                # Perfrom saving automatically flag
+'ShowTips':True,                # Show tool tips flag
 }
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
 'MaxServoChannels':'int',
 'ServoDefaultMinimum':'float',
 'ServoDefaultMaximum':'float',
-'Ordering':['Alphabetic','Numeric','Creation'],
+'Ordering':['Alphabetic','Numeric','Creation'], # Alphabetic by name, Numeric by port number, or creation order
 'AutoSave':'bool',
+'ShowTips':'bool',
 }
 
 #/* Usage method */
@@ -120,6 +121,85 @@ def fromHMS(string):
         seconds += float(m.group(4))
         if m.group(0) == '-': seconds = -seconds
     return seconds
+
+#####################################################################
+class LimitWidget(QDialog):
+
+    setMinSignal = pyqtSignal(str)
+    setMaxSignal = pyqtSignal(str)
+
+    def __init__(self, parent=None, port=-1, minimum=0.0, maximum=180.0):
+        super().__init__(parent)
+
+        self.port = port
+
+        vbox = QVBoxLayout(self)
+
+        # Create the slider
+        hbox = QHBoxLayout()    # Put slider in horizontal layout for good centering
+        self.slider = QSlider(self)
+        self.slider.setTickPosition(QSlider.TicksBothSides)
+        self.slider.setTickInterval(15)
+        self.slider.setMinimum(int(minimum))
+        self.slider.setMaximum(int(maximum))
+        self.slider.valueChanged.connect(self.valueIs)
+        self.slider.setSingleStep(1)
+        self.slider.setPageStep(15)
+        self.slider.setFixedHeight(300)
+        hbox.addStretch()
+        hbox.addWidget(self.slider)
+        hbox.addStretch()
+        vbox.addLayout(hbox)
+
+        # Create the value display
+        self.display = QLineEdit()
+        self.display.setFixedWidth(50)
+        self.display.setReadOnly(True)
+        self.display.setMaxLength(4)
+        self.display.selectionChanged.connect(self.fixFocus)
+        vbox.addWidget(self.display)
+
+        # Create the checkbox for live control of servo
+        self.liveCheck = QCheckBox('Live')
+        self.liveCheck.setChecked(False)
+        self.liveCheck.stateChanged.connect(self.fixFocus)
+        vbox.addWidget(self.liveCheck)
+
+        # Create the buttons to set max and min limits
+        maxButton = QPushButton('Max')
+        maxButton.clicked.connect(self.sendMax)
+        vbox.addWidget(maxButton)
+        minButton = QPushButton('Min')
+        minButton.clicked.connect(self.sendMin)
+        vbox.addWidget(minButton)
+        vbox.addStretch()
+
+        # Initialize to midway between min and max
+        initValue = int((maximum+minimum)/2)
+        self.slider.setValue(initValue)
+        self.display.setText('%d' % initValue)
+
+        # Set the width to match what's needed
+        self.setFixedWidth(70)
+
+    def valueIs(self, value):
+        self.display.setText('%d' % value)
+        if self.liveCheck.isChecked() and self.port >= 0:
+            # Send the value, appropriately formatted, to hardware controller
+            print('Sending to controller port %d value %d' % (self.port, value))
+            pass
+
+    def sendMin(self):
+        self.setMinSignal.emit(self.display.text())
+        self.slider.setFocus()
+
+    def sendMax(self):
+        self.setMaxSignal.emit(self.display.text())
+        self.slider.setFocus()
+
+    def fixFocus(self):
+        self.slider.setFocus()
+
 
 #####################################################################
 class LeftAlignLayout(plot_layout.QwtPlotLayout):
@@ -540,7 +620,7 @@ class ChannelMenu(QMenu):
     name : type
     _metadata_action : QAction
     _invert_action : QAction
-    _smooth_action : QAction
+    _random_action : QAction
     _wrap_action : QAction
     _Rescale_action : QAction
     _Hide_action : QAction
@@ -551,7 +631,7 @@ class ChannelMenu(QMenu):
     __init__(self, parent, channel)
     metadata_action(self)
     invert_action(self)
-    smooth_action(self)
+    random_action(self)
     wrap_action(self)
     Rescale_action(self)
     Hide_action(self)
@@ -592,9 +672,9 @@ class ChannelMenu(QMenu):
         self.addAction(self._invert_action)
 
         # smooth menu item only for Linear channels
-        self._smooth_action = QAction("Randomize", self,
-            triggered=self.smooth_action)
-        self.addAction(self._smooth_action)
+        self._random_action = QAction("Randomize", self,
+            triggered=self.random_action)
+        self.addAction(self._random_action)
 
         # wrap menu item
         self._wrap_action = QAction("wrap", self,
@@ -677,10 +757,9 @@ class ChannelMenu(QMenu):
             main_win.updateXMLPane()
         pass
 
-    def smooth_action(self):
+    def random_action(self):
         """
-        The method smooth_action seems to be superseded by the spline
-        type.
+        The method random_action 
             member of class: ChannelMenu
         Parameters
         ----------
@@ -1425,6 +1504,7 @@ class ChannelMetadataWidget(QDialog):
         widget.setLayout(layout)
 
         self.okButton = QPushButton('Save')
+        self.okButton.setDefault(True)
         self.cancelButton = QPushButton('Cancel')
 
         hbox = QHBoxLayout()
@@ -1802,6 +1882,7 @@ class PreferencesWidget(QDialog):
             msgBox.setIcon(QMessageBox.Warning)
             ret = msgBox.exec_()
             pass
+
 
     @staticmethod
     def readPreferences():
@@ -2453,9 +2534,11 @@ class MainWindow(QMainWindow):
         # Add some tooltips to get user started
         if self.animatronics.newAudio is None and len(self.animatronics.channels) == 0:
             # Just beginning so help a lot
-            self._plotarea.setToolTip('Hit File->Open Audio File to add audio or\nCtrl-N or Ctrl-D to add a new control channel')
+            if SystemPreferences['ShowTips']: self._plotarea.setToolTip(
+                'Hit File->Open Audio File to add audio or\nCtrl-N or Ctrl-D to add a new control channel')
         elif len(self.animatronics.channels) == 0:
-            self._plotarea.setToolTip('Ctrl-N to add a new servo channel or\nCtrl-D to add a new digital channel')
+            if SystemPreferences['ShowTips']: self._plotarea.setToolTip(
+                'Ctrl-N to add a new servo channel or\nCtrl-D to add a new digital channel')
 
         # Set the background color
         p = self._plotarea.palette()
@@ -2485,7 +2568,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
                 self.audioPlot.setMaximumHeight(200)
-                self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showmono_audio_action)
                 self._showmono_audio_action.setChecked(True)
@@ -2498,7 +2581,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
                 self.audioPlot.setMaximumHeight(150)
-                self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showleft_audio_action)
                 self._showleft_audio_action.setChecked(True)
@@ -2510,7 +2593,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlotRight = newplot
                 self.audioPlotRight.setMaximumHeight(150)
-                self.audioPlotRight.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlotRight.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showright_audio_action)
                 self._showright_audio_action.setChecked(True)
@@ -2578,7 +2661,7 @@ class MainWindow(QMainWindow):
             newplot.setPlotLayout(LeftAlignLayout())
             newplot.settimerange(self.lastXmin, self.lastXmax)
             if len(chan.knots) == 0:
-                newplot.setToolTip('Use Shift-LeftMouseButton to add control points')
+                if SystemPreferences['ShowTips']: newplot.setToolTip('Use Shift-LeftMouseButton to add control points')
             layout.addWidget(newplot)
             self.plots[chan.name] = newplot
 
@@ -3866,6 +3949,54 @@ class MainWindow(QMainWindow):
                 pass
         pass
 
+    def Amplitudize_action(self):
+        """
+        The method Amplitudize_action 
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
+        # If no audio then nothing to do La Di Da
+        if self.animatronics.newAudio is None:
+            return
+
+        # Get a list of all the currently selected channels
+        selection = []
+        for name in self.plots:
+            if self.plots[name].selected:
+                selection.append(name)
+
+        if len(selection) == 0:
+            return
+
+        # Pop up widget to get sampling parameters
+        popRate = 10.0   # amplitude buckets per second
+
+        # Get the audio amplitude sampled at the desired rate
+        # Use mono/left unless right is only one visible
+        audio = self.animatronics.newAudio
+        start = self.lastXmin
+        if start < self.animatronics.newAudio.audiostart:
+            start = self.animatronics.newAudio.audiostart
+        end = self.lastXmax
+        if end > self.animatronics.newAudio.audioend:
+            end = self.animatronics.newAudio.audioend
+        bincount = int((end - start) * popRate + 0.999)
+        _,signal,_ = audio.getAmplitudeData(start, 
+                    start + bincount/popRate, bincount)
+        
+        pushState()     # Push current state for undo
+
+        for name in selection:
+            self.plots[name].channel.amplitudize(start,
+                    start + bincount/popRate,
+                    signal,
+                    popRate=popRate)
+            self.plots[name].redrawme()
+
+        pass
+
     def Shift_action(self):
         """
         The method Shift_action pops up a widget allowing the user to
@@ -4050,6 +4181,8 @@ class MainWindow(QMainWindow):
         """
         # Create the File dropdown menu #################################
         self.file_menu = self.menuBar().addMenu("&File")
+        self.file_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
+
         # New action
         self._new_file_action = QAction("&New Animation",
                 self, triggered=self.newAnimFile)
@@ -4099,6 +4232,8 @@ class MainWindow(QMainWindow):
 
         # Create the Edit dropdown menu #################################
         self.edit_menu = self.menuBar().addMenu("&Edit")
+        self.edit_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
+
         self._undo_action = QAction("Undo", self, shortcut="Ctrl+Z",
             triggered=self.undo_action)
         self.edit_menu.addAction(self._undo_action)
@@ -4135,6 +4270,8 @@ class MainWindow(QMainWindow):
 
         # Create the View dropdown menu #################################
         self.view_menu = self.menuBar().addMenu("&View")
+        self.view_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
+
         # resetscales menu item
         self._resetscales_action = QAction("Fit to All Data", self,
             shortcut="Ctrl+F",
@@ -4188,6 +4325,7 @@ class MainWindow(QMainWindow):
 
         # Create the Tools dropdown menu #################################
         self.channel_menu = self.menuBar().addMenu("&Channels")
+        self.channel_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
 
         # selectAll menu item
         self._selectAll_action = QAction("Select All", self,
@@ -4221,6 +4359,12 @@ class MainWindow(QMainWindow):
             triggered=self.Paste_action)
         self.channel_menu.addAction(self._Paste_action)
 
+        # Amplitudize menu item
+        self._Amplitudize_action = QAction("Amplitudize", self,
+            triggered=self.Amplitudize_action)
+        self.channel_menu.addAction(self._Amplitudize_action)
+        self._Amplitudize_action.setToolTip('Add points to selected channels\nbased on amplitude of audio signal')
+
         # Shift menu item
         self._Shift_action = QAction("Shift", self,
             triggered=self.Shift_action)
@@ -4237,6 +4381,7 @@ class MainWindow(QMainWindow):
 
         # Create the Help dropdown menu #################################
         self.tag_menu = self.menuBar().addMenu("&Tags")
+        self.tag_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
 
         # tagInsert menu item
         self._tagInsert_action = QAction("tagInsert", self,
@@ -4262,6 +4407,8 @@ class MainWindow(QMainWindow):
 
         # Create the Help dropdown menu #################################
         self.help_menu = self.menuBar().addMenu("&Help")
+        self.help_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
+
         self._about_action = QAction("About", self,
             triggered=self.about_action)
         self.help_menu.addAction(self._about_action)
@@ -4648,6 +4795,37 @@ class Channel:
             if currValue < self.minLimit: currValue = self.minLimit
             self.add_knot(currTime, currValue)
             currTime += 1.0/popRate
+
+    def amplitudize(self, minTime, maxTime, signal, maxRate=0.0, popRate=0.0):
+        # If maxRate not specified, compute it
+        if maxRate == 0.0:
+            maxRate = (self.maxLimit - self.minLimit) * popRate
+
+        # Make sure we have audio data to process
+        if len(signal) > 0:
+            if popRate == 0.0:
+                # Population rate is number of points to insert per second
+                popRate = (maxTime - minTime) / len(signal)
+        else:
+            return
+
+        currTime = minTime
+        topval = max(signal)
+        indx = 0
+        while currTime <= maxTime:
+            if indx >= len(signal): break
+            if self.type == self.DIGITAL:
+                if signal[indx] > topval/2:
+                    currValue = 1.0
+                else:
+                    currValue = 0.0
+            else:
+                # Scale from min to max based on amplitude from 0 to topval
+                currValue = (signal[indx] / topval) * (self.maxLimit - self.minLimit) + self.minLimit
+            # Add knot at center of amplitude bin
+            self.add_knot(currTime + 0.5/popRate, currValue)
+            currTime += 1.0/popRate
+            indx += 1
 
     def add_knot(self, key, value):
         """
