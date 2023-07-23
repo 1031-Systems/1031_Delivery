@@ -12,6 +12,7 @@ import os
 import shutil
 import re
 import math
+import random
 import wave
 import struct
 import sys
@@ -44,6 +45,7 @@ except:
         exit(10)
 import qwt
 from qwt import plot_layout
+from LimitsWidget import *
 
 #/* Define block */
 verbosity = False
@@ -590,11 +592,9 @@ class ChannelMenu(QMenu):
         self.addAction(self._invert_action)
 
         # smooth menu item only for Linear channels
-        if self.channel.type == self.channel.LINEAR:
-            self._smooth_action = QAction("smooth", self,
-                triggered=self.smooth_action)
-            self._smooth_action.setEnabled(False)
-            self.addAction(self._smooth_action)
+        self._smooth_action = QAction("Randomize", self,
+            triggered=self.smooth_action)
+        self.addAction(self._smooth_action)
 
         # wrap menu item
         self._wrap_action = QAction("wrap", self,
@@ -686,6 +686,9 @@ class ChannelMenu(QMenu):
         ----------
         self : ChannelMenu
         """
+        pushState()     # Push current state for undo
+        self.channel.randomize(self.parent.minTime, self.parent.maxTime)
+        self.parent.redrawme()
 
         pass
 
@@ -849,6 +852,16 @@ class ChannelPane(qwt.QwtPlot):
             self.setMaximumHeight(150)
 
         self.create()
+
+    def getState(self):
+        return (self.minVal, self.maxVal, self.isHidden())
+
+    def setState(self, inState):
+        self.setDataRange(inState[0], inState[1])
+        if inState[2]:
+            self.hide()
+        else:
+            self.show()
 
     def settimerange(self, mintime, maxtime):
         """
@@ -1398,13 +1411,16 @@ class ChannelMetadataWidget(QDialog):
         layout.addRow(QLabel('Channel:'), self._portedit)
 
         if self._channel is not None and self._channel.type != Channel.DIGITAL:
-            self._minedit = QLineEdit()
-            layout.addRow(QLabel('Min:'), self._minedit)
             self._maxedit = QLineEdit()
             layout.addRow(QLabel('Max:'), self._maxedit)
+            self._minedit = QLineEdit()
+            layout.addRow(QLabel('Min:'), self._minedit)
             if self._channel.minLimit > -1.0e33 or self._channel.maxLimit < 1.0e33:
                 self._minedit.setText(str(self._channel.minLimit))
                 self._maxedit.setText(str(self._channel.maxLimit))
+            interactive = QPushButton('Interactive')
+            interactive.clicked.connect(self.doInteractive)
+            layout.addWidget(interactive)
 
         widget.setLayout(layout)
 
@@ -1424,6 +1440,21 @@ class ChannelMetadataWidget(QDialog):
 
         self.okButton.clicked.connect(self.onAccepted)
         self.cancelButton.clicked.connect(self.reject)
+
+    def doInteractive(self):
+        port = -1
+        if self._portedit.currentText() != 'Unassigned':
+            port = int(self._portedit.currentText())
+        widget = LimitWidget(self, minimum=float(self._minedit.text()), maximum=float(self._maxedit.text()), port = port)
+        widget.setMinSignal.connect(self.setMin)
+        widget.setMaxSignal.connect(self.setMax)
+        widget.show()
+
+    def setMax(self, value):
+        self._maxedit.setText(value)
+
+    def setMin(self, value):
+        self._minedit.setText(value)
 
     def onAccepted(self):
         """
@@ -1451,6 +1482,7 @@ class ChannelMetadataWidget(QDialog):
             else:
                 maxLimit = self._channel.maxLimit
             if validate and minLimit < maxLimit:
+                # Find min and max values in the current knots
                 minVal = 1.0e34
                 maxVal = -1.0e34
                 for keyval in self._channel.knots:
@@ -1458,6 +1490,7 @@ class ChannelMetadataWidget(QDialog):
                         minVal = self._channel.knots[keyval]
                     if self._channel.knots[keyval] > maxVal:
                         maxVal = self._channel.knots[keyval]
+                # If any exceed the new limits
                 if minVal < minLimit or maxVal > maxLimit:
                     # Get user concurrence to truncate values to new limits
                     msgBox = QMessageBox(parent=self)
@@ -1466,19 +1499,21 @@ class ChannelMetadataWidget(QDialog):
                     msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
                     msgBox.setIcon(QMessageBox.Warning)
                     ret = msgBox.exec_()
-                    if ret == QMessageBox.Yes:
-                        for keyval in self._channel.knots:
-                            if self._channel.knots[keyval] < minLimit: 
-                                self._channel.knots[keyval] = minLimit
-                            if self._channel.knots[keyval] > maxLimit:
-                                self._channel.knots[keyval] = maxLimit
-                    else:
+                    if ret != QMessageBox.Yes:
                         # Cancel selected so don't do any updating below
                         self.close()
                         return
 
         # Push current state for undo
         pushState()
+
+        # Limit existing values to new limits
+        # Note that this will do nothing if they already fit
+        for keyval in self._channel.knots:
+            if self._channel.knots[keyval] < minLimit: 
+                self._channel.knots[keyval] = minLimit
+            if self._channel.knots[keyval] > maxLimit:
+                self._channel.knots[keyval] = maxLimit
 
         tstring = self._nameedit.text()
         if len(tstring) > 0:
@@ -2862,12 +2897,16 @@ class MainWindow(QMainWindow):
         self.saveStateOkay = False  # Do not save state for any changes here
         if len(self.previousStates) > 0:
             if self.animatronics is not None:
+                # Get the display states of all channels
+                chanStates = {}
+                for plot in self.plots:
+                    chanStates[plot] = self.plots[plot].getState()
                 # Push current state onto pending states
                 currState = self.animatronics.toXML()
                 self.pendingStates.append((currState,
                     self.animatronics.filename,
                     self.lastXmin, self.lastXmax,
-                    self.unsavedChanges))
+                    self.unsavedChanges, chanStates))
                 # Pop last previous state
                 currState = self.previousStates.pop()
                 self.animatronics.fromXML(currState[0])
@@ -2875,6 +2914,8 @@ class MainWindow(QMainWindow):
                 self.animatronics.filename = currState[1]
                 self.setTimeRange(currState[2], currState[3])
                 self.unsavedChanges = currState[4]
+                for plot in currState[5]:
+                    self.plots[plot].setState(currState[5][plot])
                 print('Number of undos left:', len(self.previousStates))
         else:
             msgBox = QMessageBox(parent=self)
@@ -2923,12 +2964,16 @@ class MainWindow(QMainWindow):
         self : MainWindow
         """
         if self.saveStateOkay:
+            # Get the display states of all channels
+            chanStates = {}
+            for plot in self.plots:
+                chanStates[plot] = self.plots[plot].getState()
             # Push current state onto previous states
             currState = self.animatronics.toXML()
             self.previousStates.append((currState,
                 self.animatronics.filename,
                 self.lastXmin, self.lastXmax,
-                self.unsavedChanges))
+                self.unsavedChanges, chanStates))
             # Taking a new path so clear out pending states
             self.pendingStates = []
             self.unsavedChanges = True
@@ -2964,10 +3009,14 @@ class MainWindow(QMainWindow):
             if self.animatronics is not None:
                 # Push current state onto pending states
                 currState = self.animatronics.toXML()
+                # Get the display states of all channels
+                chanStates = {}
+                for plot in self.plots:
+                    chanStates[plot] = self.plots[plot].getState()
                 self.previousStates.append((currState,
                     self.animatronics.filename,
                     self.lastXmin, self.lastXmax,
-                    self.unsavedChanges))
+                    self.unsavedChanges, chanStates))
                 # Pop next pending state
                 currState = self.pendingStates.pop()
                 self.animatronics.fromXML(currState[0])
@@ -2975,6 +3024,8 @@ class MainWindow(QMainWindow):
                 self.animatronics.filename = currState[1]
                 self.setTimeRange(currState[2], currState[3])
                 self.unsavedChanges = currState[4]
+                for plot in currState[5]:
+                    self.plots[plot].setState(currState[5][plot])
                 print('Number of redos left:', len(self.pendingStates))
         else:
             msgBox = QMessageBox(parent=self)
@@ -4581,6 +4632,22 @@ class Channel:
             self.minLimit = -1.0e34
         self.port = -1
         self.rateLimit = -1.0
+
+    def randomize(self, minTime, maxTime, maxRate=0.0, popRate=1.0):
+        if maxRate == 0.0:
+            maxRate = (self.maxLimit - self.minLimit) * popRate
+
+        currTime = minTime
+        currValue = (self.maxLimit + self.minLimit) / 2.0
+        while currTime <= maxTime:
+            if self.type == self.DIGITAL:
+                currValue = float(random.randrange(2))
+            else:
+                currValue += random.uniform(-1.0, 1.0) * maxRate
+            if currValue > self.maxLimit: currValue = self.maxLimit
+            if currValue < self.minLimit: currValue = self.minLimit
+            self.add_knot(currTime, currValue)
+            currTime += 1.0/popRate
 
     def add_knot(self, key, value):
         """
