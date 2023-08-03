@@ -19,6 +19,7 @@ import sys
 from io import StringIO
 from functools import reduce
 import operator
+import subprocess
 
 # Utilize XML to read/write animatronics files
 import xml.etree.ElementTree as ET
@@ -58,6 +59,7 @@ SystemPreferences = {
 'Ordering':'Numeric',           # Ordering for channels in window
 'AutoSave':True,                # Perfrom saving automatically flag
 'ShowTips':True,                # Show tool tips flag
+'ServoDataFile':'servos.csv',   # Name of file containing predefined servos
 }
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
@@ -67,7 +69,11 @@ SystemPreferenceTypes = {
 'Ordering':['Alphabetic','Numeric','Creation'], # Alphabetic by name, Numeric by port number, or creation order
 'AutoSave':'bool',
 'ShowTips':'bool',
+'ServoDataFile':'str',
 }
+
+# Dictionary of known servo types to aid user
+ServoData = {}
 
 #/* Usage method */
 def print_usage(name):
@@ -123,6 +129,74 @@ def fromHMS(string):
     return seconds
 
 #####################################################################
+class AmpingWidget(QDialog):
+
+    def __init__(self, parent=None, startTime=0.0, endTime=0.0, maxRate=0.0, popRate=10.0):
+        super().__init__(parent)
+
+        self.startTime = startTime
+        self.endTime = endTime
+        self.maxRate = maxRate
+        self.popRate = popRate
+        
+        self.setWindowTitle('Amplitudize Control')
+        widget = QWidget()
+        layout = QFormLayout()
+
+        self._startedit = QLineEdit()
+        self._startedit.setText('%.3f' % startTime)
+        layout.addRow(QLabel('Start Time:'), self._startedit)
+
+        self._endedit = QLineEdit()
+        self._endedit.setText('%.3f' % endTime)
+        layout.addRow(QLabel('End Time:'), self._endedit)
+
+        self._rateedit = QLineEdit()
+        self._rateedit.setText('%.3f' % popRate)
+        layout.addRow(QLabel('Sample Rate:'), self._rateedit)
+
+        widget.setLayout(layout)
+
+        self.okButton = QPushButton('Do It')
+        self.okButton.setDefault(True)
+        self.cancelButton = QPushButton('Cancel')
+
+        hbox = QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addWidget(self.okButton)
+        hbox.addWidget(self.cancelButton)
+
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(widget)
+        vbox.addStretch(1)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+        self.okButton.clicked.connect(self.onAccepted)
+        self.cancelButton.clicked.connect(self.reject)
+
+    def onAccepted(self):
+        tstring = self._startedit.text()
+        if len(tstring) > 0:
+            self.startTime = float(tstring)
+        else:
+            self.startTime = -1.0e34
+
+        tstring = self._endedit.text()
+        if len(tstring) > 0:
+            self.endTime = float(tstring)
+        else:
+            self.endTime = 1.0e34
+
+        tstring = self._rateedit.text()
+        if len(tstring) > 0:
+            self.popRate = float(tstring)
+
+        self.accept()
+
+
+
+#####################################################################
 class LimitWidget(QDialog):
 
     setMinSignal = pyqtSignal(str)
@@ -162,6 +236,7 @@ class LimitWidget(QDialog):
         # Create the checkbox for live control of servo
         self.liveCheck = QCheckBox('Live')
         self.liveCheck.setChecked(False)
+        if self.port < 0: self.liveCheck.setEnabled(False)
         self.liveCheck.stateChanged.connect(self.fixFocus)
         vbox.addWidget(self.liveCheck)
 
@@ -183,10 +258,25 @@ class LimitWidget(QDialog):
         self.setFixedWidth(70)
 
     def valueIs(self, value):
+        def valueToPosition(value):
+            return 1000 + int(8000 * value / 180.0)
         self.display.setText('%d' % value)
         if self.liveCheck.isChecked() and self.port >= 0:
             # Send the value, appropriately formatted, to hardware controller
             print('Sending to controller port %d value %d' % (self.port, value))
+            command = ['rshell',
+                        'repl',
+                        '~',
+                        'from machine import Pin, PWM',
+                        '~',
+                        'pwm = PWM(Pin(%d))' % self.port,
+                        '~',
+                        'pwm.freq(50)',
+                        '~',
+                        'pwm.duty_u16(%d)' % valueToPosition(value),
+                        '~']
+            print('with:', command)
+            # code = subprocess.run(command)
             pass
 
     def sendMin(self):
@@ -765,10 +855,18 @@ class ChannelMenu(QMenu):
         ----------
         self : ChannelMenu
         """
-        pushState()     # Push current state for undo
-        self.channel.randomize(self.parent.minTime, self.parent.maxTime)
-        self.parent.redrawme()
+        # Open randomize widget to get values from user
+        twidget = AmpingWidget(startTime=self.parent.minTime, endTime=self.parent.maxTime,
+                    popRate=1.0)
+        twidget.setWindowTitle('Randomizer Control')
+        code = twidget.exec_()
+        if code != QDialog.Accepted: return # Cancel the operation
 
+        # Do the randomize process
+        pushState()     # Push current state for undo
+        self.channel.randomize(twidget.startTime, twidget.endTime, popRate=twidget.popRate)
+        self.parent.redrawme()
+        main_win.updateXMLPane()
         pass
 
     def wrap_action(self):
@@ -1471,6 +1569,14 @@ class ChannelMetadataWidget(QDialog):
         layout.addRow(QLabel('Name:'), self._nameedit)
 
         if self._channel is not None and self._channel.type != Channel.DIGITAL:
+            self._servoedit = QComboBox()
+            self._servoedit.addItem('')
+            for servo in ServoData:
+                self._servoedit.addItem(servo)
+            self._servoedit.setCurrentIndex(0)
+            self._servoedit.setToolTip('If your servo is not in list, Cancel,\nadd it through Servo tool, and come back')
+            layout.addRow(QLabel('Servo:'), self._servoedit)
+
             self._typeedit = QComboBox()
             self._typeedit.addItems(('Linear', 'Spline', 'Step'))
             self._typeedit.setCurrentIndex(self._channel.type-1)
@@ -1479,11 +1585,15 @@ class ChannelMetadataWidget(QDialog):
         self._portedit = QComboBox()
         if self._channel.type != Channel.DIGITAL:
             chancount = SystemPreferences['MaxServoChannels']
+            for i in range(chancount):
+                self._portedit.addItem(str(i))
         else:
             chancount = SystemPreferences['MaxDigitalChannels']
+            for i in range(chancount):
+                self._portedit.addItem(str(i + SystemPreferences['MaxServoChannels']))
+
         self._portedit.addItem('Unassigned')
-        for i in range(chancount):
-            self._portedit.addItem(str(i))
+        self._portedit.setCurrentText('Unassigned')
         if self._channel is not None:
             if self._channel.port >= 0:
                 self._portedit.setCurrentText(str(self._channel.port))
@@ -1600,6 +1710,9 @@ class ChannelMetadataWidget(QDialog):
             self._channel.name = tstring
 
         if self._channel.type != Channel.DIGITAL:
+            tstring = self._servoedit.currentText()
+            if len(tstring) > 0:
+                self._channel.servoType = tstring
             self._channel.type = self._typeedit.currentIndex() + 1
 
         tstring = self._portedit.currentText()
@@ -1738,6 +1851,211 @@ class MetadataWidget(QDialog):
             self._parent.redraw()
             self._parent.updateXMLPane()
 
+#####################################################################
+# The ServoWidget is used to twiddle servo parameters and add new ones
+#####################################################################
+class ServoWidget(QDialog):
+
+    colnames = ['Name', 'Period','MinDuty', 'MaxDuty', 'MinAngle', 'MaxAngle']
+    labels = ['Name', 'Period(ms)','MinDuty(ms)', 'MaxDuty(ms)', 'MinAngle(deg)', 'MaxAngle(deg)']
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.table = QTableWidget()
+        self.table.setRowCount(len(ServoData))
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(ServoWidget.labels)
+        self.table.currentCellChanged.connect(self.checkCell)
+
+        # Populate from ServoData
+        row = 0
+        for servo in ServoData:
+            col = 0
+            for colname in ServoWidget.colnames:
+                self.table.setItem(row, col, QTableWidgetItem(str(ServoData[servo][colname])))
+                col += 1
+            row += 1
+
+        self.addButton = QPushButton('Add')
+        self.delButton = QPushButton('Delete')
+        self.okButton = QPushButton('Save')
+        self.cancelButton = QPushButton('Cancel')
+
+        hbox = QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addWidget(self.addButton)
+        hbox.addWidget(self.delButton)
+        hbox.addWidget(self.okButton)
+        hbox.addWidget(self.cancelButton)
+
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.table)
+        vbox.addStretch(1)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+        self.addButton.clicked.connect(self.onAdd)
+        self.delButton.clicked.connect(self.onDel)
+        self.okButton.clicked.connect(self.onAccepted)
+        self.cancelButton.clicked.connect(self.reject)
+
+    def checkCell(self, currRow, currCol, prevRow, prevCol):
+        item = self.table.item(prevRow, prevCol)
+        if item is None:
+            item = QTableWidgetItem('')
+            item.setBackground(QBrush(Qt.red))
+            item.setToolTip('Value must be specified')
+            self.table.setItem(prevRow, prevCol, item)
+        elif ServoWidget.colnames[prevCol] == 'Name':
+            if len(item.text()) == '0':
+                item.setBackground(QBrush(Qt.red))
+                item.setToolTip('Value must be specified')
+            else:
+                item.setBackground(QBrush(Qt.white))
+                item.setToolTip('')
+        else:
+            item.setBackground(QBrush(Qt.white))
+            item.setToolTip('')
+            if len(item.text()) == '0':
+                item.setBackground(QBrush(Qt.red))
+                item.setToolTip('Value must be specified')
+            else:
+                try:
+                    itemValue = float(item.text())
+                except:
+                    item.setBackground(QBrush(Qt.red))
+                    item.setToolTip('Value must be numeric')
+
+    def onAccepted(self):
+        global ServoData
+
+        # Validate table data
+        valid = True
+        usedNames = []
+        for row in range(self.table.rowCount()):
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item is not None:
+                    if ServoWidget.colnames[col] == 'Name':
+                        if len(item.text()) == '0':
+                            valid = False
+                            item.setBackground(QBrush(Qt.red))
+                            item.setToolTip('Name must be nonempty')
+                        else:
+                            if item.text() in usedNames:
+                                valid = False
+                                item.setBackground(QBrush(Qt.red))
+                                item.setToolTip('Name must be unique')
+                            else:
+                                item.setBackground(QBrush(Qt.white))
+                                usedNames.append(item.text())
+                                item.setToolTip('')
+                    else:
+                        if len(item.text()) == '0':
+                            valid = False
+                            item.setBackground(QBrush(Qt.red))
+                            item.setToolTip('Value must be specified')
+                        else:
+                            try:
+                                itemValue = float(item.text())
+                                item.setBackground(QBrush(Qt.white))
+                                item.setToolTip('')
+                            except:
+                                valid = False
+                                item.setBackground(QBrush(Qt.red))
+                                item.setToolTip('Value must be numeric')
+                else:
+                    valid = False
+                    item = QTableWidgetItem('')
+                    item.setBackground(QBrush(Qt.red))
+                    item.setToolTip('Value must be specified')
+                    self.table.setItem(row, col, item)
+
+        if not valid: return
+
+        # Save a backup copy of servo file
+        ServoWidget.writeServoData(SystemPreferences['ServoDataFile'] + '.bak')
+
+        # Populate servodata from table
+        ServoData = {}
+        for row in range(self.table.rowCount()):
+            servo = {}
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if ServoWidget.colnames[col] == 'Name':
+                    servo[ServoWidget.colnames[col]] = item.text()
+                else:
+                    servo[ServoWidget.colnames[col]] = float(item.text())
+            ServoData[servo['Name']] = servo
+
+        # Save it to file named in preferences
+        ServoWidget.writeServoData(SystemPreferences['ServoDataFile'])
+
+        self.accept()
+        
+    def onAdd(self):
+        # Add a blank line at bottom of table
+        self.table.insertRow(self.table.rowCount())
+
+    def onDel(self):
+        # Remove currently selected row
+        self.table.removeRow(self.table.currentRow())
+
+    @staticmethod
+    def readServoData(inFilename):
+        global ServoData
+
+        with open(inFilename, 'r') as infile:
+            # Read header line
+            testtext = infile.readline()
+            headers = testtext.rstrip().split(',')
+            try:
+                nameindex = headers.index('Name')
+            except:
+                sys.stderr.write('Whoops - Unable to read servo data file %s\n' % inFilename)
+                return
+
+            # Read the rest and build a dictionary for each and add to ServoData dictionary
+            testtext = infile.readline()
+            while len(testtext) > 0:
+                columns = testtext.rstrip().split(',')
+                tdict = {}
+                for i in range(len(columns)):
+                    if i != nameindex:
+                        value = float(columns[i])
+                    else:
+                        value = columns[i]
+                    tdict[headers[i]] = value
+                ServoData[columns[nameindex]] = tdict
+                testtext = infile.readline()
+
+            for servo in ServoData:
+                print('Read data for servo:', ServoData[servo])
+
+    @staticmethod
+    def writeServoData(filename):
+        if len(ServoData) == 0: return
+        with open(filename, 'w') as outfile:
+            # Write header line
+            for servo in ServoData:
+                first = True
+                for field in ServoData[servo]:
+                    if not first: outfile.write(',')
+                    outfile.write('%s' % field)
+                    first = False
+                outfile.write('\n')
+                break
+            # Write data lines
+            for servo in ServoData:
+                first = True
+                for field in ServoData[servo]:
+                    if not first: outfile.write(',')
+                    outfile.write('%s' % str(ServoData[servo][field]))
+                    first = False
+                outfile.write('\n')
+
+    
 #####################################################################
 # The PreferencesWidget is used to view and edit the Preferences
 # for the overall application
@@ -2850,6 +3168,21 @@ class MainWindow(QMainWindow):
         """
 
         """Export the current animatronics file into a CSV format"""
+        # Get the filename to write to
+        self.filedialog.setDefaultSuffix('csv')
+        self.filedialog.setNameFilter("CSV Files (*.csv);;All Files (*)")
+        if self.filedialog.exec_():
+            fileName = self.filedialog.selectedFiles()[0]
+            try:
+                self.writeCSVFile(fileName)
+            except Exception as e:
+                sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
+                sys.stderr.write("Message: %s\n" % e)
+                return
+
+        pass
+
+    def writeCSVFile(self, fileName):
         columns = {}
         timecolumn = []
         starttime = self.animatronics.start
@@ -2867,41 +3200,29 @@ class MainWindow(QMainWindow):
 
         # Get the data points for each column
         for plot in self.plots:
-            values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep)
+            values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep, encode=True)
             if values is not None:
                 columns[plot] = values
 
-        # Get the filename to write to
-        self.filedialog.setDefaultSuffix('csv')
-        self.filedialog.setNameFilter("CSV Files (*.csv);;All Files (*)")
-        if self.filedialog.exec_():
-            try:
-                fileName = self.filedialog.selectedFiles()[0]
-                with open(fileName, 'w') as outfile:
-                    # Write out the column headers
-                    for channel in columns:
-                        theport = ''
-                        if channel != 'Time':
-                            outfile.write(',')
-                            portnum = self.plots[channel].channel.port
-                            if portnum >= 0:
-                                theport = "(%d)" % portnum
-                        outfile.write('"%s%s"' % (channel,theport))
-                    outfile.write('\n')
-                    # Write out all the data in columns
-                    for indx in range(len(timecolumn)):
-                        for channel in columns:
-                            if channel != 'Time':
-                                outfile.write(',')
-                            outfile.write('%f' % columns[channel][indx])
-                        outfile.write('\n')
+        with open(fileName, 'w') as outfile:
+            # Write out the column headers
+            for channel in columns:
+                theport = ''
+                if channel != 'Time':
+                    outfile.write(',')
+                    portnum = self.plots[channel].channel.port
+                    if portnum >= 0:
+                        theport = "(%d)" % portnum
+                outfile.write('"%s%s"' % (channel,theport))
+            outfile.write('\n')
+            # Write out all the data in columns
+            for indx in range(len(timecolumn)):
+                for channel in columns:
+                    if channel != 'Time':
+                        outfile.write(',')
+                    outfile.write('%f' % columns[channel][indx])
+                outfile.write('\n')
 
-            except Exception as e:
-                sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
-                sys.stderr.write("Message: %s\n" % e)
-                return
-
-        pass
 
     def exportVSAFile(self):
         """
@@ -2915,6 +3236,14 @@ class MainWindow(QMainWindow):
 
         """Export the current animatronics file into a Brookshire VSA format"""
         pass
+
+    def uploadToHW(self):
+        # Write file data.csv
+        self.writeCSVFile('data.csv')
+        # Upload with rshell
+        code = subprocess.call('rshell cp data.csv /pyboard', shell=True)
+        # Check return code
+        # Delete data.csv
 
     def handle_unsaved_changes(self):
         """
@@ -3303,6 +3632,10 @@ class MainWindow(QMainWindow):
                 return
 
         pass
+
+    def editservodata_action(self):
+        qd = ServoWidget(parent=self)
+        qd.exec_()
 
     def editmetadata_action(self):
         """
@@ -3743,6 +4076,20 @@ class MainWindow(QMainWindow):
         self.helpPane.setWindowTitle('Animator Help')
         self.helpPane.show()
 
+    def quick_action(self):
+        """
+        The method quick_action brings up the QuickStart text in a popup.  About
+        and QuickStart use the same popup so only one can be displayed at a time.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+        self.helpPane.setSource('docs/QuickStart.md')
+        self.helpPane.resize(600, 700)
+        self.helpPane.setWindowTitle('Quick Start')
+        self.helpPane.show()
+
     def hotkeys_action(self):
         """
         The method help_action brings up the Hot Kyes text in a popup.  About
@@ -3971,15 +4318,21 @@ class MainWindow(QMainWindow):
             return
 
         # Pop up widget to get sampling parameters
-        popRate = 10.0   # amplitude buckets per second
+        twidget = AmpingWidget(startTime=self.lastXmin, endTime=self.lastXmax,
+                    popRate=10.0)
+        code = twidget.exec_()
+        if code != QDialog.Accepted: return # Cancel the operation
+
+        # Do the amplitudize process
+        popRate = twidget.popRate   # amplitude buckets per second
 
         # Get the audio amplitude sampled at the desired rate
         # Use mono/left unless right is only one visible
         audio = self.animatronics.newAudio
-        start = self.lastXmin
+        start = twidget.startTime
         if start < self.animatronics.newAudio.audiostart:
             start = self.animatronics.newAudio.audiostart
-        end = self.lastXmax
+        end = twidget.endTime
         if end > self.animatronics.newAudio.audioend:
             end = self.animatronics.newAudio.audioend
         bincount = int((end - start) * popRate + 0.999)
@@ -3995,6 +4348,7 @@ class MainWindow(QMainWindow):
                     popRate=popRate)
             self.plots[name].redrawme()
 
+        self.updateXMLPane()
         pass
 
     def Shift_action(self):
@@ -4224,6 +4578,10 @@ class MainWindow(QMainWindow):
         self._export_vsa_file_action.setEnabled(False)
         self._export_file_menu.addAction(self._export_vsa_file_action)
 
+        self._export_hw_action = QAction("&Upload to Controller",
+                self, triggered=self.uploadToHW)
+        self._export_file_menu.addAction(self._export_hw_action)
+
         # exit action
         self.file_menu.addSeparator()
         self._exit_action = QAction("&Quit", self, shortcut="Ctrl+Q",
@@ -4257,6 +4615,11 @@ class MainWindow(QMainWindow):
         self.edit_menu.addAction(self._deletechannel_action)
 
         self.edit_menu.addSeparator()
+
+        # editservodata menu item
+        self._editservodata_action = QAction("Edit Servo Data", self,
+            triggered=self.editservodata_action)
+        self.edit_menu.addAction(self._editservodata_action)
 
         # editmetadata menu item
         self._editmetadata_action = QAction("Edit Metadata", self,
@@ -4412,6 +4775,10 @@ class MainWindow(QMainWindow):
         self._about_action = QAction("About", self,
             triggered=self.about_action)
         self.help_menu.addAction(self._about_action)
+
+        self._quick_action = QAction("Quick Start", self,
+            triggered=self.quick_action)
+        self.help_menu.addAction(self._quick_action)
 
         self._help_action = QAction("Help", self,
             triggered=self.help_action)
@@ -4732,6 +5099,8 @@ class Channel:
         Index of port on controller for this channel (-1 means unassigned)
     rateLimit : float
         Maximum rate of change allowed for this channel in units per second
+    servoType : string
+        Index into dictionary of predefined servo types
 
     Methods
     -------
@@ -4779,10 +5148,19 @@ class Channel:
             self.minLimit = -1.0e34
         self.port = -1
         self.rateLimit = -1.0
+        self.servoType = None
 
     def randomize(self, minTime, maxTime, maxRate=0.0, popRate=1.0):
         if maxRate == 0.0:
-            maxRate = (self.maxLimit - self.minLimit) * popRate
+            maxRate = (self.maxLimit - self.minLimit)
+
+        # Remove all knots within randomization range
+        delknots = []
+        for knot in self.knots:
+            if knot >= minTime and knot <= maxTime:
+                delknots.append(knot)
+        for knot in delknots:
+            self.delete_knot(knot)
 
         currTime = minTime
         currValue = (self.maxLimit + self.minLimit) / 2.0
@@ -4799,7 +5177,7 @@ class Channel:
     def amplitudize(self, minTime, maxTime, signal, maxRate=0.0, popRate=0.0):
         # If maxRate not specified, compute it
         if maxRate == 0.0:
-            maxRate = (self.maxLimit - self.minLimit) * popRate
+            maxRate = (self.maxLimit - self.minLimit)
 
         # Make sure we have audio data to process
         if len(signal) > 0:
@@ -4808,6 +5186,14 @@ class Channel:
                 popRate = (maxTime - minTime) / len(signal)
         else:
             return
+
+        # Remove all knots within audio signal range
+        delknots = []
+        for knot in self.knots:
+            if knot >= minTime and knot <= maxTime:
+                delknots.append(knot)
+        for knot in delknots:
+            self.delete_knot(knot)
 
         currTime = minTime
         topval = max(signal)
@@ -4852,7 +5238,8 @@ class Channel:
         key : float
             Time (X) value for the knot to be removed
         """
-        self.knots.pop(key)
+        if key in self.knots: self.knots.pop(key)
+        if key in self.knottitles: self.knottitles.pop(key)
 
     def set_name(self, inname):
         """
@@ -5005,9 +5392,10 @@ class Channel:
             ydata = []
             while currTime < maxTime + timeStep:
                 # Find appropriate interval for current time
-                for i in range(len(keys)):
-                    if keys[i] >= currTime:
-                        break
+                # Use while loop so i == len(keys) when currtime greater than all keys
+                i = 0
+                while i < len(keys) and keys[i] < currTime:
+                    i += 1
                 # Wants two knots before and two after for best results
                 interpKeys = keys[max(0,i-2):min(i+2,len(keys))]
                 def _basis(j):
@@ -5046,7 +5434,7 @@ class Channel:
         return xdata,ydata
 
 
-    def getValuesAtTimeSteps(self, startTime, endTime, timeStep):
+    def getValuesAtTimeSteps(self, startTime, endTime, timeStep, encode=False):
         """
         The method getValuesAtTimeSteps interpolates the curve at equal
         sized steps from startTime to endTime.  This is primarily used for
@@ -5061,6 +5449,8 @@ class Channel:
             End time in seconds
         timeStep : float
             Time step in seconds
+        encode : boolean
+            Flag to indicate when to scale data values to duty cycle using servo data
         """
 
         if len(self.knots) == 0:
@@ -5099,6 +5489,16 @@ class Channel:
                     values.append(self.knots[keys[nextkeyindex-1]])
 
             currTime += timeStep
+
+        # Optionally scale values to integer duty cycle values for servo
+        if encode and self.servoType is not None:
+            divisor = ServoData[self.servoType]['MaxAngle'] - ServoData[self.servoType]['MinAngle']
+            multiplier = ServoData[self.servoType]['MaxDuty'] - ServoData[self.servoType]['MinDuty']
+            minangle = ServoData[self.servoType]['MinAngle']
+            minduty = ServoData[self.servoType]['MinDuty']
+            for i in range(len(values)):
+                # (theta-minangle)/(maxangle-minangle) * (maxduty-minduty) + minduty
+                values[i] = (values[i]-minangle)/divisor * multiplier + minduty
 
         return values
 
@@ -5386,6 +5786,8 @@ def doAnimatronics():
     app = QApplication(sys.argv)
     main_win = MainWindow()
     PreferencesWidget.readPreferences()
+    if 'ServoDataFile' in SystemPreferences:
+        ServoWidget.readServoData(SystemPreferences['ServoDataFile'])
 
     # If an input file was specified, parse it or die trying
     if infilename is not None:
@@ -5406,6 +5808,7 @@ def doAnimatronics():
     main_win.show()
     app.exec_()
 
+    ServoWidget.writeServoData('TestFile')
 
 if __name__ == "__main__":
     doAnimatronics()
