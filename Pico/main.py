@@ -11,7 +11,7 @@ def button_pressed():
     button = machine.Pin(7, machine.Pin.IN, machine.Pin.PULL_UP)
     return not button.value()
 
-def do_the_thing(continuous=False, skip=False, doOnce=False):
+def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
     # Use the on board LED for status
     led_onboard = machine.Pin(25, machine.Pin.OUT)
 
@@ -163,6 +163,12 @@ def do_the_thing(continuous=False, skip=False, doOnce=False):
 
             # Revert to normal operations
             skip = False
+
+            # Optionally report stats
+            if(verbose):
+                print('Wait time :', waitTime, 'msec')
+                print('Total time:', nextTicks, 'msec')
+                print('Wait frac :', waitTime/nextTicks)
 
             if doOnce: break
                 
