@@ -104,7 +104,7 @@ I2SBitClockPin = 10
 I2SChannelPin = 11
 PicoAudioEnablePin = 22
 
-AudioBlockSize = 16384
+AudioBlockSize = 8192
 
 class WavePlayer:
     def __init__(self, wavefilename):
