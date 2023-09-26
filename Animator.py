@@ -24,6 +24,9 @@ import subprocess
 # Utilize XML to read/write animatronics files
 import xml.etree.ElementTree as ET
 
+# Import commlib for my board
+import commlib
+
 usedPyQt = None
 
 try:
@@ -60,6 +63,8 @@ SystemPreferences = {
 'AutoSave':True,                # Perfrom saving automatically flag
 'ShowTips':True,                # Show tool tips flag
 'ServoDataFile':'servos.csv',   # Name of file containing predefined servos
+'UploadCSVFile':'/pyboard/data.csv',     # Name of uploaded CSV file on controller
+'UploadAudioFile':'/pyboard/data.wav',   # Name of uploaded autio file on controller
 }
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
@@ -70,6 +75,8 @@ SystemPreferenceTypes = {
 'AutoSave':'bool',
 'ShowTips':'bool',
 'ServoDataFile':'str',
+'UploadCSVFile':'str',
+'UploadAudioFile':'str',
 }
 
 # Dictionary of known servo types to aid user
@@ -258,25 +265,11 @@ class LimitWidget(QDialog):
         self.setFixedWidth(70)
 
     def valueIs(self, value):
-        def valueToPosition(value):
-            return 1000 + int(8000 * value / 180.0)
         self.display.setText('%d' % value)
         if self.liveCheck.isChecked() and self.port >= 0:
             # Send the value, appropriately formatted, to hardware controller
             print('Sending to controller port %d value %d' % (self.port, value))
-            command = ['rshell',
-                        'repl',
-                        '~',
-                        'from machine import Pin, PWM',
-                        '~',
-                        'pwm = PWM(Pin(%d))' % self.port,
-                        '~',
-                        'pwm.freq(50)',
-                        '~',
-                        'pwm.duty_u16(%d)' % valueToPosition(value),
-                        '~']
-            print('with:', command)
-            # code = subprocess.run(command)
+            code = commlib.setServo(self.port, value)
             pass
 
     def sendMin(self):
@@ -1573,8 +1566,11 @@ class ChannelMetadataWidget(QDialog):
             self._servoedit.addItem('')
             for servo in ServoData:
                 self._servoedit.addItem(servo)
-            self._servoedit.setCurrentIndex(0)
-            self._servoedit.setToolTip('If your servo is not in list, Cancel,\nadd it through Servo tool, and come back')
+            if self._channel.servoType is not None:
+                self._servoedit.setCurrentText(self._channel.servoType)
+            else:
+                self._servoedit.setCurrentIndex(0)
+                self._servoedit.setToolTip('If your servo is not in list, Cancel,\nadd it through Servo tool, and come back')
             layout.addRow(QLabel('Servo:'), self._servoedit)
 
             self._typeedit = QComboBox()
@@ -1693,6 +1689,10 @@ class ChannelMetadataWidget(QDialog):
                         # Cancel selected so don't do any updating below
                         self.close()
                         return
+        else:
+            # Digital channel limits are ALWAYS 0 and 1
+            minLimit = 0.0
+            maxLimit = 1.0
 
         # Push current state for undo
         pushState()
@@ -2113,7 +2113,7 @@ class PreferencesWidget(QDialog):
                 self._layout.addRow(QLabel(pref), newedit)
                 self._widgets[pref] = newedit
                 pass
-            elif SystemPreferenceTypes[pref] is 'bool':
+            elif SystemPreferenceTypes[pref] == 'bool':
                 newedit = QComboBox()
                 newedit.addItems(('True','False'))
                 self._layout.addRow(QLabel(pref), newedit)
@@ -3238,12 +3238,49 @@ class MainWindow(QMainWindow):
         pass
 
     def uploadToHW(self):
-        # Write file data.csv
-        self.writeCSVFile('data.csv')
-        # Upload with rshell
-        code = subprocess.call('rshell cp data.csv /pyboard', shell=True)
+        # Write CSV temp file
+        tempfilename = 'data.csv'
+        self.writeCSVFile(tempfilename)
+
+        # Upload with commlib
+        code = commlib.xferFileToController(tempfilename, dest=SystemPreferences['UploadCSVFile'])
+
         # Check return code
-        # Delete data.csv
+        if code != 0:
+            # Bring up message box to tell user
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Failed to upload CSV file to controller.\n' +
+                    'Make sure you are not running thonny or rshell elsewhere.\n' +
+                    'May need to unplug and replug board USB connector and wait 30 seconds.')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Information)
+            ret = msgBox.exec_()
+            pass
+        else:
+            # Delete data.csv
+            os.remove(tempfilename)
+
+            """ Do NOT Upload audio file here until we can write to sd card
+            # Upload the audio file as well if csv upload was successful
+            code = commlib.xferFileToController(self.animatronics.newAudio.audiofile,
+                dest=SystemPreferences['UploadAudioFile'])
+            # Check return code
+            if code != 0:
+                # Bring up message box to tell user
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Failed to upload audio file to controller.\n' +
+                        'Make sure you are not running thonny or rshell elsewhere.\n' +
+                        'May need to unplug and replug board USB connector and wait 30 seconds.')
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Information)
+                ret = msgBox.exec_()
+                pass
+            else:
+                # Restart the board if transfers were successful
+                commlib.startMain()
+            """
+            # Restart the board if transfers were successful
+            commlib.startMain()
 
     def handle_unsaved_changes(self):
         """
@@ -5521,6 +5558,8 @@ class Channel:
             output.write(' channel="%d"' % self.port)
         if self.rateLimit > 0.0:
             output.write(' rateLimit="%f"' % self.rateLimit)
+        if self.servoType is not None:
+            output.write(' servoType="%s"' % self.servoType)
         if self.type == self.LINEAR:
             output.write(' type="Linear">\n')
         elif self.type == self.SPLINE:
@@ -5560,6 +5599,8 @@ class Channel:
                 self.maxLimit = float(inXML.attrib['maxLimit'])
             if 'rateLimit' in inXML.attrib:
                 self.rateLimit = float(inXML.attrib['rateLimit'])
+            if 'servoType' in inXML.attrib:
+                self.servoType = inXML.attrib['servoType']
             if 'channel' in inXML.attrib and self.port < 0:
                 self.port = int(inXML.attrib['channel'])
             if 'type' in inXML.attrib:
