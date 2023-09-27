@@ -1,0 +1,7 @@
+numpy==1.25.0
+packaging==23.1
+PyQt6==6.5.1
+PyQt6-Qt6==6.5.1
+PyQt6-sip==13.5.1
+PythonQwt==0.10.2
+QtPy==2.3.1
