@@ -3182,7 +3182,7 @@ class MainWindow(QMainWindow):
 
         pass
 
-    def writeCSVFile(self, fileName):
+    def writeCSVFile(self, fileName, integers=True):
         columns = {}
         timecolumn = []
         starttime = self.animatronics.start
@@ -3194,7 +3194,10 @@ class MainWindow(QMainWindow):
                 if tend > endtime: endtime = tend
         currtime = starttime
         while currtime < endtime:
-            timecolumn.append(currtime)
+            if integers:
+                timecolumn.append(int(currtime * 1000)) # Convert time column to integer milliseconds
+            else:
+                timecolumn.append(currtime)
             currtime += samplestep
         columns['Time'] = timecolumn
 
@@ -3220,7 +3223,10 @@ class MainWindow(QMainWindow):
                 for channel in columns:
                     if channel != 'Time':
                         outfile.write(',')
-                    outfile.write('%f' % columns[channel][indx])
+                    if integers:
+                        outfile.write('%i' % columns[channel][indx])
+                    else:
+                        outfile.write('%f' % columns[channel][indx])
                 outfile.write('\n')
 
 

@@ -7,7 +7,10 @@ import utime
 
 ############# Servo Code #################################
 MaxTotalServos = 16     # Sync this number in Animator Preferences
-ServosPerPCA = 16
+ServosPerPCA = 16       # Must be power of 2
+
+servoShift = 4          # log2 of ServosPerPCA
+servoMod = ServosPerPCA - 1
 
 _pca9685s = [None]*20       # Allow for up to 20 PCA chips (320 servos)
 _servoblocks = [None]*20    # Allow for up to 20 PCA chips (320 servos)
@@ -18,9 +21,9 @@ def setServo(index=-1, cycletime=0):
 
     if index < 0 or index > MaxTotalServos: return
 
-    pcaIndex = int(index/ServosPerPCA)
+    pcaIndex = index >> servoShift
     pcaAddress = 0x40 + pcaIndex        # Use board 0 for servos 0-15, board 1 for 16-31, ...
-    index = index % ServosPerPCA        # Mod index to be within range of board
+    index = index & servoMod            # Mod index to be within range of board
     if _pca9685s[pcaIndex] is None or _servoblocks[pcaIndex] is None:
         # Must initialize this PCA and block of servos
         if _i2c is None:
@@ -32,14 +35,14 @@ def setServo(index=-1, cycletime=0):
         _servoblocks[pcaIndex] = Servos(i2c=_i2c, address=pcaAddress)
 
     # Now actually set the servo
-    _servoblocks[pcaIndex].position(index=index, duty=int(cycletime*4095))
+    _servoblocks[pcaIndex].position(index=index, duty=cycletime)
 
 def releaseServo(index=-1):
     if index < 0 or index > MaxTotalServos: return
 
-    pcaIndex = int(index/ServosPerPCA)
+    pcaIndex = index >> servoShift
     pcaAddress = 0x40 + pcaIndex        # Use board 0 for servos 0-15, board 1 for 16-31, ...
-    index = index % ServosPerPCA        # Mod index to be within range of board
+    index = index & servoMod            # Mod index to be within range of board
     if _pca9685s[pcaIndex] is None or _servoblocks[pcaIndex] is None or _i2c is None: return
 
     _servoblocks[pcaIndex].release(index=index)
@@ -104,10 +107,11 @@ I2SBitClockPin = 10
 I2SChannelPin = 11
 PicoAudioEnablePin = 22
 
-AudioBlockSize = 8192
+AudioBlockSize = 1024
 
 class WavePlayer:
-    def __init__(self, wavefilename):
+    def __init__(self, wavefilename, verbose=False):
+        self.verbose = verbose
         self.filename = wavefilename
         try:
             self.file = wave.open(self.filename)
@@ -119,6 +123,17 @@ class WavePlayer:
         # Set up ping-pong audio buffers
         self.audiodata = [None] * 2
         self.currbuffer = 0
+
+        # Initialize stats
+        self.firstuploadticks = 0
+        self.startTicks = 0
+        self.sumuploadticks = 0
+        self.sumreadfileticks = 0
+        self.suspendedticks = 0
+        self.blocksplayed = 0
+
+        # Compute number of frames in a 512-byte block
+        self.blockframes = int(512/self.file.getsampwidth()/self.file.getnchannels())
 
         # Stop Flag set to not play initially
         self.stopflag = True
@@ -139,7 +154,7 @@ class WavePlayer:
                 bits=self.file.getsampwidth() * 8,
                 format=(I2S.MONO if self.file.getnchannels() == 1 else I2S.STEREO),
                 rate=self.file.getframerate(),
-                ibuf=AudioBlockSize)  #  * self.file.getsampwidth() * self.file.getnchannels())
+                ibuf=AudioBlockSize)
 
     def scaleAudio(self, inbuf):
         # Bad - Can we even do this - should we?
@@ -152,61 +167,74 @@ class WavePlayer:
 
     def play(self):
         if self.file is None: return
+        if self.verbose: print('Running play() in thread', _thread.get_ident())
         # Play until done or stopped
         self.stopflag = False
-        self.audio_out.irq(self.callback)
+        # Kick off playback in a new thread
+        _thread.start_new_thread(self.threadplay, (False,))
 
-        # Read in the first block of audio data
-        #print('Ready to read buffer:', self.currbuffer)
-        #startTicks = utime.ticks_us()
-        self.audiodata[self.currbuffer] = self.file.readframes(int(512/self.file.getsampwidth()/self.file.getnchannels()))
-        while len(self.audiodata[self.currbuffer]) < AudioBlockSize:
-            self.audiodata[self.currbuffer] += self.file.readframes(int(512/self.file.getsampwidth()/self.file.getnchannels()))
-        #print('Time to read block of size:', AudioBlockSize, 'is:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
+    def threadplay(self, dummy):
+        # Initialize statistics
+        self.startTicks = utime.ticks_us()
+        self.sumuploadticks = 0
+        self.sumreadfileticks = 0
+        self.suspendedticks = 0
+        self.blocksplayed = 0
+        # Play until end of data or stopped
+        while not self.stopflag: self.playblock(False)
 
-        # Kick off playback
-        self.callback(False)
-
-    def callback(self, junk):
-        #print('Entered callback')
+    def playblock(self, junk):
+        #print('Entered playblock')
         # Check to see if we are stopped
         if self.stopflag: return
+        if self.verbose: print('Running playblock() in thread', _thread.get_ident())
 
-        # Fill the other buffer in a separate thread
-        self.loadbuffer(1 - self.currbuffer)
-        #_thread.start_new_thread(self.loadbuffer, (1 - self.currbuffer,))
+        # Fill the buffer prior to playing
+        startTicks = utime.ticks_us()
+        self.loadbuffer(self.currbuffer)
+        self.sumreadfileticks += utime.ticks_diff(utime.ticks_us(), startTicks)
 
-        #startTicks = utime.ticks_us()
         # Play one block of audio data from current ping-pong buffer
-        #print('Playing block of size:', len(self.audiodata[self.currbuffer]))
+        startTicks = utime.ticks_us()
         self.audio_out.write(self.audiodata[self.currbuffer])
-        #print('Ticks to play block:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
-        #self.audiodata[self.currbuffer] = None
+        totaluploadticks = utime.ticks_diff(utime.ticks_us(), startTicks)
+        if self.firstuploadticks == 0:
+            self.firstuploadticks = totaluploadticks
+        self.sumuploadticks += totaluploadticks
+        totaluploadticks -= self.firstuploadticks
+        self.suspendedticks += totaluploadticks
+        self.blocksplayed += 1
 
-        # Read in the next block of audio while the current one is playing
-        self.currbuffer = 1 - self.currbuffer   # Read into other ping-pong buffer
-        pass
 
     def loadbuffer(self, buffer):
         #print('Entered thread')
         startTicks = utime.ticks_us()
-        tbuff = self.file.readframes(int(512/self.file.getsampwidth()/self.file.getnchannels()))
+        tbuff = self.file.readframes(self.blockframes)
         self.audiodata[buffer] = tbuff
         while len(tbuff) > 0 and len(self.audiodata[buffer]) < AudioBlockSize:
-            tbuff = self.file.readframes(int(512/self.file.getsampwidth()/self.file.getnchannels()))
+            tbuff = self.file.readframes(self.blockframes)
             self.audiodata[buffer] += tbuff
         if len(self.audiodata[buffer]) == 0:
-            self.stopflag = True
+            self.stop()
             #print('Got no bytes from audio file so stopping')
-        print('Ticks to read block:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
+        if self.verbose: print('Ticks to read block:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
 
     def stop(self):
         # Stop playing
         self.stopflag = True
+        # Dump statistics
+        if self.verbose:
+            print('Total time spent reading file data:', self.sumreadfileticks, 'usec')
+            print('Total time spent uploading data   :', self.sumuploadticks, 'usec')
+            print('Total estimated time suspended    :', self.suspendedticks, 'usec')
+            print('Total time                        :', utime.ticks_diff(utime.ticks_us(), self.startTicks), 'usec')
+            print('Total audio played                :', self.blocksplayed * self.blockframes * 1000000 * AudioBlockSize / 512 / self.file.getframerate(), 'usec')
+        _thread.exit()
         pass
 
     def rewind(self):
         if self.file is None: return
+        if not self.stopflag: self.stop()
         # Get ready to start from the top
         self.file.close()
         try:

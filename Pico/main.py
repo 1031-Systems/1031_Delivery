@@ -56,17 +56,17 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
             while not button_pressed():
                 led_onboard.toggle()
                 for i in range(100):
-                    utime.sleep(0.01)
+                    utime.sleep_ms(10)
                     if button_pressed():
-                        utime.sleep(0.05)  # Debounce switch
+                        utime.sleep_ms(50)  # Debounce switch
                         if button_pressed(): break
 
             # Wait up to 5 seconds for button to be released
             led_onboard.on()
             for i in range(100):
-                utime.sleep(0.05)
+                utime.sleep_ms(50)
                 if not button_pressed():
-                    utime.sleep(0.05)    # Debounce switch
+                    utime.sleep_ms(50)    # Debounce switch
                     if not button_pressed(): break
             
         # If button is STILL pressed, go into continuous loop mode
@@ -74,9 +74,9 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
             # Blink LED at 10 Hz until button released
             while True:
                 led_onboard.toggle()
-                utime.sleep(0.1)
+                utime.sleep_ms(10)
                 if not button_pressed():
-                    utime.sleep(0.05)    # Debounce switch
+                    utime.sleep_ms(50)    # Debounce switch
                     if not button_pressed(): break
             continuous = True
 
@@ -101,7 +101,7 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
 
             # Start the audio playing
             player = helpers.WavePlayer(wavefile)
-            utime.sleep(0.05)   # Delay a bit before playing audio
+            utime.sleep_ms(50)   # Delay a bit before playing audio
             player.play()
 
             # Get the current time
@@ -115,22 +115,23 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
                 # Parse the line
                 values = line.split(',')
                 # Wait until it is time to go to next state
-                nextTicks = int(float(values[0]) * 1000)
+                nextTicks = int(values[0])
                 while(utime.ticks_diff(utime.ticks_ms(), startTicks) < nextTicks):
                     utime.sleep_ms(1)
                     waitTime += 1
 
                 # Send all values in the row to the Pins
+                if verbose: print('Sending data at time:',utime.ticks_diff(utime.ticks_ms(), startTicks), 'which should be:', nextTicks)
                 for i in range(1,len(titles)):
                     if ports[i] is not None:
                         if ports[i] >= helpers.MaxTotalServos:
                             # Must be a digital channel
-                            value = float(values[i])
+                            value = int(values[i])
                             helpers.setDigital(ports[i] - helpers.MaxTotalServos, value)
                         else:
-                            value = float(values[i])
-                            if value < 0.03 or value > 0.12:
-                                print('Value out of range:', value)
+                            value = int(values[i])
+                            if value < 0 or value > 4095:
+                                print('Servo value out of range:', value)
                             else:
                                 helpers.setServo(ports[i], value)
                             pass
@@ -140,7 +141,7 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
 
                 # Check to see if button is pressed and quit if so
                 if button_pressed():
-                    utime.sleep(0.05)    # Debounce switch
+                    utime.sleep_ms(50)    # Debounce switch
                     if button_pressed():
                         # Stop running continuous mode on button press also
                         continuous = False
@@ -175,7 +176,7 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
             # Now wait until button is released to go to top of loop
             while True:
                 if not button_pressed():
-                    utime.sleep(0.05)    # Debounce switch
+                    utime.sleep_ms(50)    # Debounce switch
                     if not button_pressed(): break
 
 if __name__ == "__main__":
