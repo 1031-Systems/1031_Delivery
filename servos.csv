@@ -1,4 +1,2 @@
 Name,Period,MinDuty,MaxDuty,MinAngle,MaxAngle
 SG90,20.0,0.6,2.4,0.0,180.0
-X,20.0,4.31,5.0,-180.0,0.0
-Y,20.0,2.5,3.9,90.0,180.0
