@@ -57,8 +57,8 @@ verbosity = False
 SystemPreferences = {
 'MaxDigitalChannels':48,        # Maximum number of digital channels controller can handle
 'MaxServoChannels':32,          # Maximum number of servo/numeric channels controller cah handle
-'ServoDefaultMinimum':0.0,      # Default minimum servo angle
-'ServoDefaultMaximum':180.0,    # Default maximum servo angle
+'ServoDefaultMinimum':0,        # Default minimum servo setting
+'ServoDefaultMaximum':4095,     # Default maximum servo setting
 'Ordering':'Numeric',           # Ordering for channels in window
 'AutoSave':True,                # Perfrom saving automatically flag
 'ShowTips':True,                # Show tool tips flag
@@ -69,8 +69,8 @@ SystemPreferences = {
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
 'MaxServoChannels':'int',
-'ServoDefaultMinimum':'float',
-'ServoDefaultMaximum':'float',
+'ServoDefaultMinimum':'int',
+'ServoDefaultMaximum':'int',
 'Ordering':['Alphabetic','Numeric','Creation'], # Alphabetic by name, Numeric by port number, or creation order
 'AutoSave':'bool',
 'ShowTips':'bool',
@@ -1572,6 +1572,7 @@ class ChannelMetadataWidget(QDialog):
                 self._servoedit.setCurrentIndex(0)
                 self._servoedit.setToolTip('If your servo is not in list, Cancel,\nadd it through Servo tool, and come back')
             layout.addRow(QLabel('Servo:'), self._servoedit)
+            self._servoedit.currentIndexChanged.connect(self.setLimitsfromType)
 
             self._typeedit = QComboBox()
             self._typeedit.addItems(('Linear', 'Spline', 'Step'))
@@ -1641,6 +1642,21 @@ class ChannelMetadataWidget(QDialog):
 
     def setMin(self, value):
         self._minedit.setText(value)
+
+    def setLimitsfromType(self, index):
+        servoName = self._servoedit.currentText()
+        if len(servoName) > 0 and servoName in ServoData:
+            # Compute and set limits from servo type
+            minVal = ServoData[servoName]['MinDuty']
+            maxVal = ServoData[servoName]['MaxDuty']
+            minVal = minVal / ServoData[servoName]['Period']
+            minVal = int(minVal * (SystemPreferences['ServoDefaultMaximum'] - SystemPreferences['ServoDefaultMinimum']) +
+                    SystemPreferences['ServoDefaultMinimum'] + 1)   # Add 1 to round up
+            maxVal = maxVal / ServoData[servoName]['Period']
+            maxVal = int(maxVal * (SystemPreferences['ServoDefaultMaximum'] - SystemPreferences['ServoDefaultMinimum']) +
+                    SystemPreferences['ServoDefaultMinimum'])
+            self.setMin(str(minVal))
+            self.setMax(str(maxVal))
 
     def onAccepted(self):
         """
@@ -2029,9 +2045,6 @@ class ServoWidget(QDialog):
                     tdict[headers[i]] = value
                 ServoData[columns[nameindex]] = tdict
                 testtext = infile.readline()
-
-            for servo in ServoData:
-                print('Read data for servo:', ServoData[servo])
 
     @staticmethod
     def writeServoData(filename):
@@ -3203,7 +3216,7 @@ class MainWindow(QMainWindow):
 
         # Get the data points for each column
         for plot in self.plots:
-            values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep, encode=True)
+            values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep)
             if values is not None:
                 columns[plot] = values
 
@@ -5477,7 +5490,7 @@ class Channel:
         return xdata,ydata
 
 
-    def getValuesAtTimeSteps(self, startTime, endTime, timeStep, encode=False):
+    def getValuesAtTimeSteps(self, startTime, endTime, timeStep):
         """
         The method getValuesAtTimeSteps interpolates the curve at equal
         sized steps from startTime to endTime.  This is primarily used for
@@ -5532,16 +5545,6 @@ class Channel:
                     values.append(self.knots[keys[nextkeyindex-1]])
 
             currTime += timeStep
-
-        # Optionally scale values to integer duty cycle values for servo
-        if encode and self.servoType is not None:
-            divisor = ServoData[self.servoType]['MaxAngle'] - ServoData[self.servoType]['MinAngle']
-            multiplier = ServoData[self.servoType]['MaxDuty'] - ServoData[self.servoType]['MinDuty']
-            minangle = ServoData[self.servoType]['MinAngle']
-            minduty = ServoData[self.servoType]['MinDuty']
-            for i in range(len(values)):
-                # (theta-minangle)/(maxangle-minangle) * (maxduty-minduty) + minduty
-                values[i] = (values[i]-minangle)/divisor * multiplier + minduty
 
         return values
 
