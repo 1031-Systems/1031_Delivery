@@ -15,7 +15,7 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
     # Use the on board LED for status
     led_onboard = machine.Pin(25, machine.Pin.OUT)
 
-    # Set the initial state
+    # Attempt to mount an SD card if not done in boot.py (preferred)
     try:
         helpers.mountSDCard()       # Mount SD card for all data files
     except:
@@ -51,7 +51,7 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
     # if continuous is True then execute continuously until interrupted
     # Else Blink at 0.5Hz until button is pressed
     while True:
-        # Blink LED at 1 Hz until button pressed
+        # Toggle LED every second until button pressed
         if not continuous and not skip:
             while not button_pressed():
                 led_onboard.toggle()
