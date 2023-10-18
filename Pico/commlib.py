@@ -28,6 +28,7 @@ def xferFileToController(filename, dest=''):
         filesize = os.fstat(fd).st_size
         tf.close()
         timeout = int(filesize /16000 + 5)  # About 16kb per sec + rshell setup time
+        timeout += 10                       # Needs much more time if SD card is mounted
 
         # Do the transfer
         try:
