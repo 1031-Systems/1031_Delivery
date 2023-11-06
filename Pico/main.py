@@ -5,6 +5,7 @@ except:
     import time as utime
 
 import os
+import sys
 import helpers
 
 def button_pressed():
@@ -54,6 +55,9 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
         # Toggle LED every second until button pressed
         if not continuous and not skip:
             while not button_pressed():
+                if helpers.isThereInput():
+                    code = helpers.handleInput()
+                    if code == 1: break
                 led_onboard.toggle()
                 for i in range(100):
                     utime.sleep_ms(10)
@@ -143,6 +147,7 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
                 if button_pressed():
                     utime.sleep_ms(50)    # Debounce switch
                     if button_pressed():
+                        if verbose: print('Caught Stop button')
                         # Stop running continuous mode on button press also
                         continuous = False
                         player.stop()
@@ -154,6 +159,7 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
                 # Read another line from CSV file
                 line = infile.readline()
 
+            if(verbose): print('At end of read file loop')
             infile.close()
 
             # Let all the servos relax
@@ -178,6 +184,9 @@ def do_the_thing(continuous=False, skip=False, doOnce=False, verbose=False):
                 if not button_pressed():
                     utime.sleep_ms(50)    # Debounce switch
                     if not button_pressed(): break
+            if(verbose): print('At end of loop')
+
+    if(verbose): print('At end of do_the_thing()')
 
 if __name__ == "__main__":
     do_the_thing()

@@ -12,38 +12,51 @@
 import os
 import sys
 import subprocess
+import serial
+import binascii
+
+################# Serial Comm Code #########################
+def stringToPico(instring):
+    try:
+        ser = serial.Serial('/dev/ttyACM0', 115200, timeout=15)
+        bytescount = ser.write(instring.encode('utf-8'))
+        ser.close()
+    except:
+        try:
+            ser = serial.Serial('/dev/ttyACM1', 115200, timeout=15)
+            bytescount = ser.write(instring.encode('utf-8'))
+            ser.close()
+        except:
+            sys.stderr.write('\nWhoops - Unable to open /dev/ttyACM0 or /dev/ttyACM1 for serial communications\n')
+            pass
 
 #################### Library functions ########################
 ##### File Transfers
 def xferFileToController(filename, dest=''):
-    if os.path.isfile(filename):
-        # Use rshell to transfer file
-        command = 'rshell cp %s %s' % (filename, dest)
-        command = ['rshell', 'cp', filename, dest]
-        print('Running command:', command)
-
-        # Get the size of the file to estimate transfer time
-        tf = open(filename, 'r')
-        fd = tf.fileno()
-        filesize = os.fstat(fd).st_size
-        tf.close()
-        timeout = int(filesize /16000 + 5)  # About 16kb per sec + rshell setup time
-        timeout += 10                       # Needs much more time if SD card is mounted
-
-        # Do the transfer
+    try:
+        ser = serial.Serial('/dev/ttyACM0', 115200, timeout=15)
+    except:
         try:
-            status = subprocess.run(command, timeout=timeout)
-            # Check return code
-            if status.returncode < 0:
-                sys.stderr.write('Whoops - Failure to write file %s to Pico\n' % filename)
-            return status.returncode
+            ser = serial.Serial('/dev/ttyACM1', 115200, timeout=15)
         except:
-            # Probably timed out so return error code
+            sys.stderr.write('\nWhoops - Unable to open /dev/ttyACM0 or /dev/ttyACM1 for serial communications\n')
             return -1
+            pass
 
-    else:
-        sys.stderr.write('Whoops - Unable to find transfer file %s\n' % filename)
-        return -1
+    if os.path.isfile(filename):
+        tf = open(filename, 'rb')
+        fd = tf.fileno()
+        fsize = os.fstat(fd).st_size * 2    # Two hex characters per byte
+        stringToPico('b %s %d\n' % (dest, fsize))
+        td = tf.read(512)
+        while len(td) > 0:
+            fsize -= len(td)
+            ser.write(binascii.hexlify(td))
+            td = tf.read(512)
+        tf.close()
+
+    ser.close()
+    return 0
 
 def xferFileFromController(filename, dest=''):
     # Use rshell to transfer file
@@ -52,26 +65,13 @@ def xferFileFromController(filename, dest=''):
     # Check return code
     if code < 0:  # I think rshell ALWAYS returns 0, even on error
         sys.stderr.write('Whoops - Failure to read file from Pico\n' % filename)
-    return code
 
-def xferFileToSD(filename, dest='/'):
-    sys.stderr.write('Whoops - Accessing SD in not yet implemented\n')
-    pass
-
-def xferFileFromSD(filename, dest='/'):
+def xferBinaryFileFromController(filename, dest='/'):
     sys.stderr.write('Whoops - Accessing SD in not yet implemented\n')
     pass
 
 def startMain():
-    command = ['rshell',
-                'repl',
-                '~',
-                'import main',
-                '~',
-                'main.do_the_thing()',
-                '~']
-    subprocess.run(command)
-    
+    stringToPico('x\n')
 
 ##### Control
 def angleToDutyCycle(angle, servotype=None):
@@ -86,36 +86,18 @@ def angleToDutyCycle(angle, servotype=None):
 def _setServoOnPico(channel, angle):
     # Send the value, appropriately formatted, to hardware controller
     print('Sending to controller port %d value %d' % (self.port, value))
-    command = ['rshell',
-                'repl',
-                '~',
-                'from machine import Pin, PWM',
-                '~',
-                'pwm = PWM(Pin(%d))' % self.port,
-                '~',
-                'pwm.freq(50)',
-                '~',
-                'pwm.duty_ns(%d)' % angleToDutyCycle(angle),
-                '~']
-    print('with:', command)
-    # code = subprocess.run(command)
+    outstring = 's %d %d\n' % (self.port, value)
+    stringToPico(outstring)
+    return
     pass
 
 def _releaseServoOnPico(channel):
     pass
 
 def _setServoViaPCA9685(channel, cyclefrac):
-    cyclefrac = cyclefrac/180.0*0.09+0.03
-    command = ['rshell',
-                'repl',
-                '~',
-                'import helpers',
-                '~',
-                'helpers.setServo(%d,%f)' % (channel,cyclefrac),
-                '~']
-    print('with:', command)
-    code = subprocess.run(command)
-    pass
+    outstring = 's %d %d\n' % (channel, cyclefrac)
+    stringToPico(outstring)
+    return
 
 def _releaseServoViaPCA9685(channel):
     pass

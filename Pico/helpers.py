@@ -4,9 +4,10 @@ from machine import I2C, Pin
 from servo import Servos
 from pca9685 import PCA9685
 import utime
+import binascii
 
 ############# Servo Code #################################
-MaxTotalServos = 16     # Sync this number in Animator Preferences
+MaxTotalServos = 32     # Sync this number in Animator Preferences
 ServosPerPCA = 16       # Must be power of 2
 
 servoShift = 4          # log2 of ServosPerPCA
@@ -229,7 +230,6 @@ class WavePlayer:
             print('Total estimated time suspended    :', self.suspendedticks, 'usec')
             print('Total time                        :', utime.ticks_diff(utime.ticks_us(), self.startTicks), 'usec')
             print('Total audio played                :', self.blocksplayed * self.blockframes * 1000000 * AudioBlockSize / 512 / self.file.getframerate(), 'usec')
-        _thread.exit()
         pass
 
     def rewind(self):
@@ -309,4 +309,54 @@ def testSDCard(filename):
         data = file.read(bytesize)
     print('Actually read data in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
     file.close()
+
+################ USB data transfer code ###############################################
+import select
+import sys
+
+# Create object for communicating over USB
+inpoll = select.poll()
+inpoll.register(sys.stdin.buffer, select.POLLIN)
+
+def isThereInput():
+    result = inpoll.poll(0)
+    return len(result) > 0
+
+def handleInput():
+    inline = sys.stdin.buffer.readline().decode('utf-8')
+    if inline[0] == 'a':
+        # Trigger one playback
+        return 1
+    elif inline[0] == 'x':
+        # Wait 2 seconds for commlib to close connection
+        utime.sleep_ms(2000)
+        # Restart everything
+        machine.reset()
+    elif inline[0] == 's':
+        # Set an individual servo
+        try:
+            vals = inline.split()
+            channel = int(vals[1])
+            value = int(vals[2])
+            setServo(channel, value)
+        except:
+            pass
+    elif inline[0] == 'b':
+        # Upload entire binary file
+        try:
+            vals = inline.split()
+            filename = vals[1]
+            fsize = int(vals[2])
+            file = open(filename, 'wb')
+            line = sys.stdin.buffer.read(min(fsize, 512))
+            while fsize > 0:
+                bwritten = file.write(binascii.unhexlify(line))
+                fsize -= len(line)
+                if fsize > 0: line = sys.stdin.buffer.read(min(fsize, 512))
+            file.close()
+        except:
+            # sys.stderr.write('\nWhoops - Unable to write file %d\n' % filename)
+            pass
+    return 0
+
 
