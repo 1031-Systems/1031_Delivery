@@ -16,32 +16,31 @@ import serial
 import binascii
 
 ################# Serial Comm Code #########################
-def stringToPico(instring):
+def openPort():
+    portRoot = '/dev/ttyACM'
+
     try:
-        ser = serial.Serial('/dev/ttyACM0', 115200, timeout=15)
-        bytescount = ser.write(instring.encode('utf-8'))
-        ser.close()
+        ser = serial.Serial(portRoot + '0', 115200, timeout=15)
     except:
         try:
-            ser = serial.Serial('/dev/ttyACM1', 115200, timeout=15)
-            bytescount = ser.write(instring.encode('utf-8'))
-            ser.close()
+            ser = serial.Serial(portRoot + '1', 115200, timeout=15)
         except:
-            sys.stderr.write('\nWhoops - Unable to open /dev/ttyACM0 or /dev/ttyACM1 for serial communications\n')
-            pass
+            sys.stderr.write('\nWhoops - Unable to open ' + portRoot + '0 or ' + portRoot + '1 for serial communications\n')
+            return None
+    return ser
+
+def stringToPico(instring):
+    ser = openPort()
+    if ser is not None:
+        bytescount = ser.write(instring.encode('utf-8'))
+        ser.close()
 
 #################### Library functions ########################
 ##### File Transfers
 def xferFileToController(filename, dest=''):
-    try:
-        ser = serial.Serial('/dev/ttyACM0', 115200, timeout=15)
-    except:
-        try:
-            ser = serial.Serial('/dev/ttyACM1', 115200, timeout=15)
-        except:
-            sys.stderr.write('\nWhoops - Unable to open /dev/ttyACM0 or /dev/ttyACM1 for serial communications\n')
-            return -1
-            pass
+    ser = openPort()
+    if ser is None:
+        return -1
 
     if os.path.isfile(filename):
         tf = open(filename, 'rb')
