@@ -21,6 +21,7 @@ output to the hardware controller to operate the mechanisms.
 + x. [Channel Panes](#channel-panes)
 + x. [Specialized Tools](#specialized-tools)
 + x. [Requirements](#requirements)
++ x. [Known Issues and Bugs](#bugs)
 
 <a name="process">
 &nbsp;
@@ -73,7 +74,9 @@ on/off control typically used for lighting or a numeric value that may be used f
 positioning, motor speed, brightness, or other types of continuous control.  Animator
 does not distinguish the purpose of the channel other than by name so a numeric channel
 may be used to control servos via PWM, motors via CAN, and other mechanisms based
-entirely on the controller hardware.
+entirely on the controller hardware.  However, for better performance of the software
+within the controller hardware, Animator sends integer values for all channels.  These
+are either 0/1 for digital channels or 0-4095 (user-controllable) for servo channels.
 
 For the numeric channels, Animator supports different types of interpolation between
 knots.  The simplest is Step that makes a step transition from one value to the next,
@@ -126,6 +129,43 @@ of the Animator main window or at the top of the screen in MacOS.  They are:
 
 ### Requirements
 Animator uses PyQt and PythonQwt libraries for its graphical user elements.
+
+<a name="bugs">
+&nbsp;
+</a>
+
+### Known Issues and Bugs
+
+There is a known Qt5 bug that causes a message of the form "qt.qpa.xcb: QXcbConnection: XCB error: 3 (BadWindow), sequence: 8564, resource id: 10598470, major code: 40 (TranslateCoords), minor code: 0"
+to be output to stderr whenever certain types of windows close.  This seems to
+be ignorable.
+
+Playing the animation in the controller puts it in a state where uploading a control
+file is now impossible.  The user will have to reset
+the controller, generaly by unplugging it from the USB port and plugging it back in.
+Thus, it is generally a good idea to always reset the controller immediately prior to
+uploading the control file.
+
+The Raspberry Pi Pico used for development and testing has a limited ability to
+support this functionality, primarily in the use of an SD card.  In general, the
+audio track needs to be sampled at 11025 Hz or lower in stereo 16-bit mode or
+22050 Hz in mono 16-bit mode due to the slowness of reading from the SD card.
+Higher sampling rates lead to breakups and skips in the audio playback.  Additionally,
+putting the control file on the SD card is problematic due to the audio playback
+taking all the read cycles.  Thus, generally the audio is stored on the SD card at
+a lower sample rate and the control file is stored in the limited flash memory.
+Smaller animations of a few seconds may be stored completely in flash memory and
+do not seem to suffer the same problems.  Pico clones with larger flash memory
+may also be used.
+An animation controlling 16 servos and 16 digital channels requires around 7kB per
+second of animation so a maximum of 2 to 3 minutes of animation may be stored in
+the Pico's 1 MB or so of available flash.
+
+In addition, the python code running on the Pico uses two threads, one for audio
+playback and one for animation control.  This requires MicroPython be installed.
+Using CircuitPython or C or other embedded environment will change things.  Your
+mileage will vary.  Animator uses rshell to upload control files and control some
+things and has been tested with MicroPython only.
 
 ***
 

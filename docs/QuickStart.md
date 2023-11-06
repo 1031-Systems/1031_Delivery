@@ -35,8 +35,7 @@ channel and an optional channel number.  A unique name is required.
 The channel number may be skipped for now but the system will be
 unable to control the channel until the number is supplied but this can
 be done later.  Click Save to create the empty channel, which will 
-appear in a pane on the display below any previous channel panes
-identified by the name you supplied.
+appear in a pane on the display.
 
 To populate the digital channel, hold down the Shift key and click the
 left mouse button within the blue area.  If you click below the 
@@ -55,14 +54,18 @@ To add a servo or numeric channel, hit Ctrl-N (Numeric).  A popup
 will appear demainding a unique Name and other, mostly optional,
 information (referred to as metadata).  You must supply the name.
 If you are controlling a servo and know the model, you may select 
-it from the Servo dropdown list.  If you don't know the model or
+it from the Servo dropdown list.  This will automatically set
+appropriate limits for the channel.  If you don't know the model or
 you are defining a numeric channel, do not select a servo model.
 
 For now, do not bother with any other entries in this widget and
 click Save.  All the fields will default to reasonable values and
 all may be changed later.  Only the name remains the same.  The
 empty channel pane will appear with red lines near the top and
-bottom signifying limits (defaulting to 0 and 180 degrees).
+bottom signifying limits, defaulting to 0 and 180 degrees if the
+servo type was specified and 0 and 4095 otherwise.  Note that 0
+and 4095 are generally NOT good limits for servos.  See the main
+Help pane for more detail on setting and using the limits.
 
 Populate the channel with control points by holding down the Shift
 key and clicking the Left mouse button.  This will insert a point
@@ -71,7 +74,9 @@ the valid range).  You can drag the point up/down or left/right to
 position it as you wish.  Generally a point should be inserted at
 time 0 as the initial value for the playback.  This value should be
 the rest or nominal servo position.  Additional points are added
-over the time range to define the animation.
+over the time range to define the animation.  The last point in the
+channel should be chosen to end at the same value as the channel
+begins with.
 
 ## Syncing with Audio
 
@@ -93,7 +98,7 @@ simply left click on the box around the point and drag it as you like.
 ## Animating your Devices
 
 To complete the process there are a few steps.  The first is to assign
-servo types to all the servo channels and channel numbers to all the
+channel numbers to all the
 channels.  Once that is done, the control file is uploaded to the
 controller via File->Export->Upload to Controller.  Finally, the
 controller is started via its start mechanism.  Stuff should happen.
