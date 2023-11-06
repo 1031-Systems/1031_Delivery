@@ -64,7 +64,7 @@ SystemPreferences = {
 'ShowTips':True,                # Show tool tips flag
 'ServoDataFile':'servos.csv',   # Name of file containing predefined servos
 'UploadCSVFile':'/pyboard/data.csv',     # Name of uploaded CSV file on controller
-'UploadAudioFile':'/pyboard/data.wav',   # Name of uploaded autio file on controller
+'UploadAudioFile':'/pyboard/data.wav',   # Name of uploaded audio file on controller
 }
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
