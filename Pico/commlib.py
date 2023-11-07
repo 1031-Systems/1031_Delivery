@@ -29,10 +29,14 @@ def openPort():
             return None
     return ser
 
+def toPico(ser, instring):
+    bytescount = ser.write(instring.encode('utf-8'))
+    return bytescount
+
 def stringToPico(instring):
     ser = openPort()
     if ser is not None:
-        bytescount = ser.write(instring.encode('utf-8'))
+        bytescount = toPico(ser, instring)
         ser.close()
 
 #################### Library functions ########################
@@ -46,7 +50,7 @@ def xferFileToController(filename, dest=''):
         tf = open(filename, 'rb')
         fd = tf.fileno()
         fsize = os.fstat(fd).st_size * 2    # Two hex characters per byte
-        stringToPico('b %s %d\n' % (dest, fsize))
+        toPico(ser, 'b %s %d\n' % (dest, fsize))
         td = tf.read(512)
         while len(td) > 0:
             fsize -= len(td)

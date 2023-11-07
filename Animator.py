@@ -65,6 +65,7 @@ SystemPreferences = {
 'ServoDataFile':'servos.csv',   # Name of file containing predefined servos
 'UploadCSVFile':'/pyboard/data.csv',     # Name of uploaded CSV file on controller
 'UploadAudioFile':'/pyboard/data.wav',   # Name of uploaded audio file on controller
+'TTYPortRoot':'/dev/ttyACM',    # Root of tty port for usb comm
 }
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
@@ -77,6 +78,7 @@ SystemPreferenceTypes = {
 'ServoDataFile':'str',
 'UploadCSVFile':'str',
 'UploadAudioFile':'str',
+'TTYPortRoot':'str',
 }
 
 # Dictionary of known servo types to aid user
@@ -5838,6 +5840,8 @@ def doAnimatronics():
     PreferencesWidget.readPreferences()
     if 'ServoDataFile' in SystemPreferences:
         ServoWidget.readServoData(SystemPreferences['ServoDataFile'])
+    if 'TTYPortRoot' in SystemPreferences:
+        commlib.portRoot = SystemPreferences['TTYPortRoot']
 
     # If an input file was specified, parse it or die trying
     if infilename is not None:
