@@ -276,20 +276,20 @@ def mountSDCard(mountpoint='/sd'):
     vfs = uos.VfsFat(sd)
     uos.mount(vfs, mountpoint)
 
-def testSDCard(filename):
+def testSDCard(filename, verbosity=False):
     file = open(filename, 'rb')
     bytesize = 1
     while bytesize < 300:
-        print('Trying to read', bytesize, 'bytes from file:', filename)
+        if verbosity: print('Trying to read', bytesize, 'bytes from file:', filename)
         startTicks = utime.ticks_us()
         data = file.read(bytesize)
-        print('Actually read:', len(data), 'in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
+        if verbosity: print('Actually read:', len(data), 'in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
         bytesize = bytesize * 2
     while len(data) > 0:
-        print('Trying to read', bytesize, 'bytes from file:', filename)
+        if verbosity: print('Trying to read', bytesize, 'bytes from file:', filename)
         startTicks = utime.ticks_us()
         data = file.read(bytesize)
-        print('Actually read:', len(data), 'in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
+        if verbosity: print('Actually read:', len(data), 'in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
     file.close()
 
     file = open(filename, 'rb')
