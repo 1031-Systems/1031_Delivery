@@ -474,7 +474,7 @@ class TagPane(qwt.QwtPlot):
     def mouseReleaseEvent(self, event):
         if self.selectedtag is not None:
             # We are dragging a tag around - see if it needs a new label
-            if self._tags[self.selectedtag] == '':
+            if self.selectedtag in self._tags and self._tags[self.selectedtag] == '':
                 # Bring up window to get actual label from user
                 text, ok = QInputDialog().getText(self, "Tag Entry", "Enter Tag:",
                     QLineEdit.Normal, self._tags[self.selectedtag])
@@ -4805,23 +4805,23 @@ class MainWindow(QMainWindow):
         self.tag_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
 
         # tagInsert menu item
-        self._tagInsert_action = QAction("tagInsert", self,
+        self._tagInsert_action = QAction("Insert Tag", self,
             shortcut="Ctrl+T",
             triggered=self.tagInsert_action)
         self.tag_menu.addAction(self._tagInsert_action)
 
         # tagSelector menu item
-        self._tagSelector_action = QAction("tagSelector", self,
+        self._tagSelector_action = QAction("Tag Selector", self,
             triggered=self.tagSelector_action)
         self.tag_menu.addAction(self._tagSelector_action)
 
         # importScript menu item
-        self._importScript_action = QAction("importScript", self,
+        self._importScript_action = QAction("Import Script", self,
             triggered=self.importScript_action)
         self.tag_menu.addAction(self._importScript_action)
 
         # togglePane menu item
-        self._togglePane_action = QAction("togglePane", self,
+        self._togglePane_action = QAction("Ttoggle Tag Pane", self,
             shortcut="T",
             triggered=self.togglePane_action)
         self.tag_menu.addAction(self._togglePane_action)
