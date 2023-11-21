@@ -1778,6 +1778,8 @@ class MetadataWidget(QDialog):
     _rateedit : QLineEdit
     _audioedit : QLineEdit
     _audiofile : QLineEdit
+    _csvuploadedit : QLineEdit
+    _audiouploadfile : QLineEdit
     okButton : QPushButton
     cancelButton : QPushButton
 
@@ -1824,6 +1826,11 @@ class MetadataWidget(QDialog):
             self._audiofile.setText(self._animatronics.newAudio.audiofile)
             self._audiofile.setReadOnly(True)
             layout.addRow(self._audiofile)
+        self._csvuploadedit = QLineEdit(self._animatronics.csvUploadFile)
+        layout.addRow(QLabel('CSV Upload File:'), self._csvuploadedit)
+        self._audiouploadedit = QLineEdit(self._animatronics.audioUploadFile)
+        layout.addRow(QLabel('Audio Upload File:'), self._audiouploadedit)
+        
         widget.setLayout(layout)
 
         self.okButton = QPushButton('Save')
@@ -1864,6 +1871,8 @@ class MetadataWidget(QDialog):
         tstring = self._audioedit.text()
         if len(tstring) > 0:
             self._animatronics.newAudio.audiostart = float(tstring)
+        self._animatronics.csvUploadFile = self._csvuploadedit.text()
+        self._animatronics.audioUploadFile = self._audiouploadedit.text()
         self.accept()
         if self._parent is not None:
             self._parent.redraw()
@@ -3260,11 +3269,11 @@ class MainWindow(QMainWindow):
 
     def uploadToHW(self):
         # Write CSV temp file
-        tempfilename = 'data.csv'
+        tempfilename = 'tempdata.csv'
         self.writeCSVFile(tempfilename)
 
         # Upload with commlib
-        code = commlib.xferFileToController(tempfilename, dest=SystemPreferences['UploadCSVFile'])
+        code = commlib.xferFileToController(tempfilename, dest=self.animatronics.csvUploadFile)
 
         # Check return code
         if code != 0:
@@ -3284,7 +3293,7 @@ class MainWindow(QMainWindow):
             """ Do NOT Upload audio file here until we can write to sd card
             # Upload the audio file as well if csv upload was successful
             code = commlib.xferFileToController(self.animatronics.newAudio.audiofile,
-                dest=SystemPreferences['UploadAudioFile'])
+                dest=self.animatronics.audioUploadFile)
             # Check return code
             if code != 0:
                 # Bring up message box to tell user
@@ -5673,6 +5682,10 @@ class Animatronics:
     sample_rate : float
         Sample rate in samples per second (defaults to 50Hz)
         Used for writing CSV files and for real-time control whenever done
+    csvUploadFile : str
+        Pathname to csv file when uploaded to controller
+    audioUploadFile : str
+        Pathname to audio file when uploaded to controller
 
     Methods
     -------
@@ -5697,6 +5710,8 @@ class Animatronics:
         self.start = 0.0
         self.end = -1.0
         self.sample_rate = 50.0
+        self.csvUploadFile = SystemPreferences['UploadCSVFile']
+        self.audioUploadFile = SystemPreferences['UploadAudioFile']
 
     def parseXML(self, inXMLFilename):
         """
@@ -5731,12 +5746,19 @@ class Animatronics:
         self.channels = {}
         self.tags = {}
         self.sample_rate = 50.0
+        self.csvUploadFile = SystemPreferences['UploadCSVFile']
+        self.audioUploadFile = SystemPreferences['UploadAudioFile']
 
         # Scan the XML text
         root = ET.fromstring(testtext)
         # Get the attributes from the XML
         if 'endtime' in root.attrib:
             self.end = float(root.attrib['endtime'])
+        if 'csvUploadFile' in root.attrib:
+            self.csvUploadFile = root.attrib['csvUploadFile']
+        if 'audioUploadFile' in root.attrib:
+            self.audioUploadFile = root.attrib['audioUploadFile']
+
         for child in root:
             if child.tag == 'Audio':
                 self.newAudio = AudioChannel()
@@ -5771,6 +5793,10 @@ class Animatronics:
         output.write('<Animatronics starttime="%f"' % self.start)
         if self.end > self.start:
             output.write(' endtime="%f"' % self.end)
+        if self.csvUploadFile is not None:
+            output.write(' csvUploadFile="%s"' % self.csvUploadFile)
+        if self.audioUploadFile is not None:
+            output.write(' audioUploadFile="%s"' % self.audioUploadFile)
         output.write('>\n')
         output.write('<Control rate="%f"/>\n' % self.sample_rate)
         if self.newAudio is not None:
