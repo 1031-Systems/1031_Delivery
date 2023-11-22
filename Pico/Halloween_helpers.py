@@ -244,6 +244,7 @@ inpoll = select.poll()
 inpoll.register(sys.stdin.buffer, select.POLLIN)
 
 def logstring(instring):
+    return  # Disabled
     logfile = open('/log', 'a')
     count = logfile.write(instring + '\n')
     logfile.close()
