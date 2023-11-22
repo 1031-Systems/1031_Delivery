@@ -3,5 +3,8 @@ packaging==23.1
 PyQt6==6.5.1
 PyQt6-Qt6==6.5.1
 PyQt6-sip==13.5.1
+pyserial==3.5
 PythonQwt==0.10.2
+pyudev==0.24.1
 QtPy==2.3.1
+rshell==0.0.31
