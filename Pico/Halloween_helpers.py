@@ -243,12 +243,18 @@ import sys
 inpoll = select.poll()
 inpoll.register(sys.stdin.buffer, select.POLLIN)
 
+def logstring(instring):
+    logfile = open('/log', 'a')
+    count = logfile.write(instring + '\n')
+    logfile.close()
+
 def isThereInput():
     result = inpoll.poll(0)
     return len(result) > 0
 
 def handleInput():
     inline = sys.stdin.buffer.readline().decode('utf-8')
+    logstring('Received:' + inline)
     if inline[0] == 'a':
         # Trigger one playback
         return 1
@@ -274,10 +280,14 @@ def handleInput():
             fsize = int(vals[2])
             file = open(filename, 'wb')
             line = sys.stdin.buffer.read(min(fsize, 512))
+            #logstring('Received:' + str(len(line)) + ' bytes of ' + str(fsize) + ' remaining')
+            #logstring(str(fsize))
             while fsize > 0:
                 bwritten = file.write(binascii.unhexlify(line))
                 fsize -= len(line)
                 if fsize > 0: line = sys.stdin.buffer.read(min(fsize, 512))
+                #logstring(str(fsize))
+            logstring('Closing file')
             file.close()
         except:
             # sys.stderr.write('\nWhoops - Unable to write file %d\n' % filename)
