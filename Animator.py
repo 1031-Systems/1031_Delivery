@@ -3,7 +3,7 @@
 
 #**********************************
 # Program Animator.py
-# Created by john
+# Created by John R. Wright
 # Created Tue Jun 13 17:35:31 PDT 2023
 #*********************************/
 
@@ -222,12 +222,12 @@ class LimitWidget(QDialog):
         hbox = QHBoxLayout()    # Put slider in horizontal layout for good centering
         self.slider = QSlider(self)
         self.slider.setTickPosition(QSlider.TicksBothSides)
-        self.slider.setTickInterval(15)
         self.slider.setMinimum(int(minimum))
         self.slider.setMaximum(int(maximum))
+        self.slider.setTickInterval(int((maximum-minimum)/16))
         self.slider.valueChanged.connect(self.valueIs)
-        self.slider.setSingleStep(1)
-        self.slider.setPageStep(15)
+        self.slider.setSingleStep(max(int((maximum-minimum)/256),1))
+        self.slider.setPageStep(int((maximum-minimum)/16))
         self.slider.setFixedHeight(300)
         hbox.addStretch()
         hbox.addWidget(self.slider)
@@ -238,7 +238,7 @@ class LimitWidget(QDialog):
         self.display = QLineEdit()
         self.display.setFixedWidth(50)
         self.display.setReadOnly(True)
-        self.display.setMaxLength(4)
+        self.display.setMaxLength(6)
         self.display.selectionChanged.connect(self.fixFocus)
         vbox.addWidget(self.display)
 
@@ -3290,7 +3290,6 @@ class MainWindow(QMainWindow):
             # Delete data.csv
             os.remove(tempfilename)
 
-            """ Do NOT Upload audio file here until we can write to sd card
             # Upload the audio file as well if csv upload was successful
             code = commlib.xferFileToController(self.animatronics.newAudio.audiofile,
                 dest=self.animatronics.audioUploadFile)
@@ -3305,12 +3304,6 @@ class MainWindow(QMainWindow):
                 msgBox.setIcon(QMessageBox.Information)
                 ret = msgBox.exec_()
                 pass
-            else:
-                # Restart the board if transfers were successful
-                commlib.startMain()
-            """
-            # Restart the board if transfers were successful
-            commlib.startMain()
 
     def handle_unsaved_changes(self):
         """
