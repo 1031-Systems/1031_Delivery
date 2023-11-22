@@ -183,7 +183,8 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
 
 def play_one_anim(csvfile, wavefile, led_onboard):
     # Open the default CSV file
-    infile = open(csvfile, 'r')
+    infile = False
+    if isfile(csvfile): infile = open(csvfile, 'r')
     if infile:
         if verbose: print('Playing animation file:', csvfile)
         # Read the first line to get ports
@@ -264,15 +265,15 @@ def play_one_anim(csvfile, wavefile, led_onboard):
             print('Total time:', nextTicks, 'msec')
             print('Wait frac :', waitTime/nextTicks)
 
-        # Wait for audio player to be done also
-        while player.playing():
-            utime.sleep_ms(1)
-
         # Let all the servos relax
         for i in range(1,len(titles)):
             if ports[i] is not None:
                 helpers.releaseServo(ports[i])
                 pass
+
+    # Wait for audio player to be done also
+    while player.playing():
+        utime.sleep_ms(1)
 
 
 if __name__ == "__main__":
