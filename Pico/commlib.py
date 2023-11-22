@@ -14,6 +14,7 @@ import sys
 import subprocess
 import serial
 import binascii
+import time
 
 ################# Serial Comm Code #########################
 portRoot = '/dev/ttyACM'    # Set by Animator prior to comms
@@ -71,6 +72,9 @@ def xferFileToController(filename, dest='', progressbar=None):
                     progressbar.cancel()    # Never show progress bar
         tf.close()
 
+    # Give some time for receiver to get all the data before closing the port
+    time.sleep(5)
+    #print('Closing serial port')
     ser.close()
     return 0
 
