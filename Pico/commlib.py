@@ -16,17 +16,19 @@ import serial
 import binascii
 
 ################# Serial Comm Code #########################
-def openPort():
-    portRoot = '/dev/ttyACM'
+portRoot = '/dev/ttyACM'    # Set by Animator prior to comms
 
-    try:
-        ser = serial.Serial(portRoot + '0', 115200, timeout=15)
-    except:
+def openPort():
+    # Try a whole bunch of port options
+    for suffix in ['', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
         try:
-            ser = serial.Serial(portRoot + '1', 115200, timeout=15)
+            ser = serial.Serial(portRoot + suffix, 115200, timeout=15)
+            break   # Found a good one
         except:
-            sys.stderr.write('\nWhoops - Unable to open ' + portRoot + '0 or ' + portRoot + '1 for serial communications\n')
-            return None
+            if suffix == '9':
+                sys.stderr.write('Whoops - Unable to open usb comm port with root:' + portRoot + '\n')
+                return None
+            pass
     return ser
 
 def toPico(ser, instring):
@@ -41,7 +43,7 @@ def stringToPico(instring):
 
 #################### Library functions ########################
 ##### File Transfers
-def xferFileToController(filename, dest=''):
+def xferFileToController(filename, dest='', progressbar=None):
     ser = openPort()
     if ser is None:
         return -1
@@ -50,12 +52,23 @@ def xferFileToController(filename, dest=''):
         tf = open(filename, 'rb')
         fd = tf.fileno()
         fsize = os.fstat(fd).st_size * 2    # Two hex characters per byte
+        count = 0
         toPico(ser, 'b %s %d\n' % (dest, fsize))
+        if progressbar is not None: progressbar.setMaximum(fsize)
         td = tf.read(512)
         while len(td) > 0:
-            fsize -= len(td)
+            count += len(td) * 2
             ser.write(binascii.hexlify(td))
             td = tf.read(512)
+            if progressbar is not None:
+                if fsize > 20000:
+                    # If worth showing progress bar
+                    progressbar.setValue(count)
+                    if progressbar.wasCanceled():
+                        break
+                else:
+                    # Don't bother progress bar if not much data
+                    progressbar.cancel()    # Never show progress bar
         tf.close()
 
     ser.close()

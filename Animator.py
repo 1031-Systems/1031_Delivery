@@ -3267,16 +3267,26 @@ class MainWindow(QMainWindow):
         """Export the current animatronics file into a Brookshire VSA format"""
         pass
 
+    def newProgressBar(self, title):
+        # Create a ProgressDialog for use by verious operations
+        progressdialog = QProgressDialog(title, 'Cancel', 0, 1, parent=self)
+        progressdialog.setWindowModality(Qt.WindowModal)
+        return progressdialog
+
     def uploadToHW(self):
         # Write CSV temp file
         tempfilename = 'tempdata.csv'
         self.writeCSVFile(tempfilename)
 
         # Upload with commlib
-        code = commlib.xferFileToController(tempfilename, dest=self.animatronics.csvUploadFile)
+        localprogressdialog = self.newProgressBar('Uploading Controls')
+        code = commlib.xferFileToController(tempfilename, dest=self.animatronics.csvUploadFile,
+                progressbar=localprogressdialog)
 
         # Check return code
         if code != 0:
+            # Cancel the progress dialog
+            localprogressdialog.cancel()
             # Bring up message box to tell user
             msgBox = QMessageBox(parent=self)
             msgBox.setText('Failed to upload CSV file to controller.\n' +
@@ -3290,20 +3300,24 @@ class MainWindow(QMainWindow):
             # Delete data.csv
             os.remove(tempfilename)
 
-            # Upload the audio file as well if csv upload was successful
-            code = commlib.xferFileToController(self.animatronics.newAudio.audiofile,
-                dest=self.animatronics.audioUploadFile)
-            # Check return code
-            if code != 0:
-                # Bring up message box to tell user
-                msgBox = QMessageBox(parent=self)
-                msgBox.setText('Failed to upload audio file to controller.\n' +
-                        'Make sure you are not running thonny or rshell elsewhere.\n' +
-                        'May need to unplug and replug board USB connector and wait 30 seconds.')
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.setIcon(QMessageBox.Information)
-                ret = msgBox.exec_()
-                pass
+    def uploadAudio(self):
+        # Upload the audio file
+        localprogressdialog = self.newProgressBar('Uploading Audio')
+        code = commlib.xferFileToController(self.animatronics.newAudio.audiofile,
+            dest=self.animatronics.audioUploadFile, progressbar=localprogressdialog)
+        # Check return code
+        if code != 0:
+            # Cancel the progress dialog
+            localprogressdialog.cancel()
+            # Bring up message box to tell user
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Failed to upload audio file to controller.\n' +
+                    'Make sure you are not running thonny or rshell elsewhere.\n' +
+                    'May need to unplug and replug board USB connector and wait 30 seconds.')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Information)
+            ret = msgBox.exec_()
+            pass
 
     def handle_unsaved_changes(self):
         """
@@ -4641,6 +4655,10 @@ class MainWindow(QMainWindow):
         self._export_hw_action = QAction("&Upload to Controller",
                 self, triggered=self.uploadToHW)
         self._export_file_menu.addAction(self._export_hw_action)
+
+        self._export_audio_action = QAction("&Upload Audio",
+                self, triggered=self.uploadAudio)
+        self._export_file_menu.addAction(self._export_audio_action)
 
         # exit action
         self.file_menu.addSeparator()
