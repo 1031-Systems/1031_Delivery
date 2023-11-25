@@ -2033,29 +2033,32 @@ class ServoWidget(QDialog):
     def readServoData(inFilename):
         global ServoData
 
-        with open(inFilename, 'r') as infile:
-            # Read header line
-            testtext = infile.readline()
-            headers = testtext.rstrip().split(',')
-            try:
-                nameindex = headers.index('Name')
-            except:
-                sys.stderr.write('Whoops - Unable to read servo data file %s\n' % inFilename)
-                return
-
-            # Read the rest and build a dictionary for each and add to ServoData dictionary
-            testtext = infile.readline()
-            while len(testtext) > 0:
-                columns = testtext.rstrip().split(',')
-                tdict = {}
-                for i in range(len(columns)):
-                    if i != nameindex:
-                        value = float(columns[i])
-                    else:
-                        value = columns[i]
-                    tdict[headers[i]] = value
-                ServoData[columns[nameindex]] = tdict
+        try:
+            with open(inFilename, 'r') as infile:
+                # Read header line
                 testtext = infile.readline()
+                headers = testtext.rstrip().split(',')
+                try:
+                    nameindex = headers.index('Name')
+                except:
+                    sys.stderr.write('Whoops - Unable to read servo data file %s\n' % inFilename)
+                    return
+
+                # Read the rest and build a dictionary for each and add to ServoData dictionary
+                testtext = infile.readline()
+                while len(testtext) > 0:
+                    columns = testtext.rstrip().split(',')
+                    tdict = {}
+                    for i in range(len(columns)):
+                        if i != nameindex:
+                            value = float(columns[i])
+                        else:
+                            value = columns[i]
+                        tdict[headers[i]] = value
+                    ServoData[columns[nameindex]] = tdict
+                    testtext = infile.readline()
+        except:
+            sys.stderr.write('Whoops - Unable to open servo data file %s\n' % inFilename)
 
     @staticmethod
     def writeServoData(filename):
@@ -2870,6 +2873,10 @@ class MainWindow(QMainWindow):
         tlayout = QVBoxLayout(self._mainarea)
         tlayout.addWidget(self._playwidget)
 
+        # Create shortcut to play animation on controller
+        shortcut = QShortcut(QKeySequence("Ctrl+Shift+P"), self._mainarea)
+        shortcut.activated.connect(self._hardwareplay)
+
         self._plotarea = QWidget()
         tlayout.addWidget(self._plotarea)
 
@@ -3012,6 +3019,13 @@ class MainWindow(QMainWindow):
 
         self._playwidget.setRange(self.lastXmin, self.lastXmax)
         self.setSlider(self.lastXmin)
+
+    def _hardwareplay(self):
+        """
+        The method _hardwareplay uses commlib to signal the hardware to play
+        as though the onboard button was pressed once.
+        """
+        commlib.playOnce()
             
     def openAnimFile(self):
         """
@@ -5852,7 +5866,6 @@ def doAnimatronics():
     # on the command line
     infilename = None
     root = None
-    animation = Animatronics()
 
     # Parse arguments
     i = 1
@@ -5872,13 +5885,16 @@ def doAnimatronics():
         i += 1
 
     # Create the global main window
+    PreferencesWidget.readPreferences()
     app = QApplication(sys.argv)
     main_win = MainWindow()
-    PreferencesWidget.readPreferences()
     if 'ServoDataFile' in SystemPreferences:
         ServoWidget.readServoData(SystemPreferences['ServoDataFile'])
     if 'TTYPortRoot' in SystemPreferences:
         commlib.portRoot = SystemPreferences['TTYPortRoot']
+
+    # Start with empty animation by default but AFTER Preferences have been read
+    animation = Animatronics()
 
     # If an input file was specified, parse it or die trying
     if infilename is not None:

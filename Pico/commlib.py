@@ -93,6 +93,9 @@ def xferBinaryFileFromController(filename, dest='/'):
 def startMain():
     stringToPico('x\n')
 
+def playOnce():
+    stringToPico('a\n')
+
 ##### Control
 def angleToDutyCycle(angle, servotype=None):
     return 1500000  # FIXME - hardcoded to 90 deg for PG90

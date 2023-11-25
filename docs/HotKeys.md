@@ -14,6 +14,7 @@
 - Ctrl-N - Insert a New servo channel
 - Ctrl-O - Open animation file
 - Ctrl-P - Play/Pause Playback
+- Ctrl-Shift-P - Play on Hardware
 - Ctrl-Q - Quit
 - Ctrl-S - Save animation file
 - Ctrl-T - Add Tag at green bar
