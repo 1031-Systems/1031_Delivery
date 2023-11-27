@@ -120,15 +120,17 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
         # Toggle LED every second until button pressed
         if not continuous and not skip:
             while not button_pressed():
-                if helpers.isThereInput():
-                    code = helpers.handleInput()
-                    if code == 1: break
+                code = 0
                 led_onboard.toggle()
                 for i in range(100):
+                    if helpers.isThereInput():
+                        code = helpers.handleInput()
+                        if code == 1: break
                     utime.sleep_ms(10)
                     if button_pressed():
                         utime.sleep_ms(50)  # Debounce switch
                         if button_pressed(): break
+                if code == 1: break
 
             # Wait up to 5 seconds for button to be released
             led_onboard.on()
