@@ -16,6 +16,36 @@ import serial
 import binascii
 import time
 
+################# Channel Names ############################
+# The channel names are an aid to matching the channels numbers
+# to the pins on the controller.  This is useful if servos and
+# digital on/off devices are directly wired to the board but
+# maybe not as useful when 
+
+# Servo channels come first, then digital channels
+ChannelNames = [
+    'GP17',
+    'GP18',
+    'GP19',
+    'GP20',
+    'GP21',
+    'GP22',
+    'GP26',
+    'GP27',
+    'GP0',
+    'GP1',
+    'GP2',
+    'GP3',
+    'GP4',
+    'GP6',
+    'GP8',
+    'GP12',
+    'GP13',
+    'GP14',
+    'GP15',
+    'GP16',
+    ]
+
 ################# Serial Comm Code #########################
 portRoot = '/dev/ttyACM'    # Set by Animator prior to comms
 
@@ -108,7 +138,7 @@ def angleToDutyCycle(angle, servotype=None):
     
 def _setServoOnPico(channel, angle):
     # Send the value, appropriately formatted, to hardware controller
-    print('Sending to controller port %d value %d' % (self.port, value))
+    # print('Sending to controller port %d value %d' % (self.port, value))
     outstring = 's %d %d\n' % (self.port, value)
     stringToPico(outstring)
     return
@@ -136,12 +166,9 @@ def releaseServo(channel, angle):
 
 def setDigitalChannel(channel, value):
     # Call setDigitalOnPico or setDigitalVia74HC595
-    pass
-
-def setDigitalOnPico(channel, value):
-    pass
-
-def setDigitalVia74HC595(channel, value):
+    outstring = 'd %d %d\n' % (channel, value)
+    stringToPico(outstring)
+    return
     pass
 
 
