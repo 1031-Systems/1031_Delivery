@@ -206,6 +206,33 @@ class AmpingWidget(QDialog):
 
 
 #####################################################################
+class SetDigitalWidget(QDialog):
+
+    def __init__(self, parent=None, port=-1):
+        super().__init__(parent)
+
+        self.port = port
+
+        vbox = QVBoxLayout(self)
+
+        group = QButtonGroup(self)
+        self.onButton = QRadioButton('On', self)
+        group.addButton(self.onButton)
+        vbox.addWidget(self.onButton)
+        self.onButton.toggled.connect(self.update)
+        self.offButton = QRadioButton('Off', self)
+        group.addButton(self.offButton)
+        vbox.addWidget(self.offButton)
+        self.offButton.toggled.connect(self.update)
+
+    def update(self):
+        if self.port < 0: return
+        if self.onButton.isChecked():
+            commlib.setDigitalChannel(self.port, 1)
+        else:
+            commlib.setDigitalChannel(self.port, 0)
+
+#####################################################################
 class LimitWidget(QDialog):
 
     setMinSignal = pyqtSignal(str)
@@ -1583,29 +1610,38 @@ class ChannelMetadataWidget(QDialog):
 
         self._portedit = QComboBox()
         if self._channel.type != Channel.DIGITAL:
+            self.offset = 0
             chancount = SystemPreferences['MaxServoChannels']
             for i in range(chancount):
-                self._portedit.addItem(str(i))
+                text = str(i)
+                if i < len(commlib.ChannelNames):
+                    text += ' - ' + commlib.ChannelNames[i]
+                self._portedit.addItem(text)
         else:
+            self.offset = SystemPreferences['MaxServoChannels']
             chancount = SystemPreferences['MaxDigitalChannels']
             for i in range(chancount):
-                self._portedit.addItem(str(i + SystemPreferences['MaxServoChannels']))
+                text = str(i + SystemPreferences['MaxServoChannels'])
+                if i + SystemPreferences['MaxServoChannels'] < len(commlib.ChannelNames):
+                   text += ' - ' + commlib.ChannelNames[i + SystemPreferences['MaxServoChannels']]
+                self._portedit.addItem(text)
 
         self._portedit.addItem('Unassigned')
         self._portedit.setCurrentText('Unassigned')
         if self._channel is not None:
             if self._channel.port >= 0:
-                self._portedit.setCurrentText(str(self._channel.port))
+                self._portedit.setCurrentIndex(self._channel.port - self.offset)
         layout.addRow(QLabel('Channel:'), self._portedit)
 
-        if self._channel is not None and self._channel.type != Channel.DIGITAL:
-            self._maxedit = QLineEdit()
-            layout.addRow(QLabel('Max:'), self._maxedit)
-            self._minedit = QLineEdit()
-            layout.addRow(QLabel('Min:'), self._minedit)
-            if self._channel.minLimit > -1.0e33 or self._channel.maxLimit < 1.0e33:
-                self._minedit.setText(str(self._channel.minLimit))
-                self._maxedit.setText(str(self._channel.maxLimit))
+        if self._channel is not None:
+            if self._channel.type != Channel.DIGITAL:
+                self._maxedit = QLineEdit()
+                layout.addRow(QLabel('Max:'), self._maxedit)
+                self._minedit = QLineEdit()
+                layout.addRow(QLabel('Min:'), self._minedit)
+                if self._channel.minLimit > -1.0e33 or self._channel.maxLimit < 1.0e33:
+                    self._minedit.setText(str(self._channel.minLimit))
+                    self._maxedit.setText(str(self._channel.maxLimit))
             interactive = QPushButton('Interactive')
             interactive.clicked.connect(self.doInteractive)
             layout.addWidget(interactive)
@@ -1633,11 +1669,15 @@ class ChannelMetadataWidget(QDialog):
     def doInteractive(self):
         port = -1
         if self._portedit.currentText() != 'Unassigned':
-            port = int(self._portedit.currentText())
-        widget = LimitWidget(self, minimum=float(self._minedit.text()), maximum=float(self._maxedit.text()), port = port)
-        widget.setMinSignal.connect(self.setMin)
-        widget.setMaxSignal.connect(self.setMax)
-        widget.show()
+            port = int(self._portedit.currentIndex() + self.offset)
+            if self._channel.type != Channel.DIGITAL:
+                widget = LimitWidget(self, minimum=float(self._minedit.text()), maximum=float(self._maxedit.text()), port = port)
+                widget.setMinSignal.connect(self.setMin)
+                widget.setMaxSignal.connect(self.setMax)
+            else:
+                widget = SetDigitalWidget(self, port = port)
+            widget.setWindowTitle(str(port))
+            widget.show()
 
     def setMax(self, value):
         self._maxedit.setText(value)
