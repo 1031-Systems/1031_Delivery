@@ -264,6 +264,15 @@ def handleInput():
         utime.sleep_ms(2000)
         # Restart everything
         machine.reset()
+    elif inline[0] == 'd':
+        # Set an individual digital port
+        try:
+            vals = inline.split()
+            channel = int(vals[1]) - MaxTotalServos # Move down
+            value = int(vals[2])
+            setDigital(channel, value, show=True)
+        except:
+            pass
     elif inline[0] == 's':
         # Set an individual servo
         try:
