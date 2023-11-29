@@ -25,7 +25,11 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 # Import commlib for my board
-import commlib
+try:
+    import commlib
+    COMMLIB_ENABLED = True
+except:
+    COMMLIB_ENABLED = False
 
 usedPyQt = None
 
@@ -226,7 +230,7 @@ class SetDigitalWidget(QDialog):
         self.offButton.toggled.connect(self.update)
 
     def update(self):
-        if self.port < 0: return
+        if self.port < 0 or not COMMLIB_ENABLED: return
         if self.onButton.isChecked():
             commlib.setDigitalChannel(self.port, 1)
         else:
@@ -295,7 +299,7 @@ class LimitWidget(QDialog):
 
     def valueIs(self, value):
         self.display.setText('%d' % value)
-        if self.liveCheck.isChecked() and self.port >= 0:
+        if self.liveCheck.isChecked() and self.port >= 0 and COMMLIB_ENABLED:
             # Send the value, appropriately formatted, to hardware controller
             print('Sending to controller port %d value %d' % (self.port, value))
             code = commlib.setServo(self.port, value)
@@ -1614,7 +1618,7 @@ class ChannelMetadataWidget(QDialog):
             chancount = SystemPreferences['MaxServoChannels']
             for i in range(chancount):
                 text = str(i)
-                if i < len(commlib.ChannelNames):
+                if COMMLIB_ENABLED and i < len(commlib.ChannelNames):
                     text += ' - ' + commlib.ChannelNames[i]
                 self._portedit.addItem(text)
         else:
@@ -1622,7 +1626,7 @@ class ChannelMetadataWidget(QDialog):
             chancount = SystemPreferences['MaxDigitalChannels']
             for i in range(chancount):
                 text = str(i + SystemPreferences['MaxServoChannels'])
-                if i + SystemPreferences['MaxServoChannels'] < len(commlib.ChannelNames):
+                if COMMLIB_ENABLED and i + SystemPreferences['MaxServoChannels'] < len(commlib.ChannelNames):
                    text += ' - ' + commlib.ChannelNames[i + SystemPreferences['MaxServoChannels']]
                 self._portedit.addItem(text)
 
@@ -3065,7 +3069,7 @@ class MainWindow(QMainWindow):
         The method _hardwareplay uses commlib to signal the hardware to play
         as though the onboard button was pressed once.
         """
-        commlib.playOnce()
+        if COMMLIB_ENABLED: commlib.playOnce()
             
     def openAnimFile(self):
         """
@@ -3334,8 +3338,11 @@ class MainWindow(QMainWindow):
 
         # Upload with commlib
         localprogressdialog = self.newProgressBar('Uploading Controls')
-        code = commlib.xferFileToController(tempfilename, dest=self.animatronics.csvUploadFile,
+        if COMMLIB_ENABLED: 
+            code = commlib.xferFileToController(tempfilename, dest=self.animatronics.csvUploadFile,
                 progressbar=localprogressdialog)
+        else:
+            code = 1
 
         # Check return code
         if code != 0:
@@ -3343,7 +3350,10 @@ class MainWindow(QMainWindow):
             localprogressdialog.cancel()
             # Bring up message box to tell user
             msgBox = QMessageBox(parent=self)
-            msgBox.setText('Failed to upload CSV file to controller.\n' +
+            if not COMMLIB_ENABLED:
+                msgBox.setText('Unable to upload data to controller without commlib\n')
+            else:
+                msgBox.setText('Failed to upload CSV file to controller.\n' +
                     'Make sure you are not running thonny or rshell elsewhere.\n' +
                     'May need to unplug and replug board USB connector and wait 30 seconds.')
             msgBox.setStandardButtons(QMessageBox.Ok)
@@ -3357,15 +3367,21 @@ class MainWindow(QMainWindow):
     def uploadAudio(self):
         # Upload the audio file
         localprogressdialog = self.newProgressBar('Uploading Audio')
-        code = commlib.xferFileToController(self.animatronics.newAudio.audiofile,
-            dest=self.animatronics.audioUploadFile, progressbar=localprogressdialog)
+        if COMMLIB_ENABLED:
+            code = commlib.xferFileToController(self.animatronics.newAudio.audiofile,
+                dest=self.animatronics.audioUploadFile, progressbar=localprogressdialog)
+        else:
+            code = 1
         # Check return code
         if code != 0:
             # Cancel the progress dialog
             localprogressdialog.cancel()
             # Bring up message box to tell user
             msgBox = QMessageBox(parent=self)
-            msgBox.setText('Failed to upload audio file to controller.\n' +
+            if not COMMLIB_ENABLED:
+                msgBox.setText('Unable to upload audio to controller without commlib\n')
+            else:
+                msgBox.setText('Failed to upload audio file to controller.\n' +
                     'Make sure you are not running thonny or rshell elsewhere.\n' +
                     'May need to unplug and replug board USB connector and wait 30 seconds.')
             msgBox.setStandardButtons(QMessageBox.Ok)
@@ -5930,7 +5946,7 @@ def doAnimatronics():
     main_win = MainWindow()
     if 'ServoDataFile' in SystemPreferences:
         ServoWidget.readServoData(SystemPreferences['ServoDataFile'])
-    if 'TTYPortRoot' in SystemPreferences:
+    if 'TTYPortRoot' in SystemPreferences and COMMLIB_ENABLED:
         commlib.portRoot = SystemPreferences['TTYPortRoot']
 
     # Start with empty animation by default but AFTER Preferences have been read
