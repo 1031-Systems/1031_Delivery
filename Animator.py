@@ -1782,7 +1782,7 @@ class ChannelMetadataWidget(QDialog):
             if tstring == 'Unassigned':
                 self._channel.port = -1
             else:
-                self._channel.port = int(tstring)
+                self._channel.port = int(tstring.split()[0])
 
         if self._channel.type != Channel.DIGITAL:
             tstring = self._minedit.text()
