@@ -108,9 +108,9 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
     helpers.releaseAllServos()  # All servos relaxed
 
     # Don't bother with anything if list of animations is empty
-    if len(animList) == 0: return
     playIndex = 0
-    if randomize: playIndex = random.randint(0, len(animList)-1)
+    if len(animList) > 0:
+        if randomize: playIndex = random.randint(0, len(animList)-1)
     if verbose: print(animList)
 
     # if skip is True then immediately begin execution
@@ -151,10 +151,11 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
                     if not button_pressed(): break
             continuous = True
 
-        # Get next animation to play
-        if verbose: print('Print playing animation:', playIndex,'named:',animList[playIndex][0])
-        # Play it
-        play_one_anim(animList[playIndex][0], animList[playIndex][1], led_onboard)
+        if playIndex < len(animList):
+            # Get next animation to play
+            if verbose: print('Print playing animation:', playIndex,'named:',animList[playIndex][0])
+            # Play it
+            play_one_anim(animList[playIndex][0], animList[playIndex][1], led_onboard)
 
         # Revert to normal operations
         skip = False
@@ -174,10 +175,11 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
                     utime.sleep_ms(50)    # Debounce switch
                     if not button_pressed(): break
 
-        # Go to next anim in list
-        playIndex += 1
-        if playIndex >= len(animList): playIndex = 0
-        if randomize: playIndex = random.randint(0, len(animList)-1)
+        if len(animList) > 0:
+            # Go to next anim in list
+            playIndex += 1
+            if playIndex >= len(animList): playIndex = 0
+            if randomize: playIndex = random.randint(0, len(animList)-1)
 
         if(verbose): print('At end of loop')
 
