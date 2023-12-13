@@ -276,7 +276,7 @@ class LimitWidget(QDialog):
         # Create the checkbox for live control of servo
         self.liveCheck = QCheckBox('Live')
         self.liveCheck.setChecked(False)
-        if self.port < 0: self.liveCheck.setEnabled(False)
+        self.liveCheck.setEnabled(COMMLIB_ENABLED and self.port >= 0)
         self.liveCheck.stateChanged.connect(self.fixFocus)
         vbox.addWidget(self.liveCheck)
 
