@@ -1862,6 +1862,7 @@ class MetadataWidget(QDialog):
         layout.addRow(QLabel('End Time:'), self._endedit)
         self._rateedit = QLineEdit(str(self._animatronics.sample_rate))
         layout.addRow(QLabel('Sample Rate (Hz):'), self._rateedit)
+        self._audioedit = None
         if self._animatronics.newAudio is not None:
             self._audioedit = QLineEdit(str(self._animatronics.newAudio.audiostart))
             layout.addRow(QLabel('Audio Start Time:'), self._audioedit)
@@ -1912,9 +1913,10 @@ class MetadataWidget(QDialog):
         tstring = self._rateedit.text()
         if len(tstring) > 0:
             self._animatronics.sample_rate = float(tstring)
-        tstring = self._audioedit.text()
-        if len(tstring) > 0:
-            self._animatronics.newAudio.audiostart = float(tstring)
+        if self._audioedit is not None:
+            tstring = self._audioedit.text()
+            if len(tstring) > 0:
+                self._animatronics.newAudio.audiostart = float(tstring)
         self._animatronics.csvUploadFile = self._csvuploadedit.text()
         self._animatronics.audioUploadFile = self._audiouploadedit.text()
         self.accept()
@@ -3935,7 +3937,7 @@ class MainWindow(QMainWindow):
     def scaletoaudio_action(self):
         """
         The method scaletoaudio_action resets the visible time range to 
-        match the length of the audio data, even of come channels contain
+        match the length of the audio data, even of some channels contain
         data points outside that range.
 
             member of class: MainWindow
@@ -3947,6 +3949,23 @@ class MainWindow(QMainWindow):
         """ Perform scaletoaudio action"""
         # Reset all horizontal scales to audio range but not vertical scales to local Y ranges
         self.setTimeRange(self.audioMin, self.audioMax)
+        pass
+
+    def scaletotimerange_action(self):
+        """
+        The method scaletotimerange_action resets the visible time range to 
+        match the length of the time range data, even of some channels contain
+        data points outside that range.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
+        """ Perform scaletotimerange action"""
+        # Reset all horizontal scales to time range but not vertical scales to local Y ranges
+        self.setTimeRange(self.animatronics.start, self.animatronics.end)
         pass
 
     def showall_action(self):
@@ -4793,6 +4812,11 @@ class MainWindow(QMainWindow):
         self._scaletoaudio_action = QAction("Fit to Audio", self,
             triggered=self.scaletoaudio_action)
         self.view_menu.addAction(self._scaletoaudio_action)
+
+        # scaletotimerange menu item
+        self._scaletotimerange_action = QAction("Fit to Time Range", self,
+            triggered=self.scaletotimerange_action)
+        self.view_menu.addAction(self._scaletotimerange_action)
 
         self.view_menu.addSeparator()
 
