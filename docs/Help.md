@@ -14,14 +14,14 @@ listening to an audio track and then creating and editing control channels
 for individual mechanisms in sync with the audio.  Control values are then
 output to the hardware controller to operate the mechanisms.
 
-+ x. [Process](#process)
-+ x. [Overview](#overview)
-+ x. [Menus](#menus)
-+ x. [Audio Tracks](#audio-tracks)
-+ x. [Channel Panes](#channel-panes)
-+ x. [Specialized Tools](#specialized-tools)
-+ x. [Requirements](#requirements)
-+ x. [Known Issues and Bugs](#bugs)
++ A. [Process](#process)
++ B. [Overview](#overview)
++ C. [Menus](#menus)
++ D. [Audio Tracks](#audio-tracks)
++ E. [Channel Panes](#channel-panes)
++ F. [Specialized Tools](#specialized-tools)
++ G. [Requirements](#requirements)
++ H. [Known Issues and Bugs](#bugs)
 
 <a name="process">
 &nbsp;
@@ -104,8 +104,16 @@ information to a hardware controller.  This may be done by exporting a CSV file 
 contains values for all the channels at a specific timestep (typically 20msec or 50Hz
 for PWM servo control).  This file is transferred to the controller via flash drive
 or other method and the controller processes it.  The user may also send similar data
-directly to the controller a line at a time at the same 50Hz rate. See details on
-driving the hardware [here](#drivers).
+directly to the controller a line at a time at the same 50Hz rate.
+
+Animator is intended to be agnostic to the specific hardware controller the user
+chooses.  It has been tested with a Raspberry Pi Pico and a Pico clone running
+MicroPython but not with any other devices.  Details of how Animator communicates with
+the controller is bundled within a commlib.py file specific to the controller and
+compatible with the python code running on the controller.  For users with other
+types of controllers, they can use the Pico-specific examples included with Animator
+to customize the interface for other systems.  Information on all that may be found
+elsewhere.
 
 <a name="menus">
 &nbsp;
@@ -117,7 +125,7 @@ Animator has a number of dropdown menus available on the menubar at the top
 of the Animator main window or at the top of the screen in MacOS.  They are:
 
 1. [File](#file) - to save and load your work
-2. [Edit](#edit) - to add and delete channels or edit metadata
+2. [Edit](#editmenu) - to add and delete channels or edit metadata
 3. [View](#view) - to fit data to the screen or hide channels currently unneeded
 4. [Channels](#channels) - to select, copy, and paste channels
 5. [Tags](#tags) - for Tag-related activities
@@ -149,7 +157,7 @@ deleted.  The Export to CSV option will write a file for the user to peruse that
 should be identical to the one uploaded.  The CSV file is sampled at the rate
 specified in the Preferences, generally 50Hz.
 
-<a name="edit">
+<a name="editmenu">
 &nbsp;
 </a>
 
@@ -176,7 +184,7 @@ Each animation comes with some simple metadata that includes the start time (usu
 the end time (usually unspecified), and the sample rate (usually 50Hz).  Usually, the
 animation playback will begin at time 0, which is when the audio will begin to play.
 The metadata can be used to change some behaviors but has not been well-tested so
-caveat emptor.
+caveat emptor.  This is discussed in more detail [here](#timeranges).
 
 The Preferences specify general information that Animator uses.  Some if this is related
 to the hardware being controlled, some controls display functionality, and some relates
@@ -208,6 +216,7 @@ is designed to aid in this process.  The View menu contains the following option
 
 + Fit to All Data - Fit all audio and channel data to the current window width.  This essentially undoes all zooming.
 + Fit to Audio - Fit the audio to the current window width, hiding any part of the channel data outside the timespan of the audio.
++ Fit to Time Range - Fit the full time range specified in the animation metadata to the window.
 + Show All Channels - Make all channels visible within the window.  This may make the channel panes microscopically small.
 + Select Viewed Channels - Brings up a selection widget for selecting channels to be visible or hidden.
 + Show Audio - Controls the display of audio channels.
@@ -236,6 +245,33 @@ A third method is supported by tags within the animation.  Clicking the left mou
 button on a tag within the tag pane while holding down the Ctrl key will zoom the
 display to the duration of the tag.  See the [Tag Menu](#tags) for more details
 on the use of tags.
+
+<a name="timeranges">
+&nbsp;
+</a>
+
+A note on time ranges might be appropriate here.  The time range for an animation comes from
+any of several sources and is closely coupled with the hardware controller and its embedded
+software.  Generally, the controller will play an animation until both its audio tracks and
+its control file have completed playing.  If there are seven seconds of audio and ten
+seconds of animation control, it will play for ten seconds.  If there are seven seconds of
+audion and five seonds of animation control, it will play for seven seconds.  Thus, the
+playback duration is set by the longer of the audio or the CSV file containing the control
+values.
+
+Time range within Animator generally refers to the length of the control data in the CSV
+file that Animator will export to the controller.  If the user does nothing special, this
+will be from time 0.0 to the time of the last control point in any of the control channels.
+Each animation starts at time 0.0 in all cases.  The user cannot override the start time for
+the animation.  However, the user may override the end time.  In the metadata for the animation,
+there is an editable field containing the End Time for the animation and the user may set this
+as desired to any value greater than 0.0.  Once the user does this, Animator will output a
+CSV control file beginning at time 0.0 and going to the end time set by the user regardless
+of the range of the control data.  The "Fit to Time Range" menu item will fit the specified
+time range to the current window.  The animation metadata is accessed from the [Edit menu](#editmenu).
+
+The user may undo setting the end time via the standard ctrl-Z mechanism or, if too late for
+that, by entering a negative number for the end time and saving the metadata.
 
 <a name="channels">
 &nbsp;
@@ -356,8 +392,54 @@ The channel panes contain plots of the data used to control each channel of the 
 generally either control servos or digital, on/off signals although there is some support for more general
 numeric controls.  Each pane displays the data points, interpolating curves between the data points,
 specified limits, and the current playback time.  The data points are enclosed in small squares to allow
-the user to easily select them and also identify their position.  Generally, the data points may be edited
+the user to easily select them and also identify their position.  Generally, the data points may be inserted
+by shift-left-click within the pane and then dragging to the desired position.  Shift-left-click on an
+existing point deletes it.  Existing points may be edited
 by left-clicking within the square and then dragging the point to its desired position.
+
+Servo/numeric channel panes display red bars to indicate the minimum and maximum allowed values for a 
+control point.  Attempting to place a point outside the range will place it at the nearest limit.  Digital
+channels are always ranged from 0 to 1 so the limits are not explicitly displayed.  Shift-left-clicking
+in a digital channel pane will place the point at the nearest limit, either 0 or 1.
+
+The displayed vertical range of the channel pane can be adjusted by rotating the mouse wheel with the
+cursor within the pane.
+
+The right mouse button brings up a submenu for working with the specific channel.  This submenu contains
+the following entries:
+
++ Metadata - Brings up a secondary dialog for editing all the metadata for the channel except the channel name.
++ Invert - Inverts (flips vertically) the channel points, useful for two servos operating the same joint but mirrored.
++ Randomize - Fill the channel with randomly generated values at a specified sample rate.
++ Rescale - Fit the upper and lower data limits to the displayed pane.
++ Hide - Remove the pane from the display.  It can be redisplayed via the [View menu](#view).
++ Delete - Delete this channel from the animation.  Confirmation is requested and can be Undone.
+
+### Metadata
+
+The channel metadata is additional information used for properly controlling the hardware driven by that
+channel and for aiding the user in interacting with the channel and associated hardware.  The metadata
+includes a name for the channel (which must be unique) and a port number that the controller software
+associates with a pin or bit or something to drive the correct hardware.  In addition, the servo channels
+also contain a servo type, an interpolation type, and upper and lower limits.  The interpolation type
+may be Linear, Spline, or Step.  Linear indicates that the channel values driving the animation will
+follow straight lines from one control point to the next.  Spline causes the control points to be more
+smoothly interpolated.  Step causes the control value to step up or down instantly to the new value.
+Note that Step may not be usable for servos.
+
+The limits on a servo channel are initialized to what the type of servo, if specified, can handle.  If the
+user clicks on the Servo selector, a list of known servo types will appear.  If the user selects one, the
+upper and lower limits are set to the maximum limits for that type of servo.  Note that the Preferences
+also come into play in a manner that is hardware-specific and discussed elsewhere.
+
+Often, the actual animatronic figure may have a reduced range of motion and the limits should be adjusted
+to prevent the user from overdriving the servo.  Animator provides a live, interactive control paradigm
+for a servo or digital channel.  Clicking the Interactive button brings up another widget customized either
+for controlling a digital channel or a servo.  For a digital channel, the widget supports turning the
+channel on or off for testing.  For a servo, the widget supports a slider that may be used to set the 
+servo interactively if the Live toggle is set.  The user may click the Page Up and Page Down keyboard
+buttons to jump or the Up and Down Arrow keys to single step up and down to set the servo to a desired
+limit and then the Max or Min button can be clicked to set that limit to the current servo value.
 
 <a name="specialized-tools">
 &nbsp;
