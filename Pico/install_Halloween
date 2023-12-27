@@ -6,12 +6,11 @@ rshell cp Halloween_helpers.py /pyboard/lib/helpers.py
 rshell cp servo.py /pyboard/lib
 rshell cp wave.py /pyboard/lib
 rshell cp main.py /pyboard
+rshell cp memstats.py /pyboard/lib
 rshell mkdir /pyboard/anims
 
 echo ''
 echo ''
 
 # Check on the results
-rshell ls /pyboard
-rshell ls /pyboard/lib
-rshell ls /pyboard/anims
+rshell repl '~ import memstats ~'
