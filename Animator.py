@@ -778,12 +778,12 @@ class ChannelMenu(QMenu):
         self.setFont(smallfont)
 
         # metadata menu item
-        self._metadata_action = QAction("metadata", self,
+        self._metadata_action = QAction("Metadata", self,
             triggered=self.metadata_action)
         self.addAction(self._metadata_action)
 
         # invert menu item
-        self._invert_action = QAction("invert", self,
+        self._invert_action = QAction("Invert", self,
             triggered=self.invert_action)
         self.addAction(self._invert_action)
 
@@ -1682,6 +1682,13 @@ class ChannelMetadataWidget(QDialog):
                 widget = SetDigitalWidget(self, port = port)
             widget.setWindowTitle(str(port))
             widget.show()
+        else:
+            # Unable to do interactive control without a port number
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Channel must be set to support interactive control')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
 
     def setMax(self, value):
         self._maxedit.setText(value)
@@ -4935,7 +4942,7 @@ class MainWindow(QMainWindow):
         self.tag_menu.addAction(self._importScript_action)
 
         # togglePane menu item
-        self._togglePane_action = QAction("Ttoggle Tag Pane", self,
+        self._togglePane_action = QAction("Toggle Tag Pane", self,
             shortcut="T",
             triggered=self.togglePane_action)
         self.tag_menu.addAction(self._togglePane_action)
