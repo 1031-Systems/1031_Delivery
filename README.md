@@ -97,13 +97,23 @@ clone for your animatronics controller.  This comes in two flavors:
 Halloween and Christmas.  The Halloween version uses a Pico clone
 with a 16MB flash memory to hold one to five animations of about
 thirty seconds in length each.  These are expected to run when a lucky
-trick-or-treater approaches your house.
+trick-or-treater approaches your house.  In order to use the 16MB of
+flash available in the clone, firmware must be loaded that supports
+the 16MB.  Several versions seem to be available but the only one
+that worked with our test clone was the WEACT v1.21.0 one at:
+
+[https://micropython.org/download/WEACTSTUDIO/](https://micropython.org/download/WEACTSTUDIO/)
+
+Feel free to try others with your clone.
 
 The Christmas version can use a regular Pico with only 2MB of flash
 or a clone and uses an external SD card to store the audio and
 animation data.  This version is expected to run multiple hours of
 animations, audio, flashing lights, etc. so the external memory is
-required.
+required.  Either the clone or the actual Pico can work with the
+standard 2MB firmware v1.21.0 available at:
+
+[https://micropython.org/download/RPI_PICO/](https://micropython.org/download/RPI_PICO/)
 
 The interfaces to the servos and digital controls are different
 for the two versions so the helper libraries are specific to each.
