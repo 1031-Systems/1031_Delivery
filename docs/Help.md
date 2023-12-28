@@ -54,7 +54,7 @@ and control channel displays called panes.  When the user loads an audio file in
 it is displayed using one pane for mono or two panes for left and right stereo.  It is not
 necessary for there to be an audio file in use and none will be displayed in that case.
 
-![Image of User Interface](docs/image1.png)
+![Image of User Interface](images/image1.png)
 
 The Animator User Interface
 
