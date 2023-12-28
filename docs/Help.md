@@ -103,8 +103,7 @@ Once the user has completed some or all of the channels, they may output the con
 information to a hardware controller.  This may be done by exporting a CSV file that
 contains values for all the channels at a specific timestep (typically 20msec or 50Hz
 for PWM servo control).  This file is transferred to the controller via flash drive
-or other method and the controller processes it.  The user may also send similar data
-directly to the controller a line at a time at the same 50Hz rate.
+or other method and the controller processes it.
 
 Animator is intended to be agnostic to the specific hardware controller the user
 chooses.  It has been tested with a Raspberry Pi Pico and a Pico clone running
@@ -137,6 +136,8 @@ of the Animator main window or at the top of the screen in MacOS.  They are:
 
 ### File Menu
 
+![File Menu](images/filemenu.png)
+
 The File menu contains the following options:
 
 + New Animation - Discard current animation and start from scratch
@@ -163,6 +164,8 @@ specified in the Preferences, generally 50Hz.
 
 ### Edit Menu
 
+![Edit Menu](images/editmenu.png)
+
 The Edit menu contains the following options:
 
 + Undo - Undo the last editing action
@@ -179,6 +182,8 @@ Each entry specifies the range of motion of that type of servo and its duty cycl
 information is used to limit the control outputs appropriately.  New servo types may be
 added to this list (and automagically stored) as desired and existing servos may have
 their data changed.
+
+![Animation Metadata Popup](images/animmetadata.png)
 
 Each animation comes with some simple metadata that includes the start time (usually 0.0),
 the end time (usually unspecified), and the sample rate (usually 50Hz).  Usually, the
@@ -208,6 +213,8 @@ to files and communication.  The individual preferences are:
 </a>
 
 ### View Menu
+
+![View Menu](images/viewmenu.png)
 
 Animator is designed to support a large number of digital and servo channels over a long
 range of time.  Typically, however, the user will work on a small number of channels
@@ -279,6 +286,8 @@ that, by entering a negative number for the end time and saving the metadata.
 
 ### Channels Menu
 
+![Channels Menu](images/channelmenu.png)
+
 The Channels menu is used for operations on channels.  The options are:
 
 + Select All - Select all channels
@@ -313,6 +322,8 @@ possible to select and then delete a channel that is hidden.  Of course the dele
 </a>
 
 ### Tags Menu
+
+![Tags Menu](images/tagmenu.png)
 
 Tags are text labels for key points in the animation.  They may be simple strings like "A", "B", "C",
 or more descriptive, or represent the dialogue in the audio.  There are multiple ways to add tags to
@@ -405,6 +416,8 @@ in a digital channel pane will place the point at the nearest limit, either 0 or
 The displayed vertical range of the channel pane can be adjusted by rotating the mouse wheel with the
 cursor within the pane.
 
+![Channel Pane Menu](images/channelpopup.png)
+
 The right mouse button brings up a submenu for working with the specific channel.  This submenu contains
 the following entries:
 
@@ -416,6 +429,8 @@ the following entries:
 + Delete - Delete this channel from the animation.  Confirmation is requested and can be Undone.
 
 ### Metadata
+
+![Channel Metadata Menu](images/channelmetadata.png)
 
 The channel metadata is additional information used for properly controlling the hardware driven by that
 channel and for aiding the user in interacting with the channel and associated hardware.  The metadata
