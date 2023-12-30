@@ -5,6 +5,8 @@
 
 # Animator QuickStart
 
+![Animator Main Window](docs/images/allpanes.png)
+
 Animator is a tool for creating servo, digital, and other control
 channels to synchronize animatronic movements to each other and to
 an optional audio soundtrack.  The general strategy is to load the

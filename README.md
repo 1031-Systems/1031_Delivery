@@ -14,9 +14,15 @@ The channels may act as step functions, linear paths, and
 smoothed or spline paths.  Each channel is linked to a single
 control on a controller.
 
+![Animator Main Window](docs/images/allpanes.png)
+
 ***
 
 ## Installation
+
+The currently available version is 1.0.0(b).  It is totally beta.
+Seems to work for me but I know the ins and outs.  Previous 
+versions may someday be available.
 
 In general, you will need to clone this repo to your local host.
 Then, create a virtual environment for the code using venv and

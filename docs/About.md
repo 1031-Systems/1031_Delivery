@@ -3,8 +3,10 @@
 
 A GUI for building controls for animatronics and lighting displays.
 
-0.1.1(a)
+1.0.0(b)
 
-Copyright 2023 John R. Wright, William Douglas
+![Animator Main Window](images/smallpanes.png)
+
+Copyright 2023 John R. Wright, William R. Douglas
 
 
