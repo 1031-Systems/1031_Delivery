@@ -5,7 +5,7 @@
 
 # Help for Animator.py
 
-1.0.0(a)
+1.0.0(b)
 
 Animator.py, as you might surmise, is a Python program.  Its general purpose
 is to synchronize control signals for animatronics and lighting to each other
@@ -103,7 +103,8 @@ Once the user has completed some or all of the channels, they may output the con
 information to a hardware controller.  This may be done by exporting a CSV file that
 contains values for all the channels at a specific timestep (typically 20msec or 50Hz
 for PWM servo control).  This file is transferred to the controller via flash drive
-or other method and the controller processes it.
+or other method and the controller processes it.  Note that channels that do not have
+assigned port numbers will not be written to the CSV file.
 
 Animator is intended to be agnostic to the specific hardware controller the user
 chooses.  It has been tested with a Raspberry Pi Pico and a Pico clone running
@@ -461,6 +462,35 @@ limit and then the Max or Min button can be clicked to set that limit to the cur
 </a>
 
 ## Specialized Tools
+
+A few specialized tools for aiding in the generation of control channels have been implemented
+within Animator, as well as some still on the drawing board.  Implemented tools, generally
+introduced elsewhere in this document, include random and amplitude-based control point
+generation and inversion of control channels while planned tools include text-to-phoneme-to-control
+point tools.
+
+Random control points may be useful for motions that are not particularly coupled to the
+audio such as moving the head/gaze around.  For motions that are coupled to the amplitude of
+the audio, such as how far the mouth is open, the Amplitudize tool may be used to generate
+points that are proportional the audio amplitude (note that the audio amplitude may be directly
+visualized in the audio pane via the View->Audio Amplitude option).  Both random and amplitude
+modes accept a start and end time, defaulting to the currently displayed range, and a sampling
+rate and populate the channel(s) accordingly.  Note that Randomize applies to the channel pane
+corresponding to the channel menu popup so only a single pane is affected.  Amplitudinize is
+applied to all selected panes.  Behavior in Digital channels is reasonable in that either a
+series of random transitions are generated (some may not actually change the state) or the
+channel is on when the audio amplitude is above average and off when below average.
+
+Sometimes, multiple servos may be required to move part of the animatronics.  For example,
+a jaw may be hinged on both sides of the skull and a servo may be attached to each side.  In
+such a case, the servos may be mounted in a mirror image configuration.  To simplify using
+this configuration, the Invert tool may be used.  Create a channel for one servo, then copy
+it to a new channel and use the Invert tool in the channel popup menu to invert it.  Then the
+two servos will work in unison with each moving opposite of the other.
+
+Eventually, I would like to make phoneme-based tools available to truly assist in syncing
+voices to animatronic behavior.  The tags are intended to be an early supporting capability
+for the implementation.  However, it is not there yet.
 
 <a name="requirements">
 &nbsp;

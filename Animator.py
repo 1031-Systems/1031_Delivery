@@ -4228,7 +4228,7 @@ class MainWindow(QMainWindow):
         self : MainWindow
         """
         self.helpPane.setSource('docs/About.md')
-        self.helpPane.resize(500, 180)
+        self.helpPane.resize(500, 380)
         self.helpPane.setWindowTitle('About Animator')
         self.helpPane.show()
 
