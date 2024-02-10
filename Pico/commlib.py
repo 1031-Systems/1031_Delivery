@@ -25,13 +25,13 @@ import time
 # Servo channels come first, then digital channels
 ChannelNames = [
     'GP17',
-    'GP18',
     'GP19',
+    'GP18',
     'GP20',
-    'GP21',
     'GP22',
-    'GP26',
+    'GP21',
     'GP27',
+    'GP26',
     'GP0',
     'GP1',
     'GP2',

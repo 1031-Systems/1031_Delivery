@@ -15,13 +15,13 @@ MaxTotalServos = 8     # Sync this number in Animator Preferences
 
 servoPWMs = [
     PWM(Pin(17, Pin.OUT)),
-    PWM(Pin(18, Pin.OUT)),
     PWM(Pin(19, Pin.OUT)),
+    PWM(Pin(18, Pin.OUT)),
     PWM(Pin(20, Pin.OUT)),
-    PWM(Pin(21, Pin.OUT)),
     PWM(Pin(22, Pin.OUT)),
-    PWM(Pin(26, Pin.OUT)),
+    PWM(Pin(21, Pin.OUT)),
     PWM(Pin(27, Pin.OUT)),
+    PWM(Pin(26, Pin.OUT)),
     ]
 
 def setServo(index=-1, cycletime=0):

@@ -12,7 +12,7 @@ import helpers
 verbose=False
 
 def button_pressed():
-    button = machine.Pin(7, machine.Pin.IN, machine.Pin.PULL_UP)
+    button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
     return not button.value()
 
 def isfile(testfile):
@@ -112,6 +112,11 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
     if len(animList) > 0:
         if randomize: playIndex = random.randint(0, len(animList)-1)
     if verbose: print(animList)
+
+    # Swallow strange initially pressed state
+    while button_pressed():
+        utime.sleep_ms(1000)
+        button_pressed()
 
     # if skip is True then immediately begin execution
     # if continuous is True then execute continuously until interrupted
