@@ -260,7 +260,7 @@ def mountSDCard(mountpoint='/sd'):
 
     # Initialize SPI peripheral (start with 1 MHz)
     spi = machine.SPI(0,
-                      baudrate=10000000,
+                      baudrate=4000000,
                       polarity=0,
                       phase=0,
                       bits=8,
@@ -271,6 +271,9 @@ def mountSDCard(mountpoint='/sd'):
 
     # Initialize SD card
     sd = sdcard.SDCard(spi, cs)
+
+    # Set the speed to fast enough for audio
+    spi.init(baudrate=40000000)
 
     # Mount filesystem
     vfs = uos.VfsFat(sd)
@@ -294,20 +297,24 @@ def testSDCard(filename, verbosity=False):
 
     file = open(filename, 'rb')
     bytesize = 256
-    data = file.read(bytesize)
+    readsize = 0
     startTicks = utime.ticks_us()
+    data = file.read(bytesize)
     while len(data) > 0:
+        readsize += len(data)
         data = file.read(bytesize)
-    print('Actually read data in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
+    print('Actually read', readsize, 'bytes of data in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
     file.close()
 
     file = open(filename, 'rb')
     bytesize = 512
-    data = file.read(bytesize)
+    readsize = 0
     startTicks = utime.ticks_us()
+    data = file.read(bytesize)
     while len(data) > 0:
+        readsize += len(data)
         data = file.read(bytesize)
-    print('Actually read data in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
+    print('Actually read', readsize, 'bytes of data in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
     file.close()
 
 ################ USB data transfer code ###############################################
