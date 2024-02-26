@@ -9,11 +9,36 @@ import sys
 import random
 import helpers
 
+# Constants for port types
+DIGITAL = 1
+SERVO = 2
+
 verbose=False
 
 def button_pressed():
+    # Pin 24 is the onboard USR button on some Pico clones
     button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
-    return not button.value()
+    # Pin 28 is the external jumper connector on the Xmas board
+    runbutton = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_UP)
+    return (not button.value()) or (not runbutton.value())
+
+def toggle_LEDs():
+    # Use the on board LED for status
+    led_onboard = machine.Pin(25, machine.Pin.OUT)
+    # Use the of board LED for status too
+    led_offboard = machine.Pin(5, machine.Pin.OUT)
+
+    led_onboard.toggle()
+    led_offboard.toggle()
+
+def on_LEDs():
+    # Use the on board LED for status
+    led_onboard = machine.Pin(25, machine.Pin.OUT)
+    # Use the of board LED for status too
+    led_offboard = machine.Pin(5, machine.Pin.OUT)
+
+    led_onboard.on()
+    led_offboard.on()
 
 def isfile(testfile):
     try:
@@ -101,8 +126,6 @@ def findAnimFiles(dir='/anims'):
     return animList
 
 def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce=False):
-    # Use the on board LED for status
-    led_onboard = machine.Pin(25, machine.Pin.OUT)
 
     helpers.setAllDigital(0)    # All digital channels off
     helpers.releaseAllServos()  # All servos relaxed
@@ -126,7 +149,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
         if not continuous and not skip:
             while not button_pressed():
                 code = 0
-                led_onboard.toggle()
+                toggle_LEDs()
                 for i in range(100):
                     if helpers.isThereInput():
                         code = helpers.handleInput()
@@ -138,7 +161,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
                 if code == 1: break
 
             # Wait up to 5 seconds for button to be released
-            led_onboard.on()
+            on_LEDs()
             for i in range(100):
                 utime.sleep_ms(50)
                 if not button_pressed():
@@ -149,7 +172,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
         if button_pressed():
             # Blink LED at 10 Hz until button released
             while True:
-                led_onboard.toggle()
+                toggle_LEDs()
                 utime.sleep_ms(10)
                 if not button_pressed():
                     utime.sleep_ms(50)    # Debounce switch
@@ -160,7 +183,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
             # Get next animation to play
             if verbose: print('Print playing animation:', playIndex,'named:',animList[playIndex][0])
             # Play it
-            play_one_anim(animList[playIndex][0], animList[playIndex][1], led_onboard)
+            play_one_anim(animList[playIndex][0], animList[playIndex][1])
 
         # Revert to normal operations
         skip = False
@@ -190,7 +213,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
 
     if(verbose): print('At end of do_the_thing()')
 
-def play_one_anim(csvfile, wavefile, led_onboard):
+def play_one_anim(csvfile, wavefile):
     # Open the default CSV file
     infile = False
     if isfile(csvfile): infile = open(csvfile, 'r')
@@ -198,15 +221,20 @@ def play_one_anim(csvfile, wavefile, led_onboard):
         if verbose: print('Playing animation file:', csvfile)
         # Read the first line to get ports
         hdr = infile.readline()
+        if verbose: print('Processing header:', hdr)
         titles = hdr.split(',')
         ports = [None]      # No port for frame column
+        porttypes = [None]  # List of port types
         for i in range(1,len(titles)):
             ports.append(None)
-            lparen = titles[i].find('(')
-            if lparen >= 0:
-                rparen = titles[i].find(')')
-                if rparen > lparen + 1:
-                    ports[i] = int(titles[i][lparen+1:rparen])
+            porttypes.append(None)
+            indicator = titles[i][0]
+            ports[i] = int(titles[i][1:])
+            # Skip all channels with port number < 0 meaning unassigned
+            if indicator == 'D':
+                porttypes[i] = DIGITAL
+            elif indicator == 'S':
+                porttypes[i] = SERVO
 
         # Get ready to rock-n-roll
         # Read the first line of data
@@ -214,6 +242,7 @@ def play_one_anim(csvfile, wavefile, led_onboard):
 
     # Start the audio playing whether there is a CSV file or not
     if verbose: print('Playing file:', wavefile)
+    player = None   # Set player to None so later we know if it exists
     if isfile(wavefile):
         player = helpers.WavePlayer(wavefile)
         player.play()
@@ -227,6 +256,7 @@ def play_one_anim(csvfile, wavefile, led_onboard):
 
         # Run animatronics until done or button is pressed
         while len(line) > 0:
+            if verbose: print('Processing line:', line)
             # Parse the line
             values = line.split(',')
             # Wait until it is time to go to next state
@@ -238,13 +268,15 @@ def play_one_anim(csvfile, wavefile, led_onboard):
             # Send all values in the row to the Pins
             if verbose: print('Sending data at time:',utime.ticks_diff(utime.ticks_ms(), startTicks), 'which should be:', nextTicks)
             for i in range(1,len(titles)):
-                if ports[i] is not None:
-                    if ports[i] >= helpers.MaxTotalServos:
+                if porttypes[i] is not None:
+                    if porttypes[i] == DIGITAL:
                         # Must be a digital channel
+                        if verbose: print('Channel', ports[i],'is DIGITAL')
                         value = int(values[i])
-                        helpers.setDigital(ports[i] - helpers.MaxTotalServos, value)
-                        if verbose: print('Setting digital port:', ports[i] - helpers.MaxTotalServos, 'to:', value)
-                    else:
+                        helpers.setDigital(ports[i], value)
+                        if verbose: print('Setting digital port:', ports[i], 'to:', value)
+                    elif porttypes[i] == SERVO:
+                        if verbose: print('Channel', ports[i],'is SERVO')
                         value = int(values[i])
                         helpers.setServo(ports[i], value)
 
@@ -256,14 +288,16 @@ def play_one_anim(csvfile, wavefile, led_onboard):
                 utime.sleep_ms(50)    # Debounce switch
                 if button_pressed():
                     if verbose: print('Caught Stop button')
-                    player.stop()
+                    if player is not None: player.stop()
                     break
 
             # Toggle LED to let us know something is happening
-            led_onboard.toggle()
+            toggle_LEDs()
 
             # Read another line from CSV file
+            if player is not None: player.readLock.acquire()
             line = infile.readline()
+            if player is not None: player.readLock.release()
 
         if(verbose): print('At end of read file loop')
         infile.close()
@@ -275,14 +309,11 @@ def play_one_anim(csvfile, wavefile, led_onboard):
             print('Wait frac :', waitTime/nextTicks)
 
         # Let all the servos relax
-        for i in range(1,len(titles)):
-            if ports[i] is not None:
-                helpers.releaseServo(ports[i])
-                pass
+        helpers.releaseAllServos()
 
     # Wait for audio player to be done also
-    while player.playing():
-        utime.sleep_ms(1)
+    if player is not None:
+        while player.playing(): utime.sleep_ms(1)
 
 
 if __name__ == "__main__":

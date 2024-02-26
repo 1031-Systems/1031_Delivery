@@ -1046,9 +1046,15 @@ class ChannelPane(qwt.QwtPlot):
         self.settimerange(0.0, 100.0)
         self.setDataRange(-1.0, 1.0)
         channelname = self.channel.name
+        # Append the channel type indicator to the channel name
+        if self.channel.type == Channel.DIGITAL:
+            channelname += '(D'
+        else:
+            channelname += '(S'
         # If port number is set, append it to the displayed channel name
         if self.channel.port >= 0:
-            channelname += '(%d)' % self.channel.port
+            channelname += '%d' % self.channel.port
+        channelname += ')'
         self.setAxisTitle(qwt.QwtPlot.yLeft, channelname)
 
         if self.channel.type == Channel.DIGITAL:
@@ -1617,17 +1623,13 @@ class ChannelMetadataWidget(QDialog):
             self.offset = 0
             chancount = SystemPreferences['MaxServoChannels']
             for i in range(chancount):
-                text = str(i)
-                if COMMLIB_ENABLED and i < len(commlib.ChannelNames):
-                    text += ' - ' + commlib.ChannelNames[i]
+                text = 'S' + str(i)
                 self._portedit.addItem(text)
         else:
-            self.offset = SystemPreferences['MaxServoChannels']
+            self.offset = 90  #SystemPreferences['MaxServoChannels']
             chancount = SystemPreferences['MaxDigitalChannels']
             for i in range(chancount):
-                text = str(i + SystemPreferences['MaxServoChannels'])
-                if COMMLIB_ENABLED and i + SystemPreferences['MaxServoChannels'] < len(commlib.ChannelNames):
-                   text += ' - ' + commlib.ChannelNames[i + SystemPreferences['MaxServoChannels']]
+                text = 'D' + str(i)
                 self._portedit.addItem(text)
 
         self._portedit.addItem('Unassigned')
@@ -1789,7 +1791,7 @@ class ChannelMetadataWidget(QDialog):
             if tstring == 'Unassigned':
                 self._channel.port = -1
             else:
-                self._channel.port = int(tstring.split()[0])
+                self._channel.port = int(tstring[1:])
 
         if self._channel.type != Channel.DIGITAL:
             tstring = self._minedit.text()
@@ -3264,12 +3266,15 @@ class MainWindow(QMainWindow):
         self.filedialog.setNameFilter("CSV Files (*.csv);;All Files (*)")
         if self.filedialog.exec_():
             fileName = self.filedialog.selectedFiles()[0]
+            """
             try:
                 self.writeCSVFile(fileName)
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
+            """
+            self.writeCSVFile(fileName)
 
         pass
 
@@ -3305,9 +3310,12 @@ class MainWindow(QMainWindow):
                 if channel != 'Time':
                     outfile.write(',')
                     portnum = self.plots[channel].channel.port
-                    if portnum >= 0:
-                        theport = "(%d)" % portnum
-                outfile.write('"%s%s"' % (channel,theport))
+                    if self.plots[channel].channel.type == Channel.DIGITAL:
+                        outfile.write('D%d' % portnum)
+                    else:
+                        outfile.write('S%d' % portnum)
+                else:
+                    outfile.write('Time')
             outfile.write('\n')
             # Write out all the data in columns
             for indx in range(len(timecolumn)):

@@ -53,7 +53,7 @@ def releaseAllServos():
         releaseServo(index)
 
 ############# Digital Code #################################
-MaxTotalDigitalIOs = 8      # Sync this number in Animator Preferences
+MaxTotalDigitalIOs = 24      # Sync this number in Animator Preferences
 DigitalIOsPer595 = 8
 DigitalDataPin = 26
 DigitalClockPin = 27
@@ -155,16 +155,10 @@ class WavePlayer:
                 bits=self.file.getsampwidth() * 8,
                 format=(I2S.MONO if self.file.getnchannels() == 1 else I2S.STEREO),
                 rate=self.file.getframerate(),
-                ibuf=AudioBlockSize)
+                ibuf=AudioBlockSize*8)
 
-    def scaleAudio(self, inbuf):
-        # Bad - Can we even do this - should we?
-        if self.file.getsampwidth() == 1:
-            fmt = '<b'
-        elif self.file.getsampwidth() == 2:
-            fmt = '<h'
-        coder = struct.Struct(fmt)
-        tbuff = struct.unpack(fmt, inbuf)
+        # Create a semaphore lock for outside reads to avoid interfering with reads in this thread
+        self.readLock = _thread.allocate_lock()
 
     def play(self):
         if self.file is None: return
@@ -175,12 +169,17 @@ class WavePlayer:
         _thread.start_new_thread(self.threadplay, (False,))
 
     def threadplay(self, dummy):
+        if self.verbose: print('Running threadplay() in thread', _thread.get_ident())
         # Initialize statistics
         self.startTicks = utime.ticks_us()
         self.sumuploadticks = 0
         self.sumreadfileticks = 0
         self.suspendedticks = 0
         self.blocksplayed = 0
+
+        # Read in first buffer so we are ready to play
+        self.loadbuffer(self.currbuffer)
+
         # Play until end of data or stopped
         while not self.stopflag: self.playblock(False)
 
@@ -188,17 +187,13 @@ class WavePlayer:
         #print('Entered playblock')
         # Check to see if we are stopped
         if self.stopflag: return
-        if self.verbose: print('Running playblock() in thread', _thread.get_ident())
-
-        # Fill the buffer prior to playing
-        startTicks = utime.ticks_us()
-        self.loadbuffer(self.currbuffer)
-        self.sumreadfileticks += utime.ticks_diff(utime.ticks_us(), startTicks)
+        #if self.verbose: print('Running playblock() in thread', _thread.get_ident())
 
         # Play one block of audio data from current ping-pong buffer
         startTicks = utime.ticks_us()
         self.audio_out.write(self.audiodata[self.currbuffer])
         totaluploadticks = utime.ticks_diff(utime.ticks_us(), startTicks)
+        if self.verbose: print('Ticks to write block to i2s', totaluploadticks)
         if self.firstuploadticks == 0:
             self.firstuploadticks = totaluploadticks
         self.sumuploadticks += totaluploadticks
@@ -206,10 +201,17 @@ class WavePlayer:
         self.suspendedticks += totaluploadticks
         self.blocksplayed += 1
 
+        # Fill the buffer while playing previous buffer
+        # Switch to other buffer
+        self.currbuffer = 1 - self.currbuffer
+        startTicks = utime.ticks_us()
+        self.loadbuffer(self.currbuffer)
+        self.sumreadfileticks += utime.ticks_diff(utime.ticks_us(), startTicks)
+
 
     def loadbuffer(self, buffer):
-        #print('Entered thread')
         startTicks = utime.ticks_us()
+        self.readLock.acquire()
         tbuff = self.file.readframes(self.blockframes)
         self.audiodata[buffer] = tbuff
         while len(tbuff) > 0 and len(self.audiodata[buffer]) < AudioBlockSize:
@@ -218,6 +220,7 @@ class WavePlayer:
         if len(self.audiodata[buffer]) == 0:
             self.stop()
             #print('Got no bytes from audio file so stopping')
+        self.readLock.release()
         if self.verbose: print('Ticks to read block:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
 
     def stop(self):
@@ -226,6 +229,7 @@ class WavePlayer:
         # Dump statistics
         if self.verbose:
             print('Total time spent reading file data:', self.sumreadfileticks, 'usec')
+            print('Time spent uploading first block  :', self.firstuploadticks, 'usec')
             print('Total time spent uploading data   :', self.sumuploadticks, 'usec')
             print('Total estimated time suspended    :', self.suspendedticks, 'usec')
             print('Total time                        :', utime.ticks_diff(utime.ticks_us(), self.startTicks), 'usec')
@@ -247,6 +251,10 @@ class WavePlayer:
             return self._volume
         else:
             self._volume = newVolume
+
+    def playing(self):
+        return not self.stopflag
+
 
 
 ############# SD Card Code #################################
