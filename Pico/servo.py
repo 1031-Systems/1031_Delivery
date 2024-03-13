@@ -17,11 +17,12 @@ class Servos:
         self.freq = freq
         self.pca9685 = PCA9685(i2c, address)
         self.pca9685.freq(freq)
+        self.positions = [0] * 16
 
     def _us2duty(self, value):
         return int(4095 * value / self.period)
 
-    def position(self, index, degrees=None, radians=None, us=None, duty=None):
+    def position(self, index, degrees=None, radians=None, us=None, duty=None, push=False):
         span = self.max_duty - self.min_duty
         if degrees is not None:
             duty = self.min_duty + span * degrees / self.degrees
@@ -34,7 +35,15 @@ class Servos:
         else:
             return self.pca9685.duty(index)
         duty = min(self.max_duty, max(self.min_duty, int(duty)))
-        self.pca9685.duty(index, duty)
+        self.positions[index] = duty
+        if push: self.pca9685.duty(index, duty)
 
     def release(self, index):
         self.pca9685.duty(index, 0)
+
+    def releaseAll(self):
+        for i in range(16): self.positions[i] = 0
+        self.pushValues()
+
+    def pushValues(self):
+        self.pca9685.allpwm(self.positions)

@@ -13,30 +13,28 @@ ServosPerPCA = 16       # Must be power of 2
 servoShift = 4          # log2 of ServosPerPCA
 servoMod = ServosPerPCA - 1
 
-_pca9685s = [None]*20       # Allow for up to 20 PCA chips (320 servos)
 _servoblocks = [None]*20    # Allow for up to 20 PCA chips (320 servos)
 _i2c = None
 
-def setServo(index=-1, cycletime=0):
-    global _pca9685s, _servoblocks, _i2c
+def setServo(index=-1, cycletime=0, push=False):
+    global _servoblocks, _i2c
 
     if index < 0 or index > MaxTotalServos: return
 
     pcaIndex = index >> servoShift
     pcaAddress = 0x40 + pcaIndex        # Use board 0 for servos 0-15, board 1 for 16-31, ...
     index = index & servoMod            # Mod index to be within range of board
-    if _pca9685s[pcaIndex] is None or _servoblocks[pcaIndex] is None:
+    if _servoblocks[pcaIndex] is None:
         # Must initialize this PCA and block of servos
         if _i2c is None:
-            sda = Pin(0)
-            scl = Pin(1)
+            sda = Pin(0, pull=Pin.PULL_UP)
+            scl = Pin(1, pull=Pin.PULL_UP)
             id = 0
-            _i2c = I2C(id=id, sda=sda, scl=scl)
-        _pca9685s[pcaIndex] = PCA9685(i2c=_i2c, address=pcaAddress)
+            _i2c = I2C(id=id, sda=sda, scl=scl, freq=1048576)   # Use 1MHz as that is max for pca9685
         _servoblocks[pcaIndex] = Servos(i2c=_i2c, address=pcaAddress)
 
     # Now actually set the servo
-    _servoblocks[pcaIndex].position(index=index, duty=cycletime)
+    _servoblocks[pcaIndex].position(index=index, duty=cycletime, push=push)
 
 def releaseServo(index=-1):
     if index < 0 or index > MaxTotalServos: return
@@ -44,13 +42,17 @@ def releaseServo(index=-1):
     pcaIndex = index >> servoShift
     pcaAddress = 0x40 + pcaIndex        # Use board 0 for servos 0-15, board 1 for 16-31, ...
     index = index & servoMod            # Mod index to be within range of board
-    if _pca9685s[pcaIndex] is None or _servoblocks[pcaIndex] is None or _i2c is None: return
+    if _servoblocks[pcaIndex] is None or _i2c is None: return
 
     _servoblocks[pcaIndex].release(index=index)
 
 def releaseAllServos():
     for index in range(MaxTotalServos):
         releaseServo(index)
+
+def pushServos():
+    for i in range(20):
+        if _servoblocks[i] is not None: _servoblocks[i].pushValues()
 
 ############# Digital Code #################################
 MaxTotalDigitalIOs = 24      # Sync this number in Animator Preferences
@@ -213,14 +215,16 @@ class WavePlayer:
         startTicks = utime.ticks_us()
         self.readLock.acquire()
         tbuff = self.file.readframes(self.blockframes)
+        self.readLock.release()
         self.audiodata[buffer] = tbuff
         while len(tbuff) > 0 and len(self.audiodata[buffer]) < AudioBlockSize:
+            self.readLock.acquire()
             tbuff = self.file.readframes(self.blockframes)
+            self.readLock.release()
             self.audiodata[buffer] += tbuff
         if len(self.audiodata[buffer]) == 0:
             self.stop()
             #print('Got no bytes from audio file so stopping')
-        self.readLock.release()
         if self.verbose: print('Ticks to read block:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
 
     def stop(self):
@@ -287,6 +291,56 @@ def mountSDCard(mountpoint='/sd'):
     vfs = uos.VfsFat(sd)
     uos.mount(vfs, mountpoint)
 
+################ USB data transfer code ###############################################
+import select
+import sys
+
+# Create object for communicating over USB
+inpoll = select.poll()
+inpoll.register(sys.stdin.buffer, select.POLLIN)
+
+def isThereInput():
+    result = inpoll.poll(0)
+    return len(result) > 0
+
+def handleInput():
+    inline = sys.stdin.buffer.readline().decode('utf-8')
+    if inline[0] == 'a':
+        # Trigger one playback
+        return 1
+    elif inline[0] == 'x':
+        # Wait 2 seconds for commlib to close connection
+        utime.sleep_ms(2000)
+        # Restart everything
+        machine.reset()
+    elif inline[0] == 's':
+        # Set an individual servo
+        try:
+            vals = inline.split()
+            channel = int(vals[1])
+            value = int(vals[2])
+            setServo(channel, value, push=True)
+        except:
+            pass
+    elif inline[0] == 'b':
+        # Upload entire binary file
+        try:
+            vals = inline.split()
+            filename = vals[1]
+            fsize = int(vals[2])
+            file = open(filename, 'wb')
+            line = sys.stdin.buffer.read(min(fsize, 512))
+            while fsize > 0:
+                bwritten = file.write(binascii.unhexlify(line))
+                fsize -= len(line)
+                if fsize > 0: line = sys.stdin.buffer.read(min(fsize, 512))
+            file.close()
+        except:
+            # sys.stderr.write('\nWhoops - Unable to write file %d\n' % filename)
+            pass
+    return 0
+
+################################### Test Code ########################################
 def testSDCard(filename, verbosity=False):
     file = open(filename, 'rb')
     bytesize = 1
@@ -325,53 +379,9 @@ def testSDCard(filename, verbosity=False):
     print('Actually read', readsize, 'bytes of data in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
     file.close()
 
-################ USB data transfer code ###############################################
-import select
-import sys
-
-# Create object for communicating over USB
-inpoll = select.poll()
-inpoll.register(sys.stdin.buffer, select.POLLIN)
-
-def isThereInput():
-    result = inpoll.poll(0)
-    return len(result) > 0
-
-def handleInput():
-    inline = sys.stdin.buffer.readline().decode('utf-8')
-    if inline[0] == 'a':
-        # Trigger one playback
-        return 1
-    elif inline[0] == 'x':
-        # Wait 2 seconds for commlib to close connection
-        utime.sleep_ms(2000)
-        # Restart everything
-        machine.reset()
-    elif inline[0] == 's':
-        # Set an individual servo
-        try:
-            vals = inline.split()
-            channel = int(vals[1])
-            value = int(vals[2])
-            setServo(channel, value)
-        except:
-            pass
-    elif inline[0] == 'b':
-        # Upload entire binary file
-        try:
-            vals = inline.split()
-            filename = vals[1]
-            fsize = int(vals[2])
-            file = open(filename, 'wb')
-            line = sys.stdin.buffer.read(min(fsize, 512))
-            while fsize > 0:
-                bwritten = file.write(binascii.unhexlify(line))
-                fsize -= len(line)
-                if fsize > 0: line = sys.stdin.buffer.read(min(fsize, 512))
-            file.close()
-        except:
-            # sys.stderr.write('\nWhoops - Unable to write file %d\n' % filename)
-            pass
-    return 0
-
-
+def testAllPwm():
+    setServo(0,0)
+    startTicks = utime.ticks_us()
+    _servoblocks[0].pca9685.allpwm(on=1, off=1)
+    print('Time to write all 16 servos:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
+    

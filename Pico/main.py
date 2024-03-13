@@ -242,6 +242,10 @@ def play_one_anim(csvfile, wavefile):
 
     # Start the audio playing whether there is a CSV file or not
     if verbose: print('Playing file:', wavefile)
+    servoTicks = 0
+    servoCount = 0
+    lockTicks = 0
+    readTicks = 0
     player = None   # Set player to None so later we know if it exists
     if isfile(wavefile):
         player = helpers.WavePlayer(wavefile)
@@ -256,7 +260,7 @@ def play_one_anim(csvfile, wavefile):
 
         # Run animatronics until done or button is pressed
         while len(line) > 0:
-            if verbose: print('Processing line:', line)
+            #if verbose: print('Processing line:', line)
             # Parse the line
             values = line.split(',')
             # Wait until it is time to go to next state
@@ -266,22 +270,27 @@ def play_one_anim(csvfile, wavefile):
                 waitTime += 1
 
             # Send all values in the row to the Pins
-            if verbose: print('Sending data at time:',utime.ticks_diff(utime.ticks_ms(), startTicks), 'which should be:', nextTicks)
+            #if verbose: print('Sending data at time:',utime.ticks_diff(utime.ticks_ms(), startTicks), 'which should be:', nextTicks)
             for i in range(1,len(titles)):
                 if porttypes[i] is not None:
                     if porttypes[i] == DIGITAL:
                         # Must be a digital channel
-                        if verbose: print('Channel', ports[i],'is DIGITAL')
+                        #if verbose: print('Channel', ports[i],'is DIGITAL')
                         value = int(values[i])
                         helpers.setDigital(ports[i], value)
-                        if verbose: print('Setting digital port:', ports[i], 'to:', value)
+                        #if verbose: print('Setting digital port:', ports[i], 'to:', value)
                     elif porttypes[i] == SERVO:
-                        if verbose: print('Channel', ports[i],'is SERVO')
+                        #if verbose: print('Channel', ports[i],'is SERVO')
                         value = int(values[i])
                         helpers.setServo(ports[i], value)
 
             # Make sure all the digital channels are output
             helpers.outputDigital()
+            # Push out all the servo values as well
+            ticks1 = utime.ticks_us()
+            helpers.pushServos()
+            servoTicks += utime.ticks_us() - ticks1
+            servoCount += 1
 
             # Check to see if button is pressed and quit if so
             if button_pressed():
@@ -295,8 +304,18 @@ def play_one_anim(csvfile, wavefile):
             toggle_LEDs()
 
             # Read another line from CSV file
+            startLockTicks = utime.ticks_us()
             if player is not None: player.readLock.acquire()
+            lockTicks += utime.ticks_diff(utime.ticks_us(), startLockTicks)
+            startLockTicks = utime.ticks_us()
             line = infile.readline()
+            # If our time is already past the next time, continue reading
+            while len(line) > 0:
+                values = line.split(',')
+                nextTicks = int(values[0])
+                if nextTicks >= utime.ticks_diff(utime.ticks_ms(), startTicks): break
+                line = infile.readline()
+            readTicks += utime.ticks_diff(utime.ticks_us(), startLockTicks)
             if player is not None: player.readLock.release()
 
         if(verbose): print('At end of read file loop')
@@ -307,6 +326,12 @@ def play_one_anim(csvfile, wavefile):
             print('Wait time :', waitTime, 'msec')
             print('Total time:', nextTicks, 'msec')
             print('Wait frac :', waitTime/nextTicks)
+            print('Read time :', readTicks, 'msec')
+
+            print('Used', servoTicks, 'usec to write to servo', servoCount,'times')
+            print('For an average of', servoTicks/servoCount,'usec per write')
+
+            print('Time spent waiting for lock:', lockTicks, 'usec')
 
         # Let all the servos relax
         helpers.releaseAllServos()
@@ -314,6 +339,33 @@ def play_one_anim(csvfile, wavefile):
     # Wait for audio player to be done also
     if player is not None:
         while player.playing(): utime.sleep_ms(1)
+
+    # Optionally report stats
+    if(verbose):
+        # Run some tests on control functions
+        startTicks = utime.ticks_us()
+        for j in range(1000):
+            helpers.outputDigital()
+        print('Time for 1000 outputDigital calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
+        startTicks = utime.ticks_us()
+        for j in range(100):
+            helpers.setServo(7,50)
+            helpers.pushServos()
+        print('Time for 100 pushServo calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
+        startTicks = utime.ticks_us()
+        for j in range(1000):
+            helpers.setServo(7,50,push=True)
+        print('Time for 1000 setServo calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
+        startTicks = utime.ticks_us()
+        if isfile(csvfile):
+            infile = open(csvfile, 'r')
+            if infile:
+                for j in range(100):
+                    infile.seek(0)
+                    line = infile.readline()
+                    while len(line) > 0:
+                        line = infile.readline()
+                print('Time for 100 file reads:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
 
 
 if __name__ == "__main__":

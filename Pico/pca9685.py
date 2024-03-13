@@ -55,6 +55,18 @@ class PCA9685:
         data = ustruct.pack('<HH', on, off)
         self.i2c.writeto_mem(self.address, 0x06 + 4 * index,  data)
 
+    def allpwm(self, off=None):
+        if off is None:
+            data = self.i2c.readfrom_mem(self.address, 0x06, 4)
+            return ustruct.unpack('<HH', data)
+        bytes = bytearray(b'')
+        for i in range(len(off)):
+            bytes.extend(bytearray(ustruct.pack('<HH', 0, off[i])))
+        old_mode = self._read(0x00) # Mode 1
+        self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
+        self.i2c.writeto_mem(self.address, 0x06, bytes)
+        self._write(0x00, old_mode) # Mode 1, original mode
+
     def duty(self, index, value=None, invert=False):
         if value is None:
             pwm = self.pwm(index)
