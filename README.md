@@ -36,6 +36,7 @@ git clone git@github.com:steelheadj/Animatronics.git
 cd Animatronics
 python3 -m venv '.venv'     # Replace .venv with any name you like
 source .venv/bin/activate.shname  # Where shname is your shell name
+pip install --upgrade pip
 pip install -r ${OSTYPE}-requirements.txt
 python ./Animator.py
 
@@ -53,7 +54,6 @@ then you have to manually install PyQt and qwt with the  following:
 
 ~~~
 
-pip install --upgrade pip
 pip install PyQt5 (or PyQt6, whichever will actually install)
 pip install PythonQwt
 pip install rshell
@@ -129,9 +129,13 @@ install the correct versions.
 
 To install the Christmas version, the only one working right now do:
 
+~~~
+
 cd Pico
 install_Christmas
 cd ..
+
+~~~
 
 In the Pico part of the repo there is a file named commlib.py.  This
 is the interface library for Animator.py to talk to the hardware.
