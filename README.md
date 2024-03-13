@@ -127,6 +127,12 @@ The correct libraries should be loaded depending on the desired
 functionality.  Helpful scripts, based on rshell, may be used to
 install the correct versions.
 
+To install the Christmas version, the only one working right now do:
+
+cd Pico
+install_Christmas
+cd ..
+
 In the Pico part of the repo there is a file named commlib.py.  This
 is the interface library for Animator.py to talk to the hardware.
 In order for Animator to load the right commlib, there should be a
