@@ -6,7 +6,7 @@ control data for animatronics.  It is designed to work with
 board designs created by Bill Douglas and available for
 download at [Somewhere](https://www.google.com).
 
-This codebase contains an application, ANimator, for creating control
+This codebase contains an application, Animator, for creating control
 channel data for directing the animatronics and code for
 executing on a Raspberry Pi Pico for performing the animations.
 The Animator application is intended to be board-agnostic so
