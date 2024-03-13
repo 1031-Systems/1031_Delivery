@@ -1,0 +1,20 @@
+#!/bin/csh -f
+#set echo
+
+rshell mkdir /pyboard/lib
+rshell cp Christmas_helpers.py /pyboard/lib/helpers.py
+rshell cp servo.py \
+          wave.py \
+          pca9685.py \
+          sdcard.py \
+          memstats.py \
+          /pyboard/lib
+rshell cp boot.py main.py /pyboard
+rshell mkdir /pyboard/anims
+
+echo ''
+echo ''
+
+# Check on the results
+rshell repl '~ import memstats ~'
+
