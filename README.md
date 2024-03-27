@@ -100,11 +100,9 @@ Step functions hold a continuous value for a time and then
 switch to a different value.  A subset of these are only 0 or 1
 and control on/off devices like lights.  Linear paths use a
 set of knots specifying some values at certain times and the
-path is linearly interpolated between knots.  Smooth paths use
+path is linearly interpolated between knots.  Spline paths use
 a similar set of knots but apply Lagrange interpolation between the
-knots for a smoother motion of the controlled device.  Spline
-channels use splines for the interpolation, again for a smoother
-motion.
+knots for a smoother motion of the controlled device.
 
 Channel data may be exported to a CSV file to be transferred to an
 external hardware controller.  In addition, a pipe may be used to
