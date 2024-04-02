@@ -1,8 +1,8 @@
 # pca9685.py
-# Kevin McAleer
-# March 2021
+# Kevin McAleer and John Wright
+# March 2021 and March 2024
 '''
-@author Kevin McAleer
+@author Kevin McAleer and John Wright
 '''
 
 import ustruct
@@ -55,16 +55,36 @@ class PCA9685:
         data = ustruct.pack('<HH', on, off)
         self.i2c.writeto_mem(self.address, 0x06 + 4 * index,  data)
 
-    def allpwm(self, off=None):
+    def allpwm(self, off=None, on=None, start=0):
+        """
+        The method allpwm implements use of autoincrement to allow faster writing
+        of multiple servos.  Autoincrement begins at an address and writes bits
+        into the registers of the pca9685 chip to control the on and off times.
+        By default, the ON values are set to 0 for all servos being set but the
+        user may override them if they want to.  The OFF values generally represent
+        the duty cycle of the output when the ON values are 0.
+            member of class: PCA9685
+        Parameters
+        ----------
+            self : PCA9685
+            off=None : array of up to 16 off values ranging from 0 to 4095
+            on=None : array of same size of on values ranging from 0 to 4095
+            start=0 : first address to write to (0-15)
+        """
         if off is None:
-            data = self.i2c.readfrom_mem(self.address, 0x06, 4)
-            return ustruct.unpack('<HH', data)
+            retdata = []
+            for i in range(16):
+                data = self.i2c.readfrom_mem(self.address, 0x06 + 4 * i, 4)
+                retdata.append(ustruct.unpack('<HH', data))
+            return retdata
         bytes = bytearray(b'')
         for i in range(len(off)):
-            bytes.extend(bytearray(ustruct.pack('<HH', 0, off[i])))
+            if on is not None and i < len(on): onval = on[i]
+            else: onval = 0
+            bytes.extend(bytearray(ustruct.pack('<HH', onval, off[i])))
         old_mode = self._read(0x00) # Mode 1
         self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
-        self.i2c.writeto_mem(self.address, 0x06, bytes)
+        self.i2c.writeto_mem(self.address, 0x06 + 4 * start, bytes)
         self._write(0x00, old_mode) # Mode 1, original mode
 
     def duty(self, index, value=None, invert=False):
