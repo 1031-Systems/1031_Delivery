@@ -164,3 +164,12 @@ control files will need to be transferred to the hardware via rshell,
 thonny, direct copy to SD card, or other mechanism.  Animator can
 output the CSV control files locally for separate transfer and the
 audio files must already exist on the system.
+
+## Plugins
+
+Animator supports a simple form of plugins.  The plugin files are, of
+course, installed in the plugins directory.  There is a small set of
+functions supplied in plugins/install.py for relatively generic functions
+that operate on channels.  Animator checks all the .py files in the
+plugins directory and incorporates any that follow the protocol.  See
+the README in the plugins folder for more details.

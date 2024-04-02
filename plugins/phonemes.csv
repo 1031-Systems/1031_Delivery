@@ -1,0 +1,41 @@
+Phoneme,Example,Translation,Jaw
+AA,odd,"AA D",100
+AE,at,"AE T",95
+AH,hut,"HH AH T",85
+AO,ought,"AO T",90
+AW,cow,"K AW",70
+AY,hide,"HH AY D",95
+B,be,"B IY",0
+CH,cheese,"CH IY Z",25
+D,dee,"D IY",35
+DH,thee,"DH IY",45
+EH,Ed,"EH D",55
+ER,hurt,"HH ER T",40
+EY,ate,"EY T",55
+F,fee,"F IY",10
+G,green,"G R IY N",40
+HH,he,"HH IY",40
+IH,it,"IH T",40
+IY,eat,"IY T",40
+JH,gee,"JH IY",0
+K,key,"K IY",35
+L,lee,"L IY",35
+M,me,"M IY",10
+N,knee,"N IY",35
+NG,ping,"P IH NG",40
+OW,oat,"OW T",40
+OY,toy,"T OY",40
+P,pee,"P IY",5
+R,read,"R IY D",10
+S,sea,"S IY",0
+SH,she,"SH IY",0
+T,tea,"T IY",15
+TH,theta,"TH EY T AH",45
+UH,hood,"HH UH D",40
+UW,two,"T UW",25
+V,vee,"V IY",30
+W,we,"W IY",10
+Y,yield,"Y IY L D",10
+Z,zee,"Z IY",0
+ZH,seizure,"S IY ZH ER",0
+SIL,silence,"",40
