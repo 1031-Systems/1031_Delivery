@@ -1,6 +1,6 @@
 # servo.py
-# Kevin McAleer
-# March 2021
+# Kevin McAleer and John Wright
+# March 2021 and March 2024
 
 #from pca import PCA9685
 from pca9685 import PCA9685
@@ -22,7 +22,7 @@ class Servos:
     def _us2duty(self, value):
         return int(4095 * value / self.period)
 
-    def position(self, index, degrees=None, radians=None, us=None, duty=None, push=False):
+    def position(self, index, degrees=None, radians=None, us=None, duty=None, push=True):
         span = self.max_duty - self.min_duty
         if degrees is not None:
             duty = self.min_duty + span * degrees / self.degrees
