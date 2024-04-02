@@ -16,7 +16,7 @@ servoMod = ServosPerPCA - 1
 _servoblocks = [None]*20    # Allow for up to 20 PCA chips (320 servos)
 _i2c = None
 
-def setServo(index=-1, cycletime=0, push=False):
+def setServo(index=-1, cycletime=0, push=True):
     global _servoblocks, _i2c
 
     if index < 0 or index > MaxTotalServos: return
@@ -379,9 +379,3 @@ def testSDCard(filename, verbosity=False):
     print('Actually read', readsize, 'bytes of data in:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
     file.close()
 
-def testAllPwm():
-    setServo(0,0)
-    startTicks = utime.ticks_us()
-    _servoblocks[0].pca9685.allpwm(on=1, off=1)
-    print('Time to write all 16 servos:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
-    
