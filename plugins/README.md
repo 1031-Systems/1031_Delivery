@@ -7,6 +7,13 @@ the built-in capabilities of Animator.  Any python file in this directory
 that is recognized by pkgutils will be checked.  If it conforms to the
 protocol described below, it is incorporated into Animator's menus.
 
+If any valid plugins are found, their functions are added to a Plugins
+menu in Animator's toolbar.  Each function is identified by its plugin
+and function name so different plugins may use the same function names.
+
+If errors occur in trying to import a plugin,
+an error message is output to stderr and the plugin is ignored.
+
 ***
 
 ## Protocol
