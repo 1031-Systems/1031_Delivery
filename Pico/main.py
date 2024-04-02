@@ -282,7 +282,7 @@ def play_one_anim(csvfile, wavefile):
                     elif porttypes[i] == SERVO:
                         #if verbose: print('Channel', ports[i],'is SERVO')
                         value = int(values[i])
-                        helpers.setServo(ports[i], value)
+                        helpers.setServo(ports[i], value, push=False)
 
             # Make sure all the digital channels are output
             helpers.outputDigital()
@@ -354,7 +354,7 @@ def play_one_anim(csvfile, wavefile):
         print('Time for 100 pushServo calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
         startTicks = utime.ticks_us()
         for j in range(1000):
-            helpers.setServo(7,50,push=True)
+            helpers.setServo(7,50,push=False)
         print('Time for 1000 setServo calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
         startTicks = utime.ticks_us()
         if isfile(csvfile):
