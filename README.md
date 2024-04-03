@@ -53,6 +53,8 @@ python3 -m venv '.venv'     # Replace .venv with any name you like
 source .venv/bin/activate.shname  # Where shname is your shell name
 pip install --upgrade pip
 pip install -r ${OSTYPE}-requirements.txt
+pip install pocketsphinx    # To support phonemes plugin
+ln -s Pico/commlib.py .     # For Raspberry Pi Pico controller
 python ./Animator.py
 
 ~~~
@@ -72,6 +74,7 @@ then you have to manually install PyQt and qwt with the  following:
 pip install PyQt5 # (or PyQt6, whichever will actually install)
 pip install PythonQwt
 pip install rshell
+pip install pocketsphinx    # To support phonemes plugin
 pip freeze -l > ${OSTYPE}-requirements.txt # To save your own config
 
 ~~~
