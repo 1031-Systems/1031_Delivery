@@ -1,4 +1,20 @@
+#!/usr/bin/env python3
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
+#**********************************
+# Program phonemes.py
+# Created by john
+# Created Sat Apr 6 02:13:36 PM PDT 2024
+#*********************************/
+
+#/* Import block */
+import os
+import sys
+
+# Allow test code to find Animatronics module
+if __name__ == "__main__": sys.path.append('..')
 import Animatronics
+
 from pocketsphinx import get_model_path, Decoder, Config
 
 usedPyQt = None
@@ -19,8 +35,11 @@ except:
         sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
         exit(10)
 
-# Local Global
+#/* Define block */
+# Local Globals
 lastAudioFile = None
+verbosity = False
+
 
 class UserPrompt(QDialog):
     def __init__(self, typelist, audiofile):
@@ -36,7 +55,7 @@ class UserPrompt(QDialog):
         if typelist is not None and len(typelist) > 0:
             self.typeselect = QComboBox()
             self.typeselect.addItems(typelist)
-            layout.addRow(self.typeselect)
+            layout.addRow(QLabel('Move Type:'), self.typeselect)
 
         widget.setLayout(layout)
 
@@ -90,7 +109,7 @@ def runSphinx(audiofile):
     # Output list of phonemes with start and end times
     phones = []
     for s in decoder.seg():
-        print(s.start_frame, s.end_frame, s.word)
+        if verbosity: print(s.start_frame, s.end_frame, s.word)
         phones.append((s.word, float(s.start_frame + s.end_frame) / 200.0))
 
     return phones
@@ -118,14 +137,14 @@ def create_phoneme_channel(channellist, theanim):
             for indx in range(len(channeltypes)):
                 channelpositions[channeltypes[indx]][phone] = int(columns[3+indx])
             line = csvfile.readline().strip()
-    print(channelpositions)
+    if verbosity: print(channelpositions)
 
     # Get name of audio file and channel type
     if lastAudioFile is None and theanim.newAudio is not None:
         lastAudioFile = theanim.newAudio.audiofile
     widget = UserPrompt(channeltypes, lastAudioFile)
     code = widget.exec_()
-    print('Code:', code, 'Type:', widget.getType(), 'Audio File:', widget.getAudioFile())
+    if verbosity: print('Code:', code, 'Type:', widget.getType(), 'Audio File:', widget.getAudioFile())
     if code != QDialog.Accepted: return False
 
     # Run through sphinx
@@ -141,7 +160,7 @@ def create_phoneme_channel(channellist, theanim):
                 phonevalue = float(channelpositions[type][phone[0]]) / 100.0
                 value = (maxval - minval) * phonevalue + minval
                 channel.add_knot(phone[1], value)
-                print('Adding knot value:', value, 'at time:', phone[1], 'to channel:', channel.name, 'for phone:', phone[0])
+                if verbosity: print('Adding knot value:', value, 'at time:', phone[1], 'to channel:', channel.name, 'for phone:', phone[0])
 
     return True
 
@@ -149,7 +168,79 @@ channel_modifiers = [create_phoneme_channel]
 channel_creators = []
 channel_analyzers = []
 
+#/* Usage method */
+def print_usage(name):
+    """ Simple method to output usage when needed """
+    sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose] [-f/-file audio]\n" % name);
+    sys.stderr.write("Run tests with the phoneme plugin.\n");
+    sys.stderr.write("    This package contains a couple of methods for processing audio files and\n");
+    sys.stderr.write("producing channels to move body parts in sync with the phonemes of the speech.\n");
+    sys.stderr.write("It is normally imported by Animator for this purpose.  This module also contains\n");
+    sys.stderr.write("this main which can be used to test audio files and report on how the phonemes\n");
+    sys.stderr.write("are generated.  It also validates the audio file to verify that it is of the\n");
+    sys.stderr.write("correct format.\n");
+    sys.stderr.write("\n");
+    sys.stderr.write("-/-h/-help        :show this information\n");
+    sys.stderr.write("-v/-verbose       :run more verbosely\n");
+    sys.stderr.write("-f/-file audio    :name of audio file to test and process\n");
+    sys.stderr.write("\n\n");
+
+#/* Main */
 if __name__ == "__main__":
-    # Run some self tests
-    if not create_phoneme_channel([5], 5):
-        print('WHOOPS - create_phoneme_channel self_test failed')
+
+    audiofile = None
+
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == '-' or sys.argv[i] == '-h' or sys.argv[i] == '-help':
+            print_usage(sys.argv[0]);
+            sys.exit(0);
+        elif sys.argv[i] == '-v' or sys.argv[i] == '-verbose':
+            verbosity = True
+        elif sys.argv[i] == '-f' or sys.argv[i] == '-file':
+            i += 1
+            if i < len(sys.argv):
+                audiofile = sys.argv[i]
+        else:
+            sys.stderr.write("\nWhoops - Unrecognized argument: %s\n" % sys.argv[i]);
+            print_usage(sys.argv[0]);
+            sys.exit(10);
+
+        i += 1
+
+    if audiofile is not None:
+        import wave
+        okay = False
+        # Attempt to process the audio file and print the text derived from it
+        with wave.open(audiofile, "rb") as audio:
+            if audio.getframerate() < 13600:
+                sys.stderr.write("Specified audio file must be sampled at a minimum of 13600 Hz for pocketsphinx.\n")
+            else:
+                okay = True
+                decoder = Decoder(samprate=audio.getframerate())
+                decoder.start_utt()
+                decoder.process_raw(audio.getfp().read(), full_utt=True)
+                decoder.end_utt()
+                print('Sphinx speech recognition results:')
+                print(decoder.hyp().hypstr)
+                print()
+
+            if audio.getframerate() != 16000:
+                sys.stderr.write("Error: Specified audio file not sampled at 16000 Hz as required for phonemes\n")
+                okay = False
+            if audio.getsampwidth() != 2:
+                sys.stderr.write("Error: Specified audio file not sampled at 16 bits (2 bytes) as required for phonemes\n")
+                okay = False
+            if audio.getnchannels() != 1:
+                sys.stderr.write("Error: Specified audio file not mono as required for phonemes\n")
+                okay = False
+
+        if okay:
+            runSphinx(audiofile)
+
+    else:
+        pass
+
+
+
+
