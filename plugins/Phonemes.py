@@ -164,9 +164,7 @@ def create_phoneme_channel(channellist, theanim):
 
     return True
 
-channel_modifiers = [create_phoneme_channel]
-channel_creators = []
-channel_analyzers = []
+external_callables = [create_phoneme_channel]
 
 #/* Usage method */
 def print_usage(name):

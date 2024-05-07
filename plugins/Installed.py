@@ -11,7 +11,5 @@ def invert(channelList, theanim):
 
     return(retval)
 
-channel_modifiers = [invert]
-channel_creators = []
-channel_viewers = []
+external_callables = [invert]
 

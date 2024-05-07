@@ -2825,8 +2825,7 @@ class MainWindow(QMainWindow):
         self.unsavedChanges = False
 
         # Create dictionaries for plugins
-        self.channel_modifiers = {}
-        self.channel_creators = {}
+        self.external_callables = {}
 
         # Create all the dropdown menus
         self.create_menus()
@@ -3219,16 +3218,16 @@ class MainWindow(QMainWindow):
         pass
 
     def run_plugin(self):
-        #print('Running plugin', self.sender().text())
+        print('Running plugin', self.sender().text())
         pluginname = self.sender().text()
-        if pluginname in self.channel_modifiers:
+        if self.sender().data() is not None:
             # Get list of selected channels
             channellist = self.getSelectedChannels()
             if len(channellist) > 0:
                 # Push current state for undo
                 pushState()
                 # Pass selected channels to the plugin
-                value = self.channel_modifiers[pluginname](channellist, self.animatronics)
+                value = self.sender().data()(channellist, self.animatronics)
                 if value:
                     # Redraw the modified channels
                     for name in self.plots:
@@ -3238,10 +3237,6 @@ class MainWindow(QMainWindow):
                 else:
                     # Nothing was done so clean up
                     popState()
-        elif pluginname in self.channel_creators:
-            # Call creator
-            # Put returned list into system
-            pass
 
     def exportCSVFile(self):
         """
@@ -5000,6 +4995,9 @@ class MainWindow(QMainWindow):
         self.help_menu.addAction(self._showXML_action)
 
     def buildplugins(self):
+        # Initialize plugin menu to None
+        self._plugin_menu = None
+
         # See what plugins are available
         discovered_plugins = {}
         for pkg in pkgutil.iter_modules(path=['./plugins']):
@@ -5012,48 +5010,25 @@ class MainWindow(QMainWindow):
 
         # Look for the different types of functions in each plugin
         for module in discovered_plugins:
-            # First look for channel modifiers
-            if hasattr(discovered_plugins[module], 'channel_modifiers'):
-                for modder in discovered_plugins[module].channel_modifiers:
+            # initially assume it has no functions
+            functions = False
+            tmenu = None
+            # First look for callable plugin functions
+            if hasattr(discovered_plugins[module], 'external_callables'):
+                for modder in discovered_plugins[module].external_callables:
                     if hasattr(discovered_plugins[module], modder.__name__):
-                        self.channel_modifiers[module + '.' + modder.__name__] = getattr(discovered_plugins[module], modder.__name__)
-
-            # Next look for channel creators
-            if hasattr(discovered_plugins[module], 'channel_creators'):
-                for modder in discovered_plugins[module].channel_creators:
-                    if hasattr(discovered_plugins[module], modder.__name__):
-                        self.channel_creators[module + '.' + modder.__name__] = getattr(discovered_plugins[module], modder.__name__)
-
-        # Now build the plugin dropdown menu
-        if len(self.channel_modifiers) > 0 or len(self.channel_creators) > 0:
-            self._plugin_menu = self.menuBar().addMenu("Plugins")
-            self._plugin_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
-
-            if len(self.channel_modifiers) > 0:
-                tmenu = self._plugin_menu.addMenu("Channel Creators")
-                for plugin in self.channel_modifiers:
-                    taction = QAction(plugin, self, triggered=self.run_plugin)
-                    tmenu.addAction(taction)
-    
-            if len(self.channel_creators) > 0:
-                tmenu = self._plugin_menu.addMenu("Channel Creators")
-                for plugin in self.channel_creators:
-                    taction = QAction(plugin, self, triggered=self.run_plugin)
-                    tmenu.addAction(taction)
-    
-        """
-        self.view_menu = self.menuBar().addMenu("&View")
-        self.view_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
-        self._export_file_menu = self.file_menu.addMenu("Export")
-        self._export_csv_file_action = QAction("&Export to CSV",
-                self, triggered=self.exportCSVFile)
-        self._export_file_menu.addAction(self._export_csv_file_action)
-
-        self._export_vsa_file_action = QAction("&Export to VSA",
-                self, triggered=self.exportVSAFile)
-        self._export_vsa_file_action.setEnabled(False)
-        self._export_file_menu.addAction(self._export_vsa_file_action)
-        """
+                        plugin = modder.__name__
+                        # First create plugin menu if not already in existence
+                        if self._plugin_menu is None:
+                            self._plugin_menu = self.menuBar().addMenu("Plugins")
+                            self._plugin_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
+                        if tmenu is None:
+                            # Found first callable in plugin so create a menu for all found
+                            tmenu = self._plugin_menu.addMenu(module)
+                        taction = QAction(plugin, self, triggered=self.run_plugin)
+                        # Store the callable function in the menu item data field to be called later
+                        taction.setData(modder)
+                        tmenu.addAction(taction)
 
 
 #/* Main */
