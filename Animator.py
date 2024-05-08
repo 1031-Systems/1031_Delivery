@@ -1591,24 +1591,28 @@ class ChannelMetadataWidget(QDialog):
             layout.addRow(QLabel('Type:'), self._typeedit)
 
         self._portedit = QComboBox()
+        currentText = 'Unassigned'
         if self._channel.type != Channel.DIGITAL:
-            self.offset = 0
+            usedNumericPorts = main_win.getUsedNumericPorts()
             chancount = SystemPreferences['MaxServoChannels']
             for i in range(chancount):
-                text = 'S' + str(i)
-                self._portedit.addItem(text)
+                if i not in usedNumericPorts or i == self._channel.port:
+                    text = 'S' + str(i)
+                    self._portedit.addItem(text)
+                    if i == self._channel.port:
+                        currentText = text
         else:
-            self.offset = 90  #SystemPreferences['MaxServoChannels']
+            usedDigitalPorts = main_win.getUsedDigitalPorts()
             chancount = SystemPreferences['MaxDigitalChannels']
             for i in range(chancount):
-                text = 'D' + str(i)
-                self._portedit.addItem(text)
+                if i not in usedDigitalPorts or i == self._channel.port:
+                    text = 'D' + str(i)
+                    self._portedit.addItem(text)
+                    if i == self._channel.port:
+                        currentText = text
 
         self._portedit.addItem('Unassigned')
-        self._portedit.setCurrentText('Unassigned')
-        if self._channel is not None:
-            if self._channel.port >= 0:
-                self._portedit.setCurrentIndex(self._channel.port - self.offset)
+        self._portedit.setCurrentText(currentText)
         layout.addRow(QLabel('Channel:'), self._portedit)
 
         if self._channel is not None:
@@ -1647,7 +1651,7 @@ class ChannelMetadataWidget(QDialog):
     def doInteractive(self):
         port = -1
         if self._portedit.currentText() != 'Unassigned':
-            port = int(self._portedit.currentIndex() + self.offset)
+            port = int(self._portedit.currentText()[1:])
             if self._channel.type != Channel.DIGITAL:
                 widget = LimitWidget(self, minimum=float(self._minedit.text()), maximum=float(self._maxedit.text()), port = port)
                 widget.setMinSignal.connect(self.setMin)
@@ -3050,6 +3054,22 @@ class MainWindow(QMainWindow):
         self._playwidget.setRange(self.lastXmin, self.lastXmax)
         self.setSlider(self.lastXmin)
 
+    def getUsedNumericPorts(self):
+        usedPorts = []
+        for channel in self.animatronics.channels:
+            if self.animatronics.channels[channel].type != Channel.DIGITAL:
+                if self.animatronics.channels[channel].port >= 0:
+                    usedPorts.append(self.animatronics.channels[channel].port)
+        return usedPorts
+
+    def getUsedDigitalPorts(self):
+        usedPorts = []
+        for channel in self.animatronics.channels:
+            if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                if self.animatronics.channels[channel].port >= 0:
+                    usedPorts.append(self.animatronics.channels[channel].port)
+        return usedPorts
+
     def _hardwareplay(self):
         """
         The method _hardwareplay uses commlib to signal the hardware to play
@@ -3218,15 +3238,14 @@ class MainWindow(QMainWindow):
         pass
 
     def run_plugin(self):
-        print('Running plugin', self.sender().text())
-        pluginname = self.sender().text()
+        #print('Running plugin', self.sender().text())
         if self.sender().data() is not None:
             # Get list of selected channels
             channellist = self.getSelectedChannels()
             if len(channellist) > 0:
                 # Push current state for undo
                 pushState()
-                # Pass selected channels to the plugin
+                # Pass selected channels to the plugin function in the data field
                 value = self.sender().data()(channellist, self.animatronics)
                 if value:
                     # Redraw the modified channels
