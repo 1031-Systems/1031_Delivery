@@ -50,7 +50,20 @@ class UserPrompt(QDialog):
         layout = QFormLayout()
         self._nameedit = QLineEdit()
         self._nameedit.setText(audiofile)
-        layout.addRow(QLabel('Audio File:'), self._nameedit)
+        #layout.addRow(QLabel('Audio File:'), self._nameedit)
+        #layout.addRow(QLabel(''), openbutton)
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(QLabel('Audio File:'))
+        hlayout.addWidget(self._nameedit)
+        openbutton = QPushButton()
+        # Add nice icon to button
+        pixmapi = getattr(QStyle, 'SP_DirOpenIcon')
+        icon = self.style().standardIcon(pixmapi)
+        openbutton.setIcon(icon)
+        openbutton.clicked.connect(self._audioopen)
+        openbutton.setToolTip('Select alternative audio file')
+        hlayout.addWidget(openbutton)
+        layout.addRow(hlayout)
 
         if typelist is not None and len(typelist) > 0:
             self.typeselect = QComboBox()
@@ -82,6 +95,13 @@ class UserPrompt(QDialog):
 
     def getType(self):
         return self.typeselect.currentText()
+
+    def _audioopen(self):
+        fileName, _ = QFileDialog.getOpenFileName(self,"Select Audio File", "",
+                            "Wave Audio Files (*.wav);;All Files (*)",
+                            options=QFileDialog.DontUseNativeDialog)
+        if fileName:
+            self._nameedit.setText(fileName)
 
 def runSphinx(audiofile):
     # Create a decoder with certain model
