@@ -1035,7 +1035,7 @@ class ChannelPane(qwt.QwtPlot):
         self.create()
 
     def getState(self):
-        return (self.minVal, self.maxVal, self.isHidden())
+        return (self.minVal, self.maxVal, self.isHidden(), self.selected)
 
     def setState(self, inState):
         self.setDataRange(inState[0], inState[1])
@@ -1043,6 +1043,7 @@ class ChannelPane(qwt.QwtPlot):
             self.hide()
         else:
             self.show()
+        self.setSelected(inState[3])
 
     def settimerange(self, mintime, maxtime):
         """
@@ -1310,6 +1311,10 @@ class ChannelPane(qwt.QwtPlot):
         self.selected = False
         # Back to blue background
         self.canvas().setPalette(self._unselectedPalette)
+
+    def setSelected(self, flag):
+        if flag: self.select()
+        else: self.deselect()
 
     def invertselect(self):
         """
@@ -3255,7 +3260,9 @@ class MainWindow(QMainWindow):
                     self.updateXMLPane()
                 else:
                     # Nothing was done so clean up
-                    popState()
+                    #popState()
+                    # I am not sure why undo is needed here while popState seems to work everywhere else??
+                    self.undo_action()
 
     def exportCSVFile(self):
         """
@@ -3765,7 +3772,29 @@ class MainWindow(QMainWindow):
         """
 
         """ Perform deletechannel action"""
-        form = ChecklistDialog('Channels to Delete', self.animatronics.channels)
+        # Get list of channels in current display order
+        if SystemPreferences['Ordering'] == 'Alphabetic':
+            channelList = sorted(self.animatronics.channels.keys())
+        elif SystemPreferences['Ordering'] == 'Numeric':
+            index = {}
+            minIndex = -1000
+            for channel in self.animatronics.channels:
+                if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                    offset = 2000
+                else:
+                    offset = 0
+                if self.animatronics.channels[channel].port >= 0:
+                    index[self.animatronics.channels[channel].port + offset] = channel
+                else:
+                    index[minIndex + offset] = channel
+                    minIndex += 1
+            channelList = []
+            for i in sorted(index.keys()):
+                channelList.append(index[i])
+        else:
+            channelList = self.animatronics.channels
+
+        form = ChecklistDialog('Channels to Delete', channelList)
         if form.exec_() == QDialog.Accepted:
             if len(form.choices) <= 0:
                 # Laugh at user
@@ -4028,16 +4057,38 @@ class MainWindow(QMainWindow):
         the user to show or hide whatever channels they wish.
 
             member of class: MainWindow
-        Parameters
+        Parameteranimatronics.channels
         ----------
         self : MainWindow
         """
 
         """ Perform showselector action"""
+        # Get list of channels in current display order
+        if SystemPreferences['Ordering'] == 'Alphabetic':
+            channelList = sorted(self.animatronics.channels.keys())
+        elif SystemPreferences['Ordering'] == 'Numeric':
+            index = {}
+            minIndex = -1000
+            for channel in self.animatronics.channels:
+                if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                    offset = 2000
+                else:
+                    offset = 0
+                if self.animatronics.channels[channel].port >= 0:
+                    index[self.animatronics.channels[channel].port + offset] = channel
+                else:
+                    index[minIndex + offset] = channel
+                    minIndex += 1
+            channelList = []
+            for i in sorted(index.keys()):
+                channelList.append(index[i])
+        else:
+            channelList = self.animatronics.channels
+
         # Pop up show/hide selector to choose visible channels
-        form = ChecklistDialog('Channels to Show', self.animatronics.channels)
+        form = ChecklistDialog('Channels to Show', channelList)
         checklist = []
-        for name in self.plots:
+        for name in channelList:
             if self.plots[name].isHidden():
                 checklist.append(Qt.Unchecked)
             else:
@@ -4045,7 +4096,7 @@ class MainWindow(QMainWindow):
         form.setStates(checklist)
         if form.exec_() == QDialog.Accepted:
             # Actually set the show/hide state
-            for name in self.animatronics.channels:
+            for name in channelList:
                 if name in form.choices:
                     self.plots[name].show()
                 else:
