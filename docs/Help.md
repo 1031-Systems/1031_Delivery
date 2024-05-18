@@ -129,7 +129,8 @@ of the Hauntimator main window or at the top of the screen in MacOS.  They are:
 3. [View](#view) - to fit data to the screen or hide channels currently unneeded
 4. [Channels](#channels) - to select, copy, and paste channels
 5. [Tags](#tags) - for Tag-related activities
-6. [Help](#help) - to find out more
+6. [Plugins](#plugins) - to run external tools
+7. [Help](#help) - to find out more
 
 <a name="file">
 &nbsp;
@@ -351,7 +352,7 @@ Clicking on any tag zooms to that tag.
 Tags may be deleted by left-clicking on the bar designating the tag in the Tags pane while holding down
 the shift key.  This is cumbersome if you want to delete many but is the only method available now.
 
-Tags may be shifted in time by left-clicking on the bar designating the tag in the Tags pane  and sliding
+Tags may be shifted in time by left-clicking on the bar designating the tag in the Tags pane and sliding
 left or right.  Currently, only one tag may be shifted at a time.
 
 The Import Script function provides the capability of importing a script file containing the dialogue
@@ -360,6 +361,24 @@ the tag's text.  The tags are spaced by a simple algorithm based on the number o
 maybe approximately align with the spoken dialogue but many shifts are generally required for good
 alignment.  Someday these dialogue tags may support a phoneme-based audio generator and channel data
 creation.
+
+<a name="plugins">
+&nbsp;
+</a>
+
+### Plugins Menu
+
+The Plugins menu provides access to external functions implemented in Python and installed in the
+plugins directory.  Each entry in the Plugins menu refers to one Python file in the plugins directory
+and the dropdown menus then access the individual functions provided.  There is one standard set of
+plugins provided in the Stock entry.  This implements some useful tools that might be considered
+standard to Hauntimator.  There is also a Phonemes plugin provided that is activated if the
+pocketsphinx module is installed.  Users may develop or download other plugins at their
+convenience.
+
+Generally, the Stock plugins operate on the currently selected knots and channels.  However, plugins
+have access to pretty much everything in the animation and can mess things up willy-nilly.
+Hauntimator does provide Undo capability for plugin actions.
 
 <a name="help">
 &nbsp;
@@ -466,7 +485,7 @@ limit and then the Max or Min button can be clicked to set that limit to the cur
 A few specialized tools for aiding in the generation of control channels have been implemented
 within Hauntimator, as well as some still on the drawing board.  Implemented tools, generally
 introduced elsewhere in this document, include random and amplitude-based control point
-generation and inversion of control channels while planned tools include text-to-phoneme-to-control
+generation and inversion of control channels as well as audio-to-phoneme-to-control
 point tools.
 
 Random control points may be useful for motions that are not particularly coupled to the
@@ -488,16 +507,25 @@ this configuration, the Invert tool may be used.  Create a channel for one servo
 it to a new channel and use the Invert tool in the channel popup menu to invert it.  Then the
 two servos will work in unison with each moving opposite of the other.
 
-Eventually, I would like to make phoneme-based tools available to truly assist in syncing
-voices to animatronic behavior.  The tags are intended to be an early supporting capability
-for the implementation.  However, it is not there yet.
+Some phoneme-based tools are available to truly assist in syncing
+voices to animatronic behavior.  The main one is available via the Phonemes plugin on the
+plugins menu.  It analyzes an audio file containing voice only and populates a control 
+channel with knots for a particular type of motion such as jaw, lips, or cheeks.
 
 <a name="requirements">
 &nbsp;
 </a>
 
 ## Requirements
+
 Hauntimator uses PyQt and PythonQwt libraries for its graphical user elements.
+Use of the Phonemes plugin requires installation of pocketsphinx.  
+
+I like to use rshell
+and generally install it with Hauntimator but it is not required.  It or thonny may also
+be installed and used elsewhere for transferring files to and from the controller.  Some
+such tool is required outside of Hauntimator to install the various software modules on
+the controller.
 
 <a name="bugs">
 &nbsp;
@@ -512,8 +540,9 @@ be ignorable.
 Some users may use thonny or rshell to upload files to the controller.
 Playing the animation in the controller puts it in a state where uploading a control
 file is now impossible via rshell and probably thonny.  The user will have to reset
-the controller, generaly by unplugging it from the USB port and plugging it back in.
-Uploading the control file was changed to not use rshell so this problem is
+the controller, generally by unplugging it from the USB port and plugging it back in
+or by pressing a reset button found on some clones.
+Uploading the control and audio files was changed to not use rshell so this problem is
 generally obviated when done from inside Hauntimator.
 
 The Raspberry Pi Pico used for development and testing has a limited ability to
