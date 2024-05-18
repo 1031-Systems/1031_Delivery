@@ -6,10 +6,10 @@ control data for animatronics.  It is designed to work with
 board designs created by Bill Douglas and available for
 download at [Somewhere](https://www.google.com).
 
-This codebase contains an application, Animator, for creating control
+This codebase contains an application, Hauntimator, for creating control
 channel data for directing the animatronics and code for
 executing on a Raspberry Pi Pico for performing the animations.
-The Animator application is intended to be board-agnostic so
+The Hauntimator application is intended to be board-agnostic so
 users may develop code for different processors such as 
 Arduino or other Raspberry Pi versions.
 
@@ -23,7 +23,7 @@ The channels may act as step functions, linear paths, and
 smoothed or spline paths.  Each channel is linked to a single
 control on a controller.
 
-![Animator Main Window](docs/images/allpanes.png)
+![Hauntimator Main Window](docs/images/allpanes.png)
 
 Once the control channels have been created and validated to be
 synchronized with the audio, they are installed on the control
@@ -43,7 +43,7 @@ In general, you will need to clone this repo to your local host.
 Then, create a virtual environment for the code using venv and
 activate it.  Then use pip to install the required libraries in
 your virtual environment.  At this point you should be able to 
-run Animator.py.  The steps are as follows:
+run Hauntimator.py.  The steps are as follows:
 
 ~~~
 
@@ -55,7 +55,7 @@ pip install --upgrade pip
 pip install -r ${OSTYPE}-requirements.txt
 pip install pocketsphinx    # To support phonemes plugin
 ln -s Pico/commlib.py .     # For Raspberry Pi Pico controller
-python ./Animator.py
+python ./Hauntimator.py
 
 ~~~
 
@@ -82,7 +82,7 @@ pip freeze -l > ${OSTYPE}-requirements.txt # To save your own config
 On darwin, the only MacOS test system I have, PyQt5 does not install
 but PyQt6 does.  Meanwhile, on my Rocky 9 test system, PyQt5 installs
 just fine whilst PyQt6 does not.  You will have to install whichever
-works for you.  Animator.py is written to work with either PyQt5 or
+works for you.  Hauntimator.py is written to work with either PyQt5 or
 PyQt6.
 
 
@@ -90,9 +90,9 @@ PyQt6.
 
 ## Details
 
-### Animator.py
+### Hauntimator.py
 
-Animator.py is the visual user interface for creating and editing the
+Hauntimator.py is the visual user interface for creating and editing the
 control channels.  It displays a stack of channels, typically with 
 audio at the top, in which all channels display the same time range.
 During audio playback, a red bar moves across all channels so that
@@ -110,7 +110,7 @@ knots for a smoother motion of the controlled device.
 Channel data may be exported to a CSV file to be transferred to an
 external hardware controller.  In addition, a pipe may be used to
 directly signal the controller from the system while it runs
-Animator.py.
+Hauntimator.py.
 
 ### Pico
 
@@ -154,25 +154,25 @@ cd ..
 ~~~
 
 In the Pico part of the repo there is a file named commlib.py.  This
-is the interface library for Animator.py to talk to the hardware.
-In order for Animator to load the right commlib, there should be a
+is the interface library for Hauntimator.py to talk to the hardware.
+In order for Hauntimator to load the right commlib, there should be a
 symbolic link in the Animatronics directory to the appropriate
 commlib.py file to support users developing controllers with other
 hardware or programming languages.  commlib.py has the purpose of
-decoupling Animator from the hardware specifics.
+decoupling Hauntimator from the hardware specifics.
 
-Animator's direct communication with the hardware is optional and
-Animator will function without commlib.  In this case, the audio and
+Hauntimator's direct communication with the hardware is optional and
+Hauntimator will function without commlib.  In this case, the audio and
 control files will need to be transferred to the hardware via rshell,
-thonny, direct copy to SD card, or other mechanism.  Animator can
+thonny, direct copy to SD card, or other mechanism.  Hauntimator can
 output the CSV control files locally for separate transfer and the
 audio files must already exist on the system.
 
 ## Plugins
 
-Animator supports a simple form of plugins.  The plugin files are, of
+Hauntimator supports a simple form of plugins.  The plugin files are, of
 course, installed in the plugins directory.  There is a small set of
-functions supplied in plugins/install.py for relatively generic functions
-that operate on channels.  Animator checks all the .py files in the
+functions supplied in plugins/Stock.py for relatively generic functions
+that operate on channels.  Hauntimator checks all the .py files in the
 plugins directory and incorporates any that follow the protocol.  See
 the README in the plugins folder for more details.
