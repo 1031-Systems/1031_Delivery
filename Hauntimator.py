@@ -5175,7 +5175,6 @@ def doAnimatronics():
     main_win.show()
     app.exec_()
 
-    ServoWidget.writeServoData('TestFile')
 
 if __name__ == "__main__":
     doAnimatronics()
