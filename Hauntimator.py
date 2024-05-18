@@ -2069,6 +2069,15 @@ class ServoWidget(QDialog):
     def readServoData(inFilename):
         global ServoData
 
+        if not os.path.exists(inFilename):
+            # Get path to executable (this file)
+            try:
+                sFile = os.path.abspath(sys.modules['__main__'].__file__)
+            except:
+                sFile = sys.executable
+            sFile = os.path.dirname(sFile)
+            inFilename = os.path.join(sFile, inFilename)
+
         try:
             with open(inFilename, 'r') as infile:
                 # Read header line
@@ -5068,9 +5077,16 @@ class MainWindow(QMainWindow):
         # Initialize plugin menu to None
         self._plugin_menu = None
 
+        # Get path to executable (this file)
+        try:
+            sFile = os.path.abspath(sys.modules['__main__'].__file__)
+        except:
+            sFile = sys.executable
+        sFile = os.path.dirname(sFile)
+
         # See what plugins are available
         discovered_plugins = {}
-        for pkg in pkgutil.iter_modules(path=['./plugins']):
+        for pkg in pkgutil.iter_modules(path=[os.path.join(sFile,'plugins')]):
             try:
                 discovered_plugins[pkg.name] = importlib.import_module('plugins.' + pkg.name)
             except:

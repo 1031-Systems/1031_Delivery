@@ -138,8 +138,15 @@ def create_phoneme_channel(channellist, theanim):
     global lastAudioFile
 
     if channellist is None or len(channellist) <= 0: return False
+    # Get path to executable
+    try:
+        sFile = os.path.abspath(sys.modules['__main__'].__file__)
+    except:
+        sFile = sys.executable
+    sFile = os.path.dirname(sFile)
+
     # Read CSV file
-    with open('plugins/phonemes.csv', 'r') as csvfile:
+    with open(os.path.join(sFile, 'plugins/phonemes.csv'), 'r') as csvfile:
         # Get channel types from header
         firstline = csvfile.readline().strip()
         columns = firstline.split(',')
