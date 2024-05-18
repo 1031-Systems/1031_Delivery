@@ -91,6 +91,14 @@ def popState():
     global main_win
     main_win.popState()
 
+def getExecPath():
+    # Get path to executable (this file)
+    try:
+        sFile = os.path.abspath(sys.modules['__main__'].__file__)
+    except:
+        sFile = sys.executable
+    return os.path.dirname(sFile)
+
 def toHMS(seconds):
     flag = seconds < 0
     if flag:
@@ -2070,13 +2078,7 @@ class ServoWidget(QDialog):
         global ServoData
 
         if not os.path.exists(inFilename):
-            # Get path to executable (this file)
-            try:
-                sFile = os.path.abspath(sys.modules['__main__'].__file__)
-            except:
-                sFile = sys.executable
-            sFile = os.path.dirname(sFile)
-            inFilename = os.path.join(sFile, inFilename)
+            inFilename = os.path.join(getExecPath(), inFilename)
 
         try:
             with open(inFilename, 'r') as infile:
@@ -4310,7 +4312,7 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.helpPane.setSource('docs/About.md')
+        self.helpPane.setSource(os.path.join(getExecPath(), 'docs/About.md'))
         self.helpPane.resize(500, 380)
         self.helpPane.setWindowTitle('About Hauntimator')
         self.helpPane.show()
@@ -4324,7 +4326,7 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.helpPane.setSource('docs/Help.md')
+        self.helpPane.setSource(os.path.join(getExecPath(), 'docs/Help.md'))
         self.helpPane.resize(600, 700)
         self.helpPane.setWindowTitle('Hauntimator Help')
         self.helpPane.show()
@@ -4338,7 +4340,7 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.helpPane.setSource('docs/QuickStart.md')
+        self.helpPane.setSource(os.path.join(getExecPath(), 'docs/QuickStart.md'))
         self.helpPane.resize(600, 700)
         self.helpPane.setWindowTitle('Quick Start')
         self.helpPane.show()
@@ -4352,7 +4354,7 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.helpPane.setSource('docs/HotKeys.md')
+        self.helpPane.setSource(os.path.join(getExecPath(), 'docs/HotKeys.md'))
         self.helpPane.resize(600, 700)
         self.helpPane.setWindowTitle('Hot Key Cheat Sheet')
         self.helpPane.show()
@@ -5077,16 +5079,9 @@ class MainWindow(QMainWindow):
         # Initialize plugin menu to None
         self._plugin_menu = None
 
-        # Get path to executable (this file)
-        try:
-            sFile = os.path.abspath(sys.modules['__main__'].__file__)
-        except:
-            sFile = sys.executable
-        sFile = os.path.dirname(sFile)
-
         # See what plugins are available
         discovered_plugins = {}
-        for pkg in pkgutil.iter_modules(path=[os.path.join(sFile,'plugins')]):
+        for pkg in pkgutil.iter_modules(path=[os.path.join(getExecPath(),'plugins')]):
             try:
                 discovered_plugins[pkg.name] = importlib.import_module('plugins.' + pkg.name)
             except:
