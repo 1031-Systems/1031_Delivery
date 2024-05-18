@@ -47,7 +47,7 @@ ChannelNames = [
     ]
 
 ################# Serial Comm Code #########################
-portRoot = '/dev/ttyACM'    # Set by Animator prior to comms
+portRoot = '/dev/ttyACM'    # Set by Hauntimator prior to comms
 
 def openPort():
     # Try a whole bunch of port options

@@ -3,12 +3,12 @@
 # Plugins
 
 This section of the repo contains code and cwfilesscripts for enhancing
-the built-in capabilities of Animator.  Any python file in this directory
+the built-in capabilities of Hauntimator.  Any python file in this directory
 that is recognized by pkgutils will be checked.  If it conforms to the
-protocol described below, it is incorporated into Animator's menus.
+protocol described below, it is incorporated into Hauntimator's menus.
 
 If any valid plugins are found, their functions are added to a Plugins
-menu in Animator's toolbar.  Each function is identified by its plugin
+menu in Hauntimator's toolbar.  Each function is identified by its plugin
 and function name so different plugins may use the same function names.
 
 If errors occur in trying to import a plugin,
@@ -19,7 +19,7 @@ an error message is output to stderr and the plugin is ignored.
 ## Protocol
 
 The protocol for the plugins is very simple.  Plugin functions are passed
-a list of the currently selected channels in Animator and the Animatronics
+a list of the currently selected channels in Hauntimator and the Animatronics
 object that represents the entire animation.  Currently the plugins cannot
 access the UI of the main window.  The plugins may make any modifications
 desired to the channels in the selected list or to the Animatronics
@@ -70,15 +70,15 @@ Note that the empty lists are not required to be present.
 
 ## Plugins Currently Available
 
-### install.py
+### Stock.py
 
-The install.py plugin contains generic functions that are useful for
-all users.  The invert example above is from the install.py plugin.
+The Stock.py plugin contains generic functions that are useful for
+all users.  The invert example above is from the Stock.py plugin.
 Other functions in the plugin are TBD.
 
-### phonemes.py
+### Phonemes.py
 
-The phonemes.py plugin is a helper intended to aid in aligning movement
+The Phonemes.py plugin is a helper intended to aid in aligning movement
 with voice audio.  It uses pocketsphinx, from Carnegie-Mellon, to
 analyze speech and generate phonemes with timing and then generates channels
 to match the phonemes.  It requires pocketsphinx to be installed in your

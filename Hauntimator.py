@@ -2,7 +2,7 @@
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
 #**********************************
-# Program Animator.py
+# Program Hauntimator.py
 # Created by John R. Wright
 # Created Tue Jun 13 17:35:31 PDT 2023
 #*********************************/
@@ -2816,7 +2816,7 @@ class MainWindow(QMainWindow):
         self.ClipboardPane = TextDisplayDialog('Clipboard', parent=self)
 
         # Create the Help Popup
-        self.helpPane = TextDisplayDialog('Animator Help', parent=self)
+        self.helpPane = TextDisplayDialog('Hauntimator Help', parent=self)
 
         # Initialize to no audio plot and add later if read
         self.audioPlot = None
@@ -4303,7 +4303,7 @@ class MainWindow(QMainWindow):
         """
         self.helpPane.setSource('docs/About.md')
         self.helpPane.resize(500, 380)
-        self.helpPane.setWindowTitle('About Animator')
+        self.helpPane.setWindowTitle('About Hauntimator')
         self.helpPane.show()
 
     def help_action(self):
@@ -4317,7 +4317,7 @@ class MainWindow(QMainWindow):
         """
         self.helpPane.setSource('docs/Help.md')
         self.helpPane.resize(600, 700)
-        self.helpPane.setWindowTitle('Animator Help')
+        self.helpPane.setWindowTitle('Hauntimator Help')
         self.helpPane.show()
 
     def quick_action(self):
