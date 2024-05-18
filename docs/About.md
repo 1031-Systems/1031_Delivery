@@ -1,4 +1,4 @@
-<!-- john Fri Jun 27 07:35:16 PDT 2023 -->
+<!-- john Fri Jun 27 07:35:16 PDT 2024 -->
 # About Hauntimator.py
 
 A GUI for building controls for animatronics and lighting displays.
@@ -7,6 +7,6 @@ A GUI for building controls for animatronics and lighting displays.
 
 ![Hauntimator Main Window](images/smallpanes.png)
 
-Copyright 2023 John R. Wright, William R. Douglas
+Copyright 2024 John R. Wright, William R. Douglas
 
 

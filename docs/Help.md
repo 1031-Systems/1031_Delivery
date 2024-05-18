@@ -1,4 +1,4 @@
-<!-- john Fri Jun 27 07:35:16 PDT 2023 -->
+<!-- john Fri Jun 27 07:35:16 PDT 2024 -->
 <a name="top">
 &nbsp;
 </a>
@@ -543,7 +543,15 @@ file is now impossible via rshell and probably thonny.  The user will have to re
 the controller, generally by unplugging it from the USB port and plugging it back in
 or by pressing a reset button found on some clones.
 Uploading the control and audio files was changed to not use rshell so this problem is
-generally obviated when done from inside Hauntimator.
+generally obviated when done from inside Hauntimator.  (I strongly suspect this has
+something to do with running multiple threads, one for control and one for playing
+audio.  If no audio has been played, rshell and thonny can connect fine.  There may be
+a way around this but I haven't found it yet.)
+
+Conversely, rshell and thonny interrupt the controller when transferring files to or
+from it.  This disrupts the communication between Hauntimator and the main software
+running on the controller.  Again the user will need to reset the controller and
+allow the main program to start to let Hauntimator reenable communications.
 
 The Raspberry Pi Pico used for development and testing has a limited ability to
 support this functionality, primarily in the use of an SD card.  In general, the
@@ -567,6 +575,6 @@ mileage will vary.  Hauntimator has been tested with MicroPython only.
 
 ***
 
-Copyright 2023 John R. Wright, William Douglas
+Copyright 2024 John R. Wright, William R. Douglas
 
 

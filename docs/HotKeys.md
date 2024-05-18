@@ -1,4 +1,4 @@
-<!-- john Fri Jun 27 07:35:16 PDT 2023 -->
+<!-- john Fri Jun 27 07:35:16 PDT 2024 -->
 # Hot Key Cheat Sheet
 ---
 ## Normal Keys
@@ -55,3 +55,5 @@ on a tag in the Tag pane.
 Within a channel pane, the wheel zooms the vertical data range about
 the location of the cursor.  The right mouse button brings up the
 tools menu for the channel pane.
+
+Copyright 2024 John R. Wright, William R. Douglas
