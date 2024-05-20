@@ -368,13 +368,16 @@ creation.
 
 ### Plugins Menu
 
+![Plugins Menu](images/pluginmenu.png)
+
 The Plugins menu provides access to external functions implemented in Python and installed in the
 plugins directory.  Each entry in the Plugins menu refers to one Python file in the plugins directory
 and the dropdown menus then access the individual functions provided.  There is one standard set of
 plugins provided in the Stock entry.  This implements some useful tools that might be considered
 standard to Hauntimator.  There is also a Phonemes plugin provided that is activated if the
 pocketsphinx module is installed.  Users may develop or download other plugins at their
-convenience.
+convenience.  If Hauntimator does not find a plugins directory to does notfind any suitable Python
+files within the plugins directory, the Plugins menu will not appear.
 
 Generally, the Stock plugins operate on the currently selected knots and channels.  However, plugins
 have access to pretty much everything in the animation and can mess things up willy-nilly.
@@ -390,6 +393,9 @@ The Help menu provides access to this helpful information as well as some other 
 In addition, it provides some visibility into the content of the clipboard and the overall animation as
 expressed in the XML used for storing the animation information.  This is mostly for my personal
 debugging purposes but is available for all to peruse.
+
+If the developer or user have provided help files for the plugins (plugins/plugin_name.md), they will
+be automagically added to the Help menu.
 
 <a name="audio-tracks">
 &nbsp;
@@ -510,7 +516,8 @@ two servos will work in unison with each moving opposite of the other.
 Some phoneme-based tools are available to truly assist in syncing
 voices to animatronic behavior.  The main one is available via the Phonemes plugin on the
 plugins menu.  It analyzes an audio file containing voice only and populates a control 
-channel with knots for a particular type of motion such as jaw, lips, or cheeks.
+channel with knots for a particular type of motion such as jaw, lips, or cheeks.  See
+the specific Help for the Phonemes plugin for more information.
 
 <a name="requirements">
 &nbsp;

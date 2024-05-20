@@ -175,6 +175,8 @@ def create_phoneme_channel(channellist, theanim):
     if code != QDialog.Accepted: return False
 
     # Run through sphinx
+    audiofile = widget.getAudioFile()
+    if not os.path.exists(audiofile): return False
     phones = runSphinx(widget.getAudioFile())
 
     # Convert phonemes to positions and insert in channel(s)

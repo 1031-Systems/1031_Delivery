@@ -4359,6 +4359,14 @@ class MainWindow(QMainWindow):
         self.helpPane.setWindowTitle('Hot Key Cheat Sheet')
         self.helpPane.show()
 
+    def plugin_help_action(self):
+        if self.sender().text() is not None:
+            pluginname = self.sender().text()
+            self.helpPane.setSource(os.path.join(getExecPath(), 'plugins', pluginname + '.md'))
+            self.helpPane.resize(600, 700)
+            self.helpPane.setWindowTitle(pluginname)
+            self.helpPane.show()
+
     def showleft_audio_action(self, checked):
         """
         The method showleft_audio_action displays or hides the left/mono
@@ -5014,7 +5022,7 @@ class MainWindow(QMainWindow):
         self.channel_menu.addAction(self._Delete_action)
 
 
-        # Create the Help dropdown menu #################################
+        # Create the Tags dropdown menu #################################
         self.tag_menu = self.menuBar().addMenu("&Tags")
         self.tag_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
 
@@ -5040,8 +5048,8 @@ class MainWindow(QMainWindow):
             triggered=self.togglePane_action)
         self.tag_menu.addAction(self._togglePane_action)
 
-        # Build Plugins menu
-        self.buildplugins()
+        # Build Plugins menu returning list of plugins that provide a help file
+        helped_plugins = self.buildplugins()
 
         # Create the Help dropdown menu #################################
         self.help_menu = self.menuBar().addMenu("&Help")
@@ -5065,6 +5073,14 @@ class MainWindow(QMainWindow):
 
         self.help_menu.addSeparator()
 
+        # If any plugins have help files, add them to the Help menu
+        if len(helped_plugins) > 0:
+            tmenu = self.help_menu.addMenu('Plugins')
+            for pl in helped_plugins:
+                taction = QAction(pl, self, triggered=self.plugin_help_action)
+                tmenu.addAction(taction)
+            self.help_menu.addSeparator()
+
         # showClipboard menu item
         self._showClipboard_action = QAction("Show Clipboard", self,
             triggered=self.showClipboard_action)
@@ -5078,6 +5094,9 @@ class MainWindow(QMainWindow):
     def buildplugins(self):
         # Initialize plugin menu to None
         self._plugin_menu = None
+
+        # initially empty list of plugins that include help files
+        helped_plugins = []
 
         # See what plugins are available
         discovered_plugins = {}
@@ -5110,6 +5129,12 @@ class MainWindow(QMainWindow):
                         # Store the callable function in the menu item data field to be called later
                         taction.setData(modder)
                         tmenu.addAction(taction)
+
+            # Check for markdown file for each module to include as help
+            if os.path.exists(os.path.join(getExecPath(),'plugins', module + '.md')):
+                helped_plugins.append(module)
+
+        return helped_plugins
 
 
 #/* Main */
