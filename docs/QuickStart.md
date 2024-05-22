@@ -1,13 +1,13 @@
-<!-- john Wed Aug  2 17:01:44 PDT 2023  -->
+<!-- john Wed Aug  2 17:01:44 PDT 2024  -->
 <a name="top">
 &nbsp;
 </a>
 
-# Animator QuickStart
+# Hauntimator QuickStart
 
-![Animator Main Window](images/allpanes.png)
+![Hauntimator Main Window](images/allpanes.png)
 
-Animator is a tool for creating servo, digital, and other control
+Hauntimator is a tool for creating servo, digital, and other control
 channels to synchronize animatronic movements to each other and to
 an optional audio soundtrack.  The general strategy is to load the
 audio and then create control channels one at a time until you have
@@ -23,7 +23,7 @@ window.
 
 ## Add Control Channels
 
-Animator supports any number of digital (on/off), servo (angles), and
+Hauntimator supports any number of digital (on/off), servo (angles), and
 numeric (real numbers) channels.  As you add them, each channel will occupy
 a pane all the way across the window and they will be stacked from top
 to bottom.  Add a channel for all the devices you wish to control and
@@ -113,3 +113,4 @@ to select a filename and path to save your work.  Conversely, use
 File->Open to open a file or use the -f filename option on the
 command line.
 
+Copyright 2024 John R. Wright, William R. Douglas

@@ -2,7 +2,7 @@
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
 #**********************************
-# Program Animator.py
+# Program Hauntimator.py
 # Created by John R. Wright
 # Created Tue Jun 13 17:35:31 PDT 2023
 #*********************************/
@@ -90,6 +90,14 @@ def popState():
     """
     global main_win
     main_win.popState()
+
+def getExecPath():
+    # Get path to executable (this file)
+    try:
+        sFile = os.path.abspath(sys.modules['__main__'].__file__)
+    except:
+        sFile = sys.executable
+    return os.path.dirname(sFile)
 
 def toHMS(seconds):
     flag = seconds < 0
@@ -1035,7 +1043,7 @@ class ChannelPane(qwt.QwtPlot):
         self.create()
 
     def getState(self):
-        return (self.minVal, self.maxVal, self.isHidden())
+        return (self.minVal, self.maxVal, self.isHidden(), self.selected)
 
     def setState(self, inState):
         self.setDataRange(inState[0], inState[1])
@@ -1043,6 +1051,7 @@ class ChannelPane(qwt.QwtPlot):
             self.hide()
         else:
             self.show()
+        self.setSelected(inState[3])
 
     def settimerange(self, mintime, maxtime):
         """
@@ -1310,6 +1319,10 @@ class ChannelPane(qwt.QwtPlot):
         self.selected = False
         # Back to blue background
         self.canvas().setPalette(self._unselectedPalette)
+
+    def setSelected(self, flag):
+        if flag: self.select()
+        else: self.deselect()
 
     def invertselect(self):
         """
@@ -1591,24 +1604,28 @@ class ChannelMetadataWidget(QDialog):
             layout.addRow(QLabel('Type:'), self._typeedit)
 
         self._portedit = QComboBox()
+        currentText = 'Unassigned'
         if self._channel.type != Channel.DIGITAL:
-            self.offset = 0
+            usedNumericPorts = main_win.getUsedNumericPorts()
             chancount = SystemPreferences['MaxServoChannels']
             for i in range(chancount):
-                text = 'S' + str(i)
-                self._portedit.addItem(text)
+                if i not in usedNumericPorts or i == self._channel.port:
+                    text = 'S' + str(i)
+                    self._portedit.addItem(text)
+                    if i == self._channel.port:
+                        currentText = text
         else:
-            self.offset = 90  #SystemPreferences['MaxServoChannels']
+            usedDigitalPorts = main_win.getUsedDigitalPorts()
             chancount = SystemPreferences['MaxDigitalChannels']
             for i in range(chancount):
-                text = 'D' + str(i)
-                self._portedit.addItem(text)
+                if i not in usedDigitalPorts or i == self._channel.port:
+                    text = 'D' + str(i)
+                    self._portedit.addItem(text)
+                    if i == self._channel.port:
+                        currentText = text
 
         self._portedit.addItem('Unassigned')
-        self._portedit.setCurrentText('Unassigned')
-        if self._channel is not None:
-            if self._channel.port >= 0:
-                self._portedit.setCurrentIndex(self._channel.port - self.offset)
+        self._portedit.setCurrentText(currentText)
         layout.addRow(QLabel('Channel:'), self._portedit)
 
         if self._channel is not None:
@@ -1647,7 +1664,7 @@ class ChannelMetadataWidget(QDialog):
     def doInteractive(self):
         port = -1
         if self._portedit.currentText() != 'Unassigned':
-            port = int(self._portedit.currentIndex() + self.offset)
+            port = int(self._portedit.currentText()[1:])
             if self._channel.type != Channel.DIGITAL:
                 widget = LimitWidget(self, minimum=float(self._minedit.text()), maximum=float(self._maxedit.text()), port = port)
                 widget.setMinSignal.connect(self.setMin)
@@ -2059,6 +2076,9 @@ class ServoWidget(QDialog):
     @staticmethod
     def readServoData(inFilename):
         global ServoData
+
+        if not os.path.exists(inFilename):
+            inFilename = os.path.join(getExecPath(), inFilename)
 
         try:
             with open(inFilename, 'r') as infile:
@@ -2807,7 +2827,7 @@ class MainWindow(QMainWindow):
         self.ClipboardPane = TextDisplayDialog('Clipboard', parent=self)
 
         # Create the Help Popup
-        self.helpPane = TextDisplayDialog('Animator Help', parent=self)
+        self.helpPane = TextDisplayDialog('Hauntimator Help', parent=self)
 
         # Initialize to no audio plot and add later if read
         self.audioPlot = None
@@ -2825,8 +2845,7 @@ class MainWindow(QMainWindow):
         self.unsavedChanges = False
 
         # Create dictionaries for plugins
-        self.channel_modifiers = {}
-        self.channel_creators = {}
+        self.external_callables = {}
 
         # Create all the dropdown menus
         self.create_menus()
@@ -3051,6 +3070,22 @@ class MainWindow(QMainWindow):
         self._playwidget.setRange(self.lastXmin, self.lastXmax)
         self.setSlider(self.lastXmin)
 
+    def getUsedNumericPorts(self):
+        usedPorts = []
+        for channel in self.animatronics.channels:
+            if self.animatronics.channels[channel].type != Channel.DIGITAL:
+                if self.animatronics.channels[channel].port >= 0:
+                    usedPorts.append(self.animatronics.channels[channel].port)
+        return usedPorts
+
+    def getUsedDigitalPorts(self):
+        usedPorts = []
+        for channel in self.animatronics.channels:
+            if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                if self.animatronics.channels[channel].port >= 0:
+                    usedPorts.append(self.animatronics.channels[channel].port)
+        return usedPorts
+
     def _hardwareplay(self):
         """
         The method _hardwareplay uses commlib to signal the hardware to play
@@ -3220,15 +3255,14 @@ class MainWindow(QMainWindow):
 
     def run_plugin(self):
         #print('Running plugin', self.sender().text())
-        pluginname = self.sender().text()
-        if pluginname in self.channel_modifiers:
+        if self.sender().data() is not None:
             # Get list of selected channels
             channellist = self.getSelectedChannels()
             if len(channellist) > 0:
                 # Push current state for undo
                 pushState()
-                # Pass selected channels to the plugin
-                value = self.channel_modifiers[pluginname](channellist, self.animatronics)
+                # Pass selected channels to the plugin function in the data field
+                value = self.sender().data()(channellist, self.animatronics)
                 if value:
                     # Redraw the modified channels
                     for name in self.plots:
@@ -3237,11 +3271,9 @@ class MainWindow(QMainWindow):
                     self.updateXMLPane()
                 else:
                     # Nothing was done so clean up
-                    popState()
-        elif pluginname in self.channel_creators:
-            # Call creator
-            # Put returned list into system
-            pass
+                    #popState()
+                    # I am not sure why undo is needed here while popState seems to work everywhere else??
+                    self.undo_action()
 
     def exportCSVFile(self):
         """
@@ -3751,7 +3783,29 @@ class MainWindow(QMainWindow):
         """
 
         """ Perform deletechannel action"""
-        form = ChecklistDialog('Channels to Delete', self.animatronics.channels)
+        # Get list of channels in current display order
+        if SystemPreferences['Ordering'] == 'Alphabetic':
+            channelList = sorted(self.animatronics.channels.keys())
+        elif SystemPreferences['Ordering'] == 'Numeric':
+            index = {}
+            minIndex = -1000
+            for channel in self.animatronics.channels:
+                if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                    offset = 2000
+                else:
+                    offset = 0
+                if self.animatronics.channels[channel].port >= 0:
+                    index[self.animatronics.channels[channel].port + offset] = channel
+                else:
+                    index[minIndex + offset] = channel
+                    minIndex += 1
+            channelList = []
+            for i in sorted(index.keys()):
+                channelList.append(index[i])
+        else:
+            channelList = self.animatronics.channels
+
+        form = ChecklistDialog('Channels to Delete', channelList)
         if form.exec_() == QDialog.Accepted:
             if len(form.choices) <= 0:
                 # Laugh at user
@@ -4014,16 +4068,38 @@ class MainWindow(QMainWindow):
         the user to show or hide whatever channels they wish.
 
             member of class: MainWindow
-        Parameters
+        Parameteranimatronics.channels
         ----------
         self : MainWindow
         """
 
         """ Perform showselector action"""
+        # Get list of channels in current display order
+        if SystemPreferences['Ordering'] == 'Alphabetic':
+            channelList = sorted(self.animatronics.channels.keys())
+        elif SystemPreferences['Ordering'] == 'Numeric':
+            index = {}
+            minIndex = -1000
+            for channel in self.animatronics.channels:
+                if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                    offset = 2000
+                else:
+                    offset = 0
+                if self.animatronics.channels[channel].port >= 0:
+                    index[self.animatronics.channels[channel].port + offset] = channel
+                else:
+                    index[minIndex + offset] = channel
+                    minIndex += 1
+            channelList = []
+            for i in sorted(index.keys()):
+                channelList.append(index[i])
+        else:
+            channelList = self.animatronics.channels
+
         # Pop up show/hide selector to choose visible channels
-        form = ChecklistDialog('Channels to Show', self.animatronics.channels)
+        form = ChecklistDialog('Channels to Show', channelList)
         checklist = []
-        for name in self.plots:
+        for name in channelList:
             if self.plots[name].isHidden():
                 checklist.append(Qt.Unchecked)
             else:
@@ -4031,7 +4107,7 @@ class MainWindow(QMainWindow):
         form.setStates(checklist)
         if form.exec_() == QDialog.Accepted:
             # Actually set the show/hide state
-            for name in self.animatronics.channels:
+            for name in channelList:
                 if name in form.choices:
                     self.plots[name].show()
                 else:
@@ -4236,9 +4312,9 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.helpPane.setSource('docs/About.md')
+        self.helpPane.setSource(os.path.join(getExecPath(), 'docs/About.md'))
         self.helpPane.resize(500, 380)
-        self.helpPane.setWindowTitle('About Animator')
+        self.helpPane.setWindowTitle('About Hauntimator')
         self.helpPane.show()
 
     def help_action(self):
@@ -4250,9 +4326,9 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.helpPane.setSource('docs/Help.md')
+        self.helpPane.setSource(os.path.join(getExecPath(), 'docs/Help.md'))
         self.helpPane.resize(600, 700)
-        self.helpPane.setWindowTitle('Animator Help')
+        self.helpPane.setWindowTitle('Hauntimator Help')
         self.helpPane.show()
 
     def quick_action(self):
@@ -4264,7 +4340,7 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.helpPane.setSource('docs/QuickStart.md')
+        self.helpPane.setSource(os.path.join(getExecPath(), 'docs/QuickStart.md'))
         self.helpPane.resize(600, 700)
         self.helpPane.setWindowTitle('Quick Start')
         self.helpPane.show()
@@ -4278,10 +4354,18 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-        self.helpPane.setSource('docs/HotKeys.md')
+        self.helpPane.setSource(os.path.join(getExecPath(), 'docs/HotKeys.md'))
         self.helpPane.resize(600, 700)
         self.helpPane.setWindowTitle('Hot Key Cheat Sheet')
         self.helpPane.show()
+
+    def plugin_help_action(self):
+        if self.sender().text() is not None:
+            pluginname = self.sender().text()
+            self.helpPane.setSource(os.path.join(getExecPath(), 'plugins', pluginname + '.md'))
+            self.helpPane.resize(600, 700)
+            self.helpPane.setWindowTitle(pluginname)
+            self.helpPane.show()
 
     def showleft_audio_action(self, checked):
         """
@@ -4938,7 +5022,7 @@ class MainWindow(QMainWindow):
         self.channel_menu.addAction(self._Delete_action)
 
 
-        # Create the Help dropdown menu #################################
+        # Create the Tags dropdown menu #################################
         self.tag_menu = self.menuBar().addMenu("&Tags")
         self.tag_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
 
@@ -4964,8 +5048,8 @@ class MainWindow(QMainWindow):
             triggered=self.togglePane_action)
         self.tag_menu.addAction(self._togglePane_action)
 
-        # Build Plugins menu
-        self.buildplugins()
+        # Build Plugins menu returning list of plugins that provide a help file
+        helped_plugins = self.buildplugins()
 
         # Create the Help dropdown menu #################################
         self.help_menu = self.menuBar().addMenu("&Help")
@@ -4989,6 +5073,14 @@ class MainWindow(QMainWindow):
 
         self.help_menu.addSeparator()
 
+        # If any plugins have help files, add them to the Help menu
+        if len(helped_plugins) > 0:
+            tmenu = self.help_menu.addMenu('Plugins')
+            for pl in helped_plugins:
+                taction = QAction(pl, self, triggered=self.plugin_help_action)
+                tmenu.addAction(taction)
+            self.help_menu.addSeparator()
+
         # showClipboard menu item
         self._showClipboard_action = QAction("Show Clipboard", self,
             triggered=self.showClipboard_action)
@@ -5000,9 +5092,15 @@ class MainWindow(QMainWindow):
         self.help_menu.addAction(self._showXML_action)
 
     def buildplugins(self):
+        # Initialize plugin menu to None
+        self._plugin_menu = None
+
+        # initially empty list of plugins that include help files
+        helped_plugins = []
+
         # See what plugins are available
         discovered_plugins = {}
-        for pkg in pkgutil.iter_modules(path=['./plugins']):
+        for pkg in pkgutil.iter_modules(path=[os.path.join(getExecPath(),'plugins')]):
             try:
                 discovered_plugins[pkg.name] = importlib.import_module('plugins.' + pkg.name)
             except:
@@ -5012,48 +5110,31 @@ class MainWindow(QMainWindow):
 
         # Look for the different types of functions in each plugin
         for module in discovered_plugins:
-            # First look for channel modifiers
-            if hasattr(discovered_plugins[module], 'channel_modifiers'):
-                for modder in discovered_plugins[module].channel_modifiers:
+            # initially assume it has no functions
+            functions = False
+            tmenu = None
+            # First look for callable plugin functions
+            if hasattr(discovered_plugins[module], 'external_callables'):
+                for modder in discovered_plugins[module].external_callables:
                     if hasattr(discovered_plugins[module], modder.__name__):
-                        self.channel_modifiers[module + '.' + modder.__name__] = getattr(discovered_plugins[module], modder.__name__)
+                        plugin = modder.__name__
+                        # First create plugin menu if not already in existence
+                        if self._plugin_menu is None:
+                            self._plugin_menu = self.menuBar().addMenu("Plugins")
+                            self._plugin_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
+                        if tmenu is None:
+                            # Found first callable in plugin so create a menu for all found
+                            tmenu = self._plugin_menu.addMenu(module)
+                        taction = QAction(plugin, self, triggered=self.run_plugin)
+                        # Store the callable function in the menu item data field to be called later
+                        taction.setData(modder)
+                        tmenu.addAction(taction)
 
-            # Next look for channel creators
-            if hasattr(discovered_plugins[module], 'channel_creators'):
-                for modder in discovered_plugins[module].channel_creators:
-                    if hasattr(discovered_plugins[module], modder.__name__):
-                        self.channel_creators[module + '.' + modder.__name__] = getattr(discovered_plugins[module], modder.__name__)
+            # Check for markdown file for each module to include as help
+            if os.path.exists(os.path.join(getExecPath(),'plugins', module + '.md')):
+                helped_plugins.append(module)
 
-        # Now build the plugin dropdown menu
-        if len(self.channel_modifiers) > 0 or len(self.channel_creators) > 0:
-            self._plugin_menu = self.menuBar().addMenu("Plugins")
-            self._plugin_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
-
-            if len(self.channel_modifiers) > 0:
-                tmenu = self._plugin_menu.addMenu("Channel Creators")
-                for plugin in self.channel_modifiers:
-                    taction = QAction(plugin, self, triggered=self.run_plugin)
-                    tmenu.addAction(taction)
-    
-            if len(self.channel_creators) > 0:
-                tmenu = self._plugin_menu.addMenu("Channel Creators")
-                for plugin in self.channel_creators:
-                    taction = QAction(plugin, self, triggered=self.run_plugin)
-                    tmenu.addAction(taction)
-    
-        """
-        self.view_menu = self.menuBar().addMenu("&View")
-        self.view_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
-        self._export_file_menu = self.file_menu.addMenu("Export")
-        self._export_csv_file_action = QAction("&Export to CSV",
-                self, triggered=self.exportCSVFile)
-        self._export_file_menu.addAction(self._export_csv_file_action)
-
-        self._export_vsa_file_action = QAction("&Export to VSA",
-                self, triggered=self.exportVSAFile)
-        self._export_vsa_file_action.setEnabled(False)
-        self._export_file_menu.addAction(self._export_vsa_file_action)
-        """
+        return helped_plugins
 
 
 #/* Main */
@@ -5119,7 +5200,6 @@ def doAnimatronics():
     main_win.show()
     app.exec_()
 
-    ServoWidget.writeServoData('TestFile')
 
 if __name__ == "__main__":
     doAnimatronics()
