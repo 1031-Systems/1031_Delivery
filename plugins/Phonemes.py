@@ -39,6 +39,7 @@ except:
 # Local Globals
 lastAudioFile = None
 verbosity = False
+lastTagFlag = None
 
 
 class UserPrompt(QDialog):
@@ -70,6 +71,12 @@ class UserPrompt(QDialog):
             self.typeselect.addItems(typelist)
             layout.addRow(QLabel('Move Type:'), self.typeselect)
 
+        self.tagselect = QComboBox()
+        self.tagselect.addItems(['None', 'Words', 'Phonemes'])
+        layout.addRow(QLabel('Update Tags'), self.tagselect)
+        if lastTagFlag is not None:
+            self.tagselect.setCurrentText(lastTagFlag)
+
         widget.setLayout(layout)
 
         self.okButton = QPushButton('Run')
@@ -96,12 +103,49 @@ class UserPrompt(QDialog):
     def getType(self):
         return self.typeselect.currentText()
 
+    def getTagFlag(self):
+        global lastTagFlag
+        lastTagFlag = self.tagselect.currentText()
+        return lastTagFlag
+
     def _audioopen(self):
         fileName, _ = QFileDialog.getOpenFileName(self,"Select Audio File", "",
                             "Wave Audio Files (*.wav);;All Files (*)",
                             options=QFileDialog.DontUseNativeDialog)
         if fileName:
             self._nameedit.setText(fileName)
+
+def runSphinxWords(audiofile):
+    # Create a decoder with certain model
+    config = Config()
+
+    # Decode streaming data.
+    decoder = Decoder(config)
+
+    decoder.start_utt()
+    stream = open(audiofile, 'rb')
+    while True:
+      buf = stream.read(1024)
+      if buf:
+        decoder.process_raw(buf, False, False)
+      else:
+        break
+    decoder.end_utt()
+
+    # Output list of words with start and end times
+    words = []
+    for s in decoder.seg():
+        if verbosity: print(s.start_frame, s.end_frame, s.word)
+        theword = s.word
+        # Remove silences that are contained in <> pairs
+        if '<' not in theword and '>' not in theword:
+            # Also remove trailing stresses in parens
+            indx = theword.find('(')
+            if indx > 0:
+                theword = theword[0:indx]
+            words.append((theword, float(s.start_frame) / 100.0))
+
+    return words
 
 def runSphinx(audiofile):
     # Create a decoder with certain model
@@ -191,6 +235,15 @@ def create_phoneme_channel(channellist, theanim):
                 channel.add_knot(phone[1], value)
                 if verbosity: print('Adding knot value:', value, 'at time:', phone[1], 'to channel:', channel.name, 'for phone:', phone[0])
 
+    if widget.getTagFlag() == 'Words':
+        # Rerun sphinx just looking for word timing
+        phones = runSphinxWords(widget.getAudioFile())
+
+    if widget.getTagFlag() != 'None':
+        theanim.clearTags()
+        for phone in phones:
+            theanim.addTag(phone[0], phone[1])
+
     return True
 
 external_callables = [create_phoneme_channel]
@@ -264,6 +317,7 @@ if __name__ == "__main__":
 
         if okay:
             runSphinx(audiofile)
+            runSphinxWords(audiofile)
 
     else:
         pass

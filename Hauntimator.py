@@ -368,6 +368,10 @@ class TagPane(qwt.QwtPlot):
             self.allMarkers[tag] = marker
         self.replot()
 
+    def setTags(self, tagList):
+        self._tags = tagList
+        self.redrawme()
+
     def addTag(self, time, text):
         while time in self._tags:
             time += 0.000001
@@ -3269,6 +3273,7 @@ class MainWindow(QMainWindow):
                         if self.plots[name].selected:
                             self.plots[name].redrawme()
                     self.updateXMLPane()
+                    self.tagPlot.setTags(self.animatronics.tags)
                 else:
                     # Nothing was done so clean up
                     #popState()
@@ -4794,6 +4799,14 @@ class MainWindow(QMainWindow):
             self.tagSelectUpdate()
         pass
 
+    def clearAllTags_action(self):
+        if len(self.animatronics.tags) > 0:
+            pushState()
+            # First remove all tags from the animation
+            self.animatronics.clearTags()
+            # Remove all tags in the tags pane
+            self.tagPlot.setTags([])
+
     def create_menus(self):
         """
         The method create_menus creates all the dropdown menus for the 
@@ -5047,6 +5060,11 @@ class MainWindow(QMainWindow):
             shortcut="T",
             triggered=self.togglePane_action)
         self.tag_menu.addAction(self._togglePane_action)
+
+        # clearAllTags menu item
+        self._clearAllTags_action = QAction("Clear All Tags", self,
+            triggered=self.clearAllTags_action)
+        self.tag_menu.addAction(self._clearAllTags_action)
 
         # Build Plugins menu returning list of plugins that provide a help file
         helped_plugins = self.buildplugins()

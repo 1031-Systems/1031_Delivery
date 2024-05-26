@@ -851,6 +851,12 @@ class Animatronics:
         self.csvUploadFile = SystemPreferences['UploadCSVFile']
         self.audioUploadFile = SystemPreferences['UploadAudioFile']
 
+    def clearTags(self):
+        self.tags = {}
+
+    def addTag(self, name, time):
+        self.tags[time] = name
+
     def parseXML(self, inXMLFilename):
         """
         The method parseXML accepts a filename of an XML file containing an
@@ -882,7 +888,7 @@ class Animatronics:
         # Clean up existing stuff
         self.newAudio = None
         self.channels = {}
-        self.tags = {}
+        self.clearTags()
         self.sample_rate = 50.0
         self.csvUploadFile = SystemPreferences['UploadCSVFile']
         self.audioUploadFile = SystemPreferences['UploadAudioFile']
@@ -913,7 +919,7 @@ class Animatronics:
                     if tag.tag == 'Tag':
                         if 'time' in tag.attrib:
                             time = float(tag.attrib['time'])
-                            self.tags[time] = tag.text.strip()
+                            self.addTag(tag.text.strip(), time)
 
 
     def toXML(self):
