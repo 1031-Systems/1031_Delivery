@@ -335,6 +335,7 @@ the animation and some helpful uses for them.  The Tags menu contains the follow
 + Tag Selector - Brings up a widget for selecting a tag
 + Import Script - Reads a script file and create tags
 + Toggle Tag Pane - Toggle visibility of the Tags pane
++ Clear All Tags - Delete all tags and clear the Tags pane
 
 The Insert Tag (ctrl-T) inserts a tag at the current playback time unless a tag is already located at
 that time.  If the tag may be inserted, a popup prompts for the text for the tag.  Tags may be inserted
@@ -359,8 +360,9 @@ The Import Script function provides the capability of importing a script file co
 contained in the audio.  Each line in the script file becomes an individual tag with the line of text as
 the tag's text.  The tags are spaced by a simple algorithm based on the number of characters so as to
 maybe approximately align with the spoken dialogue but many shifts are generally required for good
-alignment.  Someday these dialogue tags may support a phoneme-based audio generator and channel data
-creation.
+alignment.  
+
+The Phonemes plugin also offers a way to populate the Tags pane.  See the plugin help for more details.
 
 <a name="plugins">
 &nbsp;
