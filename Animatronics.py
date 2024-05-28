@@ -106,9 +106,12 @@ class AudioChannel:
             currTime = minTime
             xdata = []
             ydata = []
+            startidx = int((minTime-self.audiostart) * self.samplerate * self.numchannels)
+            endidx = int((maxTime-self.audiostart) * self.samplerate * self.numchannels)
+            if endidx-startidx < maxCount: maxCount = endidx-startidx
             timeStep = (maxTime - minTime) / maxCount
             while currTime <= maxTime:
-                sampleindex = int((currTime-self.audiostart) * self.samplerate * self.numchannels * self.samplesize)
+                sampleindex = int((currTime-self.audiostart) * self.samplerate) * self.numchannels * self.samplesize
                 if sampleindex >= 0 and sampleindex <= len(self.audio_data) - self.samplesize*self.numchannels:
                     short = struct.unpack(structformat, self.audio_data[sampleindex:(sampleindex+self.samplesize*self.numchannels)])
                     xdata.append(currTime)
@@ -122,9 +125,12 @@ class AudioChannel:
             xdata = []
             leftdata = []
             rightdata = []
+            startidx = int((minTime-self.audiostart) * self.samplerate * self.numchannels)
+            endidx = int((maxTime-self.audiostart) * self.samplerate * self.numchannels)
+            if endidx-startidx < maxCount: maxCount = endidx-startidx
             timeStep = (maxTime - minTime) / maxCount
             while currTime <= maxTime:
-                sampleindex = int((currTime-self.audiostart) * self.samplerate * self.numchannels * self.samplesize)
+                sampleindex = int((currTime-self.audiostart) * self.samplerate) * self.numchannels * self.samplesize
                 if sampleindex >= 0 and sampleindex <= len(self.audio_data) - self.samplesize*self.numchannels:
                     short = struct.unpack(structformat, self.audio_data[sampleindex:sampleindex+self.samplesize*self.numchannels])
                     xdata.append(currTime)
