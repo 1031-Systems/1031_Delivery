@@ -1511,11 +1511,11 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         """
         # Recreate the data plot
-        xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 100)
+        xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 10000)
         if self.curve is not None:
             self.curve.setData(xdata, ydata)
         # Recreate the knot plot
-        xdata,ydata = self.channel.getKnotData(self.minTime, self.maxTime, 100)
+        xdata,ydata = self.channel.getKnotData(self.minTime, self.maxTime, 10000)
         if self.curve2 is not None:
             self.curve2.setData(xdata, ydata)
 
@@ -3266,7 +3266,9 @@ class MainWindow(QMainWindow):
                 # Push current state for undo
                 pushState()
                 # Pass selected channels to the plugin function in the data field
-                value = self.sender().data()(channellist, self.animatronics)
+                starttime = self.lastXmin
+                endtime = self.lastXmax
+                value = self.sender().data()(channellist, self.animatronics, starttime=starttime, endtime=endtime)
                 if value:
                     # Redraw the modified channels
                     for name in self.plots:
@@ -4605,6 +4607,17 @@ class MainWindow(QMainWindow):
         # Get the audio amplitude sampled at the desired rate
         # Use mono/left unless right is only one visible
         audio = self.animatronics.newAudio
+
+        # Check to see if we are sampling too fast (30 is a constant found in Animatronics.py)
+        if popRate > audio.samplerate/30.0:
+            popRate = audio.samplerate/30.0
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Maximum sample rate for this audio is %f!' % popRate)
+            msgBox.setInformativeText("Will sample at this rate but > 50Hz is a waste.")
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+        
         start = twidget.startTime
         if start < self.animatronics.newAudio.audiostart:
             start = self.animatronics.newAudio.audiostart
@@ -4614,7 +4627,7 @@ class MainWindow(QMainWindow):
         bincount = int((end - start) * popRate + 0.999)
         _,signal,_ = audio.getAmplitudeData(start, 
                     start + bincount/popRate, bincount)
-        
+
         pushState()     # Push current state for undo
 
         for name in selection:
