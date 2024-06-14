@@ -3017,6 +3017,8 @@ class MainWindow(QMainWindow):
             self.lastXmin = self.audioMin
             self.lastXmax = self.audioMax
 
+            self.redrawAudio(self.audioMin, self.audioMax)
+
             self._show_audio_menu.setEnabled(True)
             self._audio_amplitude_action.setChecked(False)
 
@@ -4026,9 +4028,17 @@ class MainWindow(QMainWindow):
                 if self.audioCurveRight is not None and rightdata is not None:
                     self.audioCurveRight.setData(xdata, rightdata)
             self.audioPlot.setAxisScale(qwt.QwtPlot.xBottom, minTime, maxTime)
+            if len(ydata) > 0:
+                minVal = min(ydata)
+                maxVal = max(ydata)
+                self.audioPlot.setAxisScale(qwt.QwtPlot.yLeft, minVal, maxVal)
             self.audioPlot.replot()
             if self.audioPlotRight is not None:
                 self.audioPlotRight.setAxisScale(qwt.QwtPlot.xBottom, minTime, maxTime)
+                if len(rightdata) > 0:
+                    minVal = min(rightdata)
+                    maxVal = max(rightdata)
+                    self.audioPlotRight.setAxisScale(qwt.QwtPlot.yLeft, minVal, maxVal)
                 self.audioPlotRight.replot()
                 
     def redrawTags(self, minTime, maxTime):
