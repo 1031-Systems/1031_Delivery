@@ -3222,6 +3222,12 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % self.animatronics.filename)
                 sys.stderr.write("Message: %s\n" % e)
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Whoops - Unable to write to animatronics file:')
+                msgBox.setInformativeText(self.animatronics.filename)
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
                 return
         pass
 
@@ -3240,6 +3246,7 @@ class MainWindow(QMainWindow):
         """
 
         """Save the current animatronics file"""
+        fileName = 'Unknown'
         self.filedialog.setDefaultSuffix('anim')
         self.filedialog.setNameFilter("Anim Files (*.anim);;All Files (*)")
         if self.filedialog.exec_():
@@ -3256,6 +3263,12 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Whoops - Unable to write to specified file:')
+                msgBox.setInformativeText(fileName)
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
                 return
 
         pass
@@ -5316,8 +5329,11 @@ def doAnimatronics():
                 sys.exit(11)
 
             main_win.saveStateOkay = True
-        else:
+        elif not os.path.exists(infilename):
             animation.filename = infilename
+        else:
+            sys.stderr.write("\nWhoops - Unable to use %s as a file\n" % infilename)
+            sys.exit(11)
 
     # Open the main window and process events
     main_win.setAnimatronics(animation)
