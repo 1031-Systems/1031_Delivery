@@ -5304,17 +5304,20 @@ def doAnimatronics():
 
     # If an input file was specified, parse it or die trying
     if infilename is not None:
-        # Do not update state if we read here
-        main_win.saveStateOkay = False
-        try:
-            animation.parseXML(infilename)
+        if os.path.isfile(infilename):
+            # Do not update state if we read here
+            main_win.saveStateOkay = False
+            try:
+                animation.parseXML(infilename)
 
-        except Exception as e:
-            sys.stderr.write("\nWhoops - Error reading input file %s\n" % infilename)
-            sys.stderr.write("Message: %s\n" % e)
-            sys.exit(11)
+            except Exception as e:
+                sys.stderr.write("\nWhoops - Error reading input file %s\n" % infilename)
+                sys.stderr.write("Message: %s\n" % e)
+                sys.exit(11)
 
-        main_win.saveStateOkay = True
+            main_win.saveStateOkay = True
+        else:
+            animation.filename = infilename
 
     # Open the main window and process events
     main_win.setAnimatronics(animation)
