@@ -3345,6 +3345,7 @@ class MainWindow(QMainWindow):
                 _,tend = self.plots[plot].getTimeRange()
                 if tend > endtime: endtime = tend
         currtime = starttime
+        endtime += samplestep   # To make sure we get final state
         while currtime < endtime:
             if integers:
                 timecolumn.append(int(currtime * 1000)) # Convert time column to integer milliseconds
