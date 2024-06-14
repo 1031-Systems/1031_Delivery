@@ -385,7 +385,7 @@ class Channel:
             self.add_knot(currTime, currValue)
             currTime += 1.0/popRate
 
-    def amplitudize(self, minTime, maxTime, signal, maxRate=0.0, popRate=0.0):
+    def amplitudize(self, minTime, maxTime, signal, maxRate=0.0, cutoff=0.0, popRate=0.0):
         # If maxRate not specified, compute it
         if maxRate == 0.0:
             maxRate = (self.maxLimit - self.minLimit)
@@ -412,10 +412,12 @@ class Channel:
         while currTime <= maxTime:
             if indx >= len(signal): break
             if self.type == self.DIGITAL:
-                if signal[indx] > topval/2:
+                currValue = 0.0
+                if cutoff > 0.0:
+                    if signal[indx] > cutoff:
+                        currValue = 1.0
+                elif signal[indx] > topval/2:
                     currValue = 1.0
-                else:
-                    currValue = 0.0
             else:
                 # Scale from min to max based on amplitude from 0 to topval
                 currValue = (signal[indx] / topval) * (self.maxLimit - self.minLimit) + self.minLimit

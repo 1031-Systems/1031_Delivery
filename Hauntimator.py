@@ -124,12 +124,12 @@ def fromHMS(string):
 #####################################################################
 class AmpingWidget(QDialog):
 
-    def __init__(self, parent=None, startTime=0.0, endTime=0.0, maxRate=0.0, popRate=10.0):
+    def __init__(self, parent=None, startTime=0.0, endTime=0.0, cutoff=0.0, popRate=10.0):
         super().__init__(parent)
 
         self.startTime = startTime
         self.endTime = endTime
-        self.maxRate = maxRate
+        self.cutoff = cutoff
         self.popRate = popRate
         
         self.setWindowTitle('Amplitudize Control')
@@ -143,6 +143,10 @@ class AmpingWidget(QDialog):
         self._endedit = QLineEdit()
         self._endedit.setText('%.3f' % endTime)
         layout.addRow(QLabel('End Time:'), self._endedit)
+
+        self._cutoffedit = QLineEdit()
+        self._cutoffedit.setText('%.3f' % cutoff)
+        layout.addRow(QLabel('Cutoff:'), self._cutoffedit)
 
         self._rateedit = QLineEdit()
         self._rateedit.setText('%.3f' % popRate)
@@ -180,6 +184,10 @@ class AmpingWidget(QDialog):
             self.endTime = float(tstring)
         else:
             self.endTime = 1.0e34
+
+        tstring = self._cutoffedit.text()
+        if len(tstring) > 0:
+            self.cutoff = float(tstring)
 
         tstring = self._rateedit.text()
         if len(tstring) > 0:
@@ -4635,6 +4643,7 @@ class MainWindow(QMainWindow):
 
         # Do the amplitudize process
         popRate = twidget.popRate   # amplitude buckets per second
+        cutoff = twidget.cutoff
 
         # Get the audio amplitude sampled at the desired rate
         # Use mono/left unless right is only one visible
@@ -4666,6 +4675,7 @@ class MainWindow(QMainWindow):
             self.plots[name].channel.amplitudize(start,
                     start + bincount/popRate,
                     signal,
+                    cutoff=cutoff,
                     popRate=popRate)
             self.plots[name].redrawme()
 
