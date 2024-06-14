@@ -2870,6 +2870,9 @@ class MainWindow(QMainWindow):
         self._slideTime = 0.0
         self.clipboard = QGuiApplication.clipboard()
 
+        # Create the TimeRangeDialog
+        self.timerangedialog = self.TimeRangeDialog(parent=self)
+
         # Initialize with an empty animatronics object
         self.setAnimatronics(Animatronics())
 
@@ -4045,6 +4048,21 @@ class MainWindow(QMainWindow):
         self.setTimeRange(self.animatronics.start, self.animatronics.end)
         pass
 
+    def settimerange_action(self):
+        """
+        The method settimerange_action brings up a dialog box to set the visible time range to 
+        match that specified by the user, even of some channels contain data points outside that range.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
+        """ show the dialog and use its methods to set the time range """
+        self.timerangedialog.show()
+        pass
+
     def showall_action(self):
         """
         The method showall_action causes all audio and data channels to be
@@ -4952,6 +4970,11 @@ class MainWindow(QMainWindow):
             triggered=self.scaletotimerange_action)
         self.view_menu.addAction(self._scaletotimerange_action)
 
+        # settimerange menu item
+        self._settimerange_action = QAction("Set Time Range", self,
+            triggered=self.settimerange_action)
+        self.view_menu.addAction(self._settimerange_action)
+
         self.view_menu.addSeparator()
 
         # showall menu item
@@ -5166,6 +5189,73 @@ class MainWindow(QMainWindow):
                 helped_plugins.append(module)
 
         return helped_plugins
+
+    class TimeRangeDialog(QDialog):
+        def __init__(self, parent=None):
+            super().__init__(parent)
+
+            self.mainwindow = parent
+            startTime = parent.lastXmin
+            endTime = parent.lastXmax
+
+            self.setWindowTitle('Set Time Range')
+
+            widget = QWidget()
+            layout = QFormLayout()
+
+            self._startedit = QLineEdit()
+            self._startedit.setText('%.3f' % startTime)
+            layout.addRow(QLabel('Start Time:'), self._startedit)
+
+            self._endedit = QLineEdit()
+            self._endedit.setText('%.3f' % endTime)
+            layout.addRow(QLabel('End Time:'), self._endedit)
+
+            widget.setLayout(layout)
+
+            self.okButton = QPushButton('Okay')
+            self.okButton.setDefault(True)
+            self.cancelButton = QPushButton('Cancel')
+            self.applyButton = QPushButton('Apply')
+
+            hbox = QHBoxLayout()
+            hbox.addStretch(1)
+            hbox.addWidget(self.applyButton)
+            hbox.addWidget(self.okButton)
+            hbox.addWidget(self.cancelButton)
+
+            vbox = QVBoxLayout(self)
+            vbox.addWidget(widget)
+            vbox.addStretch(1)
+            vbox.addLayout(hbox)
+            self.setLayout(vbox)
+
+            self.applyButton.clicked.connect(self.onApply)
+            self.okButton.clicked.connect(self.onAccepted)
+            self.cancelButton.clicked.connect(self.reject)
+
+        def onApply(self):
+            tstring = self._startedit.text()
+            if len(tstring) > 0:
+                startTime = float(tstring)
+            else:
+                startTime = -1.0e34
+
+            tstring = self._endedit.text()
+            if len(tstring) > 0:
+                endTime = float(tstring)
+            else:
+                endTime = 1.0e34
+
+            # Pass the time values to MainWindow
+            self.mainwindow.setTimeRange(startTime, endTime)
+
+        def onAccepted(self):
+            # Execute the Apply function
+            self.onApply()
+
+            # And close up shop but not delete the dialog
+            self.accept()
 
 
 #/* Main */
