@@ -226,6 +226,7 @@ is designed to aid in this process.  The View menu contains the following option
 + Fit to All Data - Fit all audio and channel data to the current window width.  This essentially undoes all zooming.
 + Fit to Audio - Fit the audio to the current window width, hiding any part of the channel data outside the timespan of the audio.
 + Fit to Time Range - Fit the full time range specified in the animation metadata to the window.
++ Set Time Range - Bring up dialog to specify exact visible range desired.
 + Show All Channels - Make all channels visible within the window.  This may make the channel panes microscopically small.
 + Select Viewed Channels - Brings up a selection widget for selecting channels to be visible or hidden.
 + Show Audio - Controls the display of audio channels.
@@ -264,7 +265,7 @@ any of several sources and is closely coupled with the hardware controller and i
 software.  Generally, the controller will play an animation until both its audio tracks and
 its control file have completed playing.  If there are seven seconds of audio and ten
 seconds of animation control, it will play for ten seconds.  If there are seven seconds of
-audion and five seonds of animation control, it will play for seven seconds.  Thus, the
+audio and five seonds of animation control, it will play for seven seconds.  Thus, the
 playback duration is set by the longer of the audio or the CSV file containing the control
 values.
 
@@ -312,12 +313,16 @@ digital channel or vice versa and is not recommended.
 
 The Amplitudize function fills the channel with data points based on the amplitude of the audio signal.
 By default, it only fills the visible part of the channel but the user may change that as well as the
-sampling rate of the new data points.
+sampling rate of the new data points.  The dialog for the Amplitudize function also allows a cutoff value
+to be specified.  For Digital channels, any value below the cutoff results in a zero digital value while
+any value above the cutoff results in a one digital value.  If the cutoff is less than or equal to 0.0,
+it essentially defaults to the midpoint of the audio data range.
 
 The Shift function is not yet implemented.
 
 The Delete function requests confirmation prior to deleting.  This is because it is difficult but
-possible to select and then delete a channel that is hidden.  Of course the delete may be undone.
+possible to select and then delete a channel that is hidden such that the user is not immediately
+aware that a channel was deleted.  Of course the delete may be undone.
 
 <a name="tags">
 &nbsp;
