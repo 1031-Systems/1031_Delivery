@@ -34,7 +34,7 @@ class Servos:
             pass
         else:
             return self.pca9685.duty(index)
-        duty = min(self.max_duty, max(self.min_duty, int(duty)))
+        #duty = min(self.max_duty, max(self.min_duty, int(duty)))
         self.positions[index] = duty
         if push: self.pca9685.duty(index, duty)
 
