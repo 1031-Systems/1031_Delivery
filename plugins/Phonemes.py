@@ -178,7 +178,7 @@ def runSphinx(audiofile):
 
     return phones
 
-def create_phoneme_channel(channellist, theanim):
+def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
     global lastAudioFile
 
     if channellist is None or len(channellist) <= 0: return False
