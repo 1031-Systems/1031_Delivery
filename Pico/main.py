@@ -18,15 +18,15 @@ verbose=False
 def button_pressed():
     # Pin 24 is the onboard USR button on some Pico clones
     button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
-    # Pin 28 is the external jumper connector on the Xmas board
+    # Pin 28 is the RUN button connected to external jumper connector
     runbutton = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_UP)
     return (not button.value()) or (not runbutton.value())
 
 def toggle_LEDs():
     # Use the on board LED for status
     led_onboard = machine.Pin(25, machine.Pin.OUT)
-    # Use the of board LED for status too
-    led_offboard = machine.Pin(5, machine.Pin.OUT)
+    # Use the off board LED for status too
+    led_offboard = machine.Pin(26, machine.Pin.OUT)
 
     led_onboard.toggle()
     led_offboard.toggle()
@@ -34,8 +34,8 @@ def toggle_LEDs():
 def on_LEDs():
     # Use the on board LED for status
     led_onboard = machine.Pin(25, machine.Pin.OUT)
-    # Use the of board LED for status too
-    led_offboard = machine.Pin(5, machine.Pin.OUT)
+    # Use the off board LED for status too
+    led_offboard = machine.Pin(26, machine.Pin.OUT)
 
     led_onboard.on()
     led_offboard.on()
@@ -134,6 +134,8 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
     playIndex = 0
     if len(animList) > 0:
         if randomize: playIndex = random.randint(0, len(animList)-1)
+    else:
+        return
     if verbose: print(animList)
 
     # Swallow strange initially pressed state
@@ -173,7 +175,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
             # Blink LED at 10 Hz until button released
             while True:
                 toggle_LEDs()
-                utime.sleep_ms(10)
+                utime.sleep_ms(100)
                 if not button_pressed():
                     utime.sleep_ms(50)    # Debounce switch
                     if not button_pressed(): break
@@ -242,9 +244,15 @@ def play_one_anim(csvfile, wavefile):
 
     # Start the audio playing whether there is a CSV file or not
     if verbose: print('Playing file:', wavefile)
+
+    # Initialize stats for optional display
+    setTicks = 0
+    digTicks = 0
     servoTicks = 0
     servoCount = 0
     lockTicks = 0
+    skips = 0
+
     readTicks = 0
     player = None   # Set player to None so later we know if it exists
     if isfile(wavefile):
@@ -271,6 +279,7 @@ def play_one_anim(csvfile, wavefile):
 
             # Send all values in the row to the Pins
             #if verbose: print('Sending data at time:',utime.ticks_diff(utime.ticks_ms(), startTicks), 'which should be:', nextTicks)
+            ticks1 = utime.ticks_us()
             for i in range(1,len(titles)):
                 if porttypes[i] is not None:
                     if porttypes[i] == DIGITAL:
@@ -283,9 +292,13 @@ def play_one_anim(csvfile, wavefile):
                         #if verbose: print('Channel', ports[i],'is SERVO')
                         value = int(values[i])
                         helpers.setServo(ports[i], value, push=False)
+            setTicks += utime.ticks_us() - ticks1
 
             # Make sure all the digital channels are output
+            ticks1 = utime.ticks_us()
             helpers.outputDigital()
+            digTicks += utime.ticks_us() - ticks1
+
             # Push out all the servo values as well
             ticks1 = utime.ticks_us()
             helpers.pushServos()
@@ -314,6 +327,7 @@ def play_one_anim(csvfile, wavefile):
                 values = line.split(',')
                 nextTicks = int(values[0])
                 if nextTicks >= utime.ticks_diff(utime.ticks_ms(), startTicks): break
+                skips += 1
                 line = infile.readline()
             readTicks += utime.ticks_diff(utime.ticks_us(), startLockTicks)
             if player is not None: player.readLock.release()
@@ -326,10 +340,15 @@ def play_one_anim(csvfile, wavefile):
             print('Wait time :', waitTime, 'msec')
             print('Total time:', nextTicks, 'msec')
             print('Wait frac :', waitTime/nextTicks)
-            print('Read time :', readTicks, 'msec')
+            print('Read time :', readTicks, 'usec')
+            print('Skip count:', skips)
 
-            print('Used', servoTicks, 'usec to write to servo', servoCount,'times')
-            print('For an average of', servoTicks/servoCount,'usec per write')
+            print('Used', servoTicks, 'usec to write to servo', servoCount, 'times')
+            print('For an average of', servoTicks/servoCount, 'usec per cycle')
+            print('Used', digTicks, 'usec to shift out digital values', servoCount, 'times')
+            print('For an average of', digTicks/servoCount,'usec per cycle')
+            print('Used', setTicks, 'usec to read and interpret ascii values', servoCount, 'times')
+            print('For an average of', setTicks/servoCount,'usec per cycle')
 
             print('Time spent waiting for lock:', lockTicks, 'usec')
 
@@ -349,12 +368,12 @@ def play_one_anim(csvfile, wavefile):
         print('Time for 1000 outputDigital calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
         startTicks = utime.ticks_us()
         for j in range(100):
-            helpers.setServo(7,50)
+            helpers.setServo(8,50)
             helpers.pushServos()
         print('Time for 100 pushServo calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
         startTicks = utime.ticks_us()
         for j in range(1000):
-            helpers.setServo(7,50,push=False)
+            helpers.setServo(8,450,push=False)
         print('Time for 1000 setServo calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
         startTicks = utime.ticks_us()
         if isfile(csvfile):
