@@ -2,12 +2,14 @@
 #set echo
 
 rshell mkdir /pyboard/lib
-rshell cp Christmas_helpers.py /pyboard/lib/helpers.py
-rshell cp servo.py \
-          wave.py \
-          pca9685.py \
-          sdcard.py \
-          memstats.py \
+rshell cp lib/servo.py \
+          lib/wave.py \
+          lib/pca9685.py \
+          lib/sdcard.py \
+          lib/memstats.py \
+          lib/tables.py \
+          lib/tabledefs \
+          lib/helpers.py \
           /pyboard/lib
 rshell cp boot.py main.py /pyboard
 rshell mkdir /pyboard/anims

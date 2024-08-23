@@ -1,104 +1,32 @@
 # Basic Imports
 
-from machine import I2C, Pin
-from servo import Servos
-from pca9685 import PCA9685
+from machine import Pin
 import utime
 import binascii
+import tables
 
 ############# Servo Code #################################
-MaxTotalServos = 32     # Sync this number in Animator Preferences
-ServosPerPCA = 16       # Must be power of 2
-
-servoShift = 4          # log2 of ServosPerPCA
-servoMod = ServosPerPCA - 1
-
-_servoblocks = [None]*20    # Allow for up to 20 PCA chips (320 servos)
-_i2c = None
-
 def setServo(index=-1, cycletime=0, push=True):
-    global _servoblocks, _i2c
-
-    if index < 0 or index > MaxTotalServos: return
-
-    pcaIndex = index >> servoShift
-    pcaAddress = 0x40 + pcaIndex        # Use board 0 for servos 0-15, board 1 for 16-31, ...
-    index = index & servoMod            # Mod index to be within range of board
-    if _servoblocks[pcaIndex] is None:
-        # Must initialize this PCA and block of servos
-        if _i2c is None:
-            sda = Pin(0, pull=Pin.PULL_UP)
-            scl = Pin(1, pull=Pin.PULL_UP)
-            id = 0
-            _i2c = I2C(id=id, sda=sda, scl=scl, freq=1048576)   # Use 1MHz as that is max for pca9685
-        _servoblocks[pcaIndex] = Servos(i2c=_i2c, address=pcaAddress)
-
-    # Now actually set the servo
-    _servoblocks[pcaIndex].position(index=index, duty=cycletime, push=push)
+    tables.setPWM(index, cycletime, push)
 
 def releaseServo(index=-1):
-    if index < 0 or index > MaxTotalServos: return
-
-    pcaIndex = index >> servoShift
-    pcaAddress = 0x40 + pcaIndex        # Use board 0 for servos 0-15, board 1 for 16-31, ...
-    index = index & servoMod            # Mod index to be within range of board
-    if _servoblocks[pcaIndex] is None or _i2c is None: return
-
-    _servoblocks[pcaIndex].release(index=index)
+    tables.releasePWM(index)
 
 def releaseAllServos():
-    for index in range(MaxTotalServos):
-        releaseServo(index)
+    tables.releaseAllPWMs()
 
 def pushServos():
-    for i in range(20):
-        if _servoblocks[i] is not None: _servoblocks[i].pushValues()
+    tables.pushPWMs()
 
 ############# Digital Code #################################
-MaxTotalDigitalIOs = 24      # Sync this number in Animator Preferences
-DigitalIOsPer595 = 8
-DigitalDataPin = 26
-DigitalClockPin = 27
-DigitalRclkPin = 21
-DigitalClearPin = 20
-
-_digitalCurrentState = [0]*MaxTotalDigitalIOs
-
 def setDigital(index=-1, value=0, show=False):
-    if index < 0 or index >= MaxTotalDigitalIOs: return
-
-    _digitalCurrentState[index] = value
-
-    if show:    # Immediately set output
-        outputDigital()
+    tables.setDigital(index, value, push=show)
 
 def outputDigital():
-    # Define the pins
-    dataPin = Pin(DigitalDataPin, Pin.OUT)
-    clockPin = Pin(DigitalRclkPin, Pin.OUT)
-    shiftPin = Pin(DigitalClockPin, Pin.OUT)
-    clearPin = Pin(DigitalClearPin, Pin.OUT)
-    clearPin.on() # No want clearing here
-
-    # Cycle the digital state thru all the 74HC595 chips
-    for i in range(MaxTotalDigitalIOs):
-        # Put the value on the data pin, msb first
-        value = _digitalCurrentState[MaxTotalDigitalIOs - i - 1]
-        if value > 0.5:
-            dataPin.on()
-        else:
-            dataPin.off()
-        shiftPin.on()
-        shiftPin.off()
-
-    # Clock all the bits to the outputs
-    clockPin.on()
-    clockPin.off()
+    tables.outputDigital()
 
 def setAllDigital(invalue):
-    for i in range(MaxTotalDigitalIOs):
-        _digitalCurrentState[i] = invalue
-    outputDigital()
+    tables.setAllDigital(invalue)
 
 ############# Wave File Player ################################
 import wave
@@ -113,7 +41,7 @@ PicoAudioEnablePin = 22
 AudioBlockSize = 1024
 
 class WavePlayer:
-    def __init__(self, wavefilename, verbose=False):
+    def __init__(self, wavefilename, csvfilename=None, verbose=0):
         self.verbose = verbose
         self.filename = wavefilename
         try:
@@ -123,23 +51,40 @@ class WavePlayer:
             return
         self._volume = 0.5
 
+        # Open the csvfile if specified
+        self.queue = []
+        self.queuesize = 0
+        try:
+            self.csvfile = open(csvfilename, 'r')
+            # If opening is successful, set up data queue
+            # Create a semaphore lock for threads to coordinate getting and putting data in queue
+            self.queuelock = _thread.allocate_lock()
+            # Fill the queue initially
+            self.queuesize = 5
+            self.fillqueue()
+        except:
+            pass    # Ignore any errors including filename is None
+
         # Set up ping-pong audio buffers
         self.audiodata = [None] * 2
         self.currbuffer = 0
 
         # Initialize stats
-        self.firstuploadticks = 0
         self.startTicks = 0
         self.sumuploadticks = 0
-        self.sumreadfileticks = 0
-        self.suspendedticks = 0
+        self.sumreadfilemsec = 0
+        self.suspendedusec = 0
         self.blocksplayed = 0
+        self.csvfiletime = 0
 
         # Compute number of frames in a 512-byte block
         self.blockframes = int(512/self.file.getsampwidth()/self.file.getnchannels())
 
         # Stop Flag set to not play initially
         self.stopflag = True
+
+        # Set semaphore to indicate that we need to write again
+        self.emptyflag = True
 
         # Set up pins for I2S
         datapin = Pin(I2SDataPin, Pin.OUT)
@@ -157,58 +102,94 @@ class WavePlayer:
                 bits=self.file.getsampwidth() * 8,
                 format=(I2S.MONO if self.file.getnchannels() == 1 else I2S.STEREO),
                 rate=self.file.getframerate(),
-                ibuf=AudioBlockSize*8)
+                ibuf=AudioBlockSize*4)
 
         # Create a semaphore lock for outside reads to avoid interfering with reads in this thread
         self.readLock = _thread.allocate_lock()
 
+        # Read in first buffer so we are ready to play
+        self.loadbuffer(self.currbuffer)
+        self.stopflag = False
+
+    def fillqueue(self):
+        startTicks = utime.ticks_us()
+        while len(self.queue) < self.queuesize:
+            line = self.csvfile.readline()
+            self.queuelock.acquire()
+            self.queue.append(line)
+            self.queuelock.release()
+        self.csvfiletime += utime.ticks_diff(utime.ticks_us(), startTicks)
+
+    def readline(self):
+        # Must be called from another thread to prevent locking
+        while len(self.queue) < 1:
+            self.suspendedusec += 20
+            utime.sleep_us(20)
+        self.queuelock.acquire()
+        outline = self.queue.pop(0)
+        self.queuelock.release()
+        return outline
+
+    def close(self):
+        # Just to make it look like a file
+        pass
+
+    def irq(self, arg):
+        self.emptyflag = True
+        if self.verbose > 1: print('In irq arg:', arg)
+
     def play(self):
         if self.file is None: return
-        if self.verbose: print('Running play() in thread', _thread.get_ident())
+        if self.verbose > 0: print('Running play() in thread', _thread.get_ident())
         # Play until done or stopped
         self.stopflag = False
         # Kick off playback in a new thread
         _thread.start_new_thread(self.threadplay, (False,))
 
     def threadplay(self, dummy):
-        if self.verbose: print('Running threadplay() in thread', _thread.get_ident())
+        if self.verbose > 0: print('Running threadplay() in thread', _thread.get_ident())
         # Initialize statistics
         self.startTicks = utime.ticks_us()
         self.sumuploadticks = 0
         self.sumreadfileticks = 0
-        self.suspendedticks = 0
+        self.suspendedusec = 0
         self.blocksplayed = 0
+        self.csvfiletime = 0
 
-        # Read in first buffer so we are ready to play
-        self.loadbuffer(self.currbuffer)
+        # Set interrupt service routine to make write non-blocking
+        self.audio_out.irq(self.irq)
 
         # Play until end of data or stopped
         while not self.stopflag: self.playblock(False)
+
+        # Try to more explicitly kill the thread
+        _thread.exit()
 
     def playblock(self, junk):
         #print('Entered playblock')
         # Check to see if we are stopped
         if self.stopflag: return
-        #if self.verbose: print('Running playblock() in thread', _thread.get_ident())
+        #if self.verbose > 1: print('Running playblock() in thread', _thread.get_ident())
 
-        # Play one block of audio data from current ping-pong buffer
-        startTicks = utime.ticks_us()
-        self.audio_out.write(self.audiodata[self.currbuffer])
-        totaluploadticks = utime.ticks_diff(utime.ticks_us(), startTicks)
-        if self.verbose: print('Ticks to write block to i2s', totaluploadticks)
-        if self.firstuploadticks == 0:
-            self.firstuploadticks = totaluploadticks
-        self.sumuploadticks += totaluploadticks
-        totaluploadticks -= self.firstuploadticks
-        self.suspendedticks += totaluploadticks
-        self.blocksplayed += 1
+        # Make sure data queue is full
+        self.fillqueue()
 
-        # Fill the buffer while playing previous buffer
-        # Switch to other buffer
-        self.currbuffer = 1 - self.currbuffer
-        startTicks = utime.ticks_us()
-        self.loadbuffer(self.currbuffer)
-        self.sumreadfileticks += utime.ticks_diff(utime.ticks_us(), startTicks)
+        if self.emptyflag:
+            self.emptyflag = False
+            # Play one block of audio data from current ping-pong buffer
+            startTicks = utime.ticks_us()
+            self.audio_out.write(self.audiodata[self.currbuffer])
+            totaluploadticks = utime.ticks_diff(utime.ticks_us(), startTicks)
+            if self.verbose > 1: print('Ticks to write block to i2s', totaluploadticks)
+            self.sumuploadticks += totaluploadticks
+            self.blocksplayed += 1
+
+            # Fill the buffer while playing previous buffer
+            # Switch to other buffer
+            self.currbuffer = 1 - self.currbuffer
+            startTicks = utime.ticks_us()
+            self.loadbuffer(self.currbuffer)
+            self.sumreadfileticks += utime.ticks_diff(utime.ticks_us(), startTicks)
 
 
     def loadbuffer(self, buffer):
@@ -223,21 +204,22 @@ class WavePlayer:
             self.readLock.release()
             self.audiodata[buffer] += tbuff
         if len(self.audiodata[buffer]) == 0:
-            self.stop()
+            #self.stop()
             #print('Got no bytes from audio file so stopping')
-        if self.verbose: print('Ticks to read block:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
+            pass
+        if self.verbose > 1: print('Ticks to read block:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
 
     def stop(self):
         # Stop playing
         self.stopflag = True
         # Dump statistics
-        if self.verbose:
-            print('Total time spent reading file data:', self.sumreadfileticks, 'usec')
-            print('Time spent uploading first block  :', self.firstuploadticks, 'usec')
-            print('Total time spent uploading data   :', self.sumuploadticks, 'usec')
-            print('Total estimated time suspended    :', self.suspendedticks, 'usec')
-            print('Total time                        :', utime.ticks_diff(utime.ticks_us(), self.startTicks), 'usec')
-            print('Total audio played                :', self.blocksplayed * self.blockframes * 1000000 * AudioBlockSize / 512 / self.file.getframerate(), 'usec')
+        if self.verbose > 0:
+            print('Total time spent reading csv file  :', self.csvfiletime, 'usec')
+            print('Total time spent reading audio data:', self.sumreadfileticks, 'usec')
+            print('Total time spent uploading data    :', self.sumuploadticks, 'usec')
+            print('Total estimated time queue waiting :', self.suspendedusec, 'usec')
+            print('Total time                         :', utime.ticks_diff(utime.ticks_us(), self.startTicks), 'usec')
+            print('Total audio played                 :', self.blocksplayed * self.blockframes * 1000000 * AudioBlockSize / 512 / self.file.getframerate(), 'usec')
         pass
 
     def rewind(self):
@@ -285,6 +267,7 @@ def mountSDCard(mountpoint='/sd'):
     sd = sdcard.SDCard(spi, cs)
 
     # Set the speed to fast enough for audio
+    # Have to set it here because the SDCard constructor above sets the baudrate back to 1,000,000
     spi.init(baudrate=40000000)
 
     # Mount filesystem

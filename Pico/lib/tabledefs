@@ -1,0 +1,17 @@
+############## Define your configuration here ##########################################
+
+# PWM Port Definitions
+# Configure two pca9685 boards at addresses 0 and 1 on ports 0-31
+configurepca9685(firstport=0, boardid=0)
+configurepca9685(firstport=16, boardid=1)
+
+# Manually enter a single PWM using a Pico GPIO
+addPWMPortTableEntry(32, {'func':dogpio, 'pin':6})
+
+# Digital Port Definitions
+# Manually enter entries like this for each Digital port on a Pico GPIO
+addDigitalPortTableEntry(0, {'func':dogpiodigital, 'pin':20})
+
+# Configure a contiguous block of 48 Digital ports on 3x595 chips using Christmas board pinouts
+configure595s(firstport=1, portcount=48, datapin=3, clockpin=2, rclkpin=4, clearpin=22)
+
