@@ -5,9 +5,16 @@
 @author Kevin McAleer and John Wright
 '''
 
-import ustruct
-import utime
+import struct
+import time
 
+try:
+    time.sleep_us(1)
+    def sleep_us(usec):
+        time.sleep_us(usec)
+except:
+    def sleep_us(usec):
+        time.sleep(float(usec) / 1000000.0)
 
 class PCA9685:
     """
@@ -45,15 +52,27 @@ class PCA9685:
         self._write(0x00, (old_mode & 0x7F) | 0x10) # Mode 1, sleep
         self._write(0xfe, prescale) # Prescale
         self._write(0x00, old_mode) # Mode 1
-        utime.sleep_us(5)
+        sleep_us(5)
         self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
 
     def pwm(self, index, on=None, off=None):
         if on is None or off is None:
             data = self.i2c.readfrom_mem(self.address, 0x06 + 4 * index, 4)
-            return ustruct.unpack('<HH', data)
-        data = ustruct.pack('<HH', on, off)
+            return struct.unpack('<HH', data)
+        data = struct.pack('<HH', on, off)
         self.i2c.writeto_mem(self.address, 0x06 + 4 * index,  data)
+
+    def jambytes(self, thebytes, start=0):
+        """
+        The jambytes method accepts a preformatted bytearray with up to 16x 16-bit pairs
+        of on and off values and streams them out to the pca9685 board in autoincrement mode.
+        Generally starts at location 0 and writes all the pairs to the board.
+        This should be the fastest way to set all 16 PWM duty cycles.
+        """
+        old_mode = self._read(0x00) # Mode 1
+        self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
+        self.i2c.writeto_mem(self.address, 0x06 + 4 * start, thebytes)
+        self._write(0x00, old_mode) # Mode 1, original mode
 
     def allpwm(self, off=None, on=None, start=0):
         """
@@ -75,17 +94,14 @@ class PCA9685:
             retdata = []
             for i in range(16):
                 data = self.i2c.readfrom_mem(self.address, 0x06 + 4 * i, 4)
-                retdata.append(ustruct.unpack('<HH', data))
+                retdata.append(struct.unpack('<HH', data))
             return retdata
         bytes = bytearray(b'')
         for i in range(len(off)):
             if on is not None and i < len(on): onval = on[i]
             else: onval = 0
-            bytes.extend(bytearray(ustruct.pack('<HH', onval, off[i])))
-        old_mode = self._read(0x00) # Mode 1
-        self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
-        self.i2c.writeto_mem(self.address, 0x06 + 4 * start, bytes)
-        self._write(0x00, old_mode) # Mode 1, original mode
+            bytes.extend(bytearray(struct.pack('<HH', onval, off[i])))
+        self.jambytes(bytes, start)
 
     def duty(self, index, value=None, invert=False):
         if value is None:

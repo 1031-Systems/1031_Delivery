@@ -5,6 +5,7 @@
 #from pca import PCA9685
 from pca9685 import PCA9685
 import math
+import time
 
 
 class Servos:
@@ -23,10 +24,14 @@ class Servos:
         return int(4095 * value / self.period)
 
     def position(self, index, degrees=None, radians=None, us=None, duty=None, push=True):
-        span = self.max_duty - self.min_duty
-        if degrees is not None:
+        ticks = time.ticks_us()
+        if duty is not None:
+            pass
+        elif degrees is not None:
+            span = self.max_duty - self.min_duty
             duty = self.min_duty + span * degrees / self.degrees
         elif radians is not None:
+            span = self.max_duty - self.min_duty
             duty = self.min_duty + span * radians / math.radians(self.degrees)
         elif us is not None:
             duty = self._us2duty(us)
@@ -34,9 +39,18 @@ class Servos:
             pass
         else:
             return self.pca9685.duty(index)
+        print('Conditional time:', time.ticks_diff(time.ticks_us(), ticks))
         #duty = min(self.max_duty, max(self.min_duty, int(duty)))
+        ticks = time.ticks_us()
         self.positions[index] = duty
-        if push: self.pca9685.duty(index, duty)
+        print('Position time:', time.ticks_diff(time.ticks_us(), ticks))
+        ticks = time.ticks_us()
+        if push:
+            self.pca9685.duty(index, duty)
+        print('Push time:', time.ticks_diff(time.ticks_us(), ticks), 'push:', push)
+
+    def duty(self, index, duty):
+        self.positions[index] = duty
 
     def release(self, index):
         self.pca9685.duty(index, 0)

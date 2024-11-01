@@ -104,6 +104,20 @@ class Chunk:
             raise ValueError("I/O operation on closed file")
         return self.size_read
 
+    def readinto(self, buffer):
+        BLOCKSIZE = 512 ## a sector of SD card and should work with flash also
+        size = len(buffer)
+        if size > self.chunksize - self.size_read:
+            size = self.chunksize - self.size_read
+        mv = memoryview(buffer)
+        bytes_read = 0
+        for i in range(0, size - BLOCKSIZE, BLOCKSIZE):
+            bytes_read += self.file.readinto(mv[i:i + BLOCKSIZE])
+        if bytes_read < size:
+            bytes_read += self.file.readinto(mv[bytes_read:size])
+        self.size_read = self.size_read + bytes_read
+        return bytes_read
+
     def read(self, size=-1):
         """Read at most size bytes from the chunk.
 
@@ -272,7 +286,7 @@ class Wave_read:
         self._soundpos = pos
         self._data_seek_needed = 1
 
-    def readframes(self, nframes):
+    def readframes(self, nframes, databuf=None):
         """Read frames of audio data"""
         if self._data_seek_needed:
             self._data_chunk.seek(0, 0)
@@ -282,13 +296,20 @@ class Wave_read:
             self._data_seek_needed = 0
         if nframes == 0:
             return b""
-        data = self._data_chunk.read(nframes * self._framesize)
-        if self._convert and data:
-            data = self._convert(data)
-        self._soundpos = self._soundpos + len(data) // (
-            self._nchannels * self._sampwidth
-        )
-        return data
+        if databuf is not None:
+            size = self._data_chunk.readinto(databuf)
+            self._soundpos = self._soundpos + size // (
+                self._nchannels * self._sampwidth
+            )
+            return size
+        else:
+            data = self._data_chunk.read(nframes * self._framesize)
+            if self._convert and data:
+                data = self._convert(data)
+            self._soundpos = self._soundpos + len(data) // (
+                self._nchannels * self._sampwidth
+            )
+            return data
 
     #
     # Internal methods.

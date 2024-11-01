@@ -1,3 +1,37 @@
+############## tabledefs ###############################################################
+#   This tabledefs file is for defining the available sets of Digital and PWM ports
+# that may be used in your system.  In general, ports may be defined individually or
+# in blocks via convenience functions.  Ports may be assigned to GPIO pins from the
+# Pico or to PCA9685 boards for PWM or to 74HC595 boards for digital signals.
+#
+#   There are 14 GPIO pins available for either PWM or digital signals.  However, if
+# a set of 595 boards/chips are used, four of those pins need to be used for control
+# of the 595 boards leaving ten for general control.
+#
+#   Each PCA9685 boards supports up to 16 PWM outputs.  These can control servos or
+# be used to control the brightness of individual LEDs.  If using one or more of these,
+# the configurepca9685 convenience function should be used to automagically configure
+# all 16 ports on each one.  Down in the Python class that manages the PCA9685 is a
+# method that blasts all the control values to the associated board.  To support this
+# function, the assigned ports need to be contiguous and configurepca9685 does this.
+#
+#   Each 595 chip manages 8 digital outputs.  The 595s are linked serially such that
+# an interface to one chip accesses all chips in the chain.  Thus, all digital outputs
+# from 595s should be configured using a single call to the configure595s convenience
+# function.  This makes all the port numbers contiguous within the block assigned to
+# the 595 chain and supports rapid setting of digital outputs.
+#
+#   The remaining GPIO pins assigned to the block outputs on the board may be assigned
+# either to a PWM or digital port.  Use addPWMPortTableEntry to assign one pin to one
+# PWM port and addDigitalPortTableEntry to assign one pin to one digital port.  NOTE
+# that addPWMPortTableEntry and addDigitalPortTableEntry MAY be used to assign ports
+# on the PCA9685 and 595 boards but using the convenience functions ensures continuity
+# for best performance.
+#
+#   Since it is quite possible to make mistakes here, there is a test function available
+# in main in tables.py.  Simply running "python tables.py -r" will run all the checks to
+# validate the configuration herein.  Adding the "-v" option will output all the port
+# assignments for additional verification.
 ############## Define your configuration here ##########################################
 
 # PWM Port Definitions
@@ -5,13 +39,16 @@
 configurepca9685(firstport=0, boardid=0)
 configurepca9685(firstport=16, boardid=1)
 
-# Manually enter a single PWM using a Pico GPIO
-addPWMPortTableEntry(32, {'func':dogpio, 'pin':6})
+# Manually enter a single Digital using a Pico GPIO
+addPWMPortTableEntry(32, {'func':dogpio , 'pin':20})
 
 # Digital Port Definitions
 # Manually enter entries like this for each Digital port on a Pico GPIO
-addDigitalPortTableEntry(0, {'func':dogpiodigital, 'pin':20})
+addDigitalPortTableEntry(24, {'func':dogpiodigital , 'pin':22})
 
-# Configure a contiguous block of 48 Digital ports on 3x595 chips using Christmas board pinouts
-configure595s(firstport=1, portcount=48, datapin=3, clockpin=2, rclkpin=4, clearpin=22)
+# Configure a contiguous block of 24 Digital ports on 3x595 chips
+configure595s(firstport=0, portcount=24, datapin=5, clockpin=2, rclkpin=3, clearpin=4)
+
+PreferBinary = True      # Set to True for larger applications
+
 

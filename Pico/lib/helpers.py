@@ -1,6 +1,7 @@
 # Basic Imports
 
 from machine import Pin
+import os
 import utime
 import binascii
 import tables
@@ -36,12 +37,12 @@ import _thread
 I2SDataPin = 9
 I2SBitClockPin = 10
 I2SChannelPin = 11
-PicoAudioEnablePin = 22
 
 AudioBlockSize = 1024
+CSVAsciiBlockSize = 512
 
 class WavePlayer:
-    def __init__(self, wavefilename, csvfilename=None, verbose=0):
+    def __init__(self, wavefilename, csvfilename=None, binblocksize=0, verbose=0):
         self.verbose = verbose
         self.filename = wavefilename
         try:
@@ -52,22 +53,48 @@ class WavePlayer:
         self._volume = 0.5
 
         # Open the csvfile if specified
-        self.queue = []
+        self.fullqueue = []
+        self.emptyqueue = []
         self.queuesize = 0
-        try:
-            self.csvfile = open(csvfilename, 'r')
-            # If opening is successful, set up data queue
-            # Create a semaphore lock for threads to coordinate getting and putting data in queue
-            self.queuelock = _thread.allocate_lock()
-            # Fill the queue initially
-            self.queuesize = 5
-            self.fillqueue()
-        except:
-            pass    # Ignore any errors including filename is None
+        self.binblocksize = 0
+
+        # Set up for binary or ascii control file I/O
+        if binblocksize > 0:
+            # Use binary file format with fixed size records
+            try:
+                self.csvfile = open(csvfilename, 'rb')
+                # If opening is successful, set up data queue
+                self.binblocksize = binblocksize
+                # Create a semaphore lock for threads to coordinate getting and putting data in queue
+                self.queuelock = _thread.allocate_lock()
+                # Fill the queue initially
+                self.queuesize = 5
+                # initially fill the empty queue
+                for i in range(self.queuesize):
+                    self.emptyqueue.append(bytearray(binblocksize))
+                # Read in the first two blocks of binary data
+                self.bfillqueue()
+            except:
+                pass    # Ignore any errors including filename is None
+        else:
+            # Use ASCII file format with variable size records
+            try:
+                self.csvfile = open(csvfilename, 'r')
+                # If opening is successful, set up data queue
+                # Create a semaphore lock for threads to coordinate getting and putting data in queue
+                self.queuelock = _thread.allocate_lock()
+                # Fill the queue initially
+                self.queuesize = 5
+                # initially fill the queue
+                self.fillqueue()
+            except:
+                pass    # Ignore any errors including filename is None
 
         # Set up ping-pong audio buffers
         self.audiodata = [None] * 2
         self.currbuffer = 0
+        self.audiodata[0] = bytearray(AudioBlockSize)
+        self.audiodata[1] = bytearray(AudioBlockSize)
 
         # Initialize stats
         self.startTicks = 0
@@ -82,6 +109,7 @@ class WavePlayer:
 
         # Stop Flag set to not play initially
         self.stopflag = True
+        self.controlstop = True
 
         # Set semaphore to indicate that we need to write again
         self.emptyflag = True
@@ -90,10 +118,6 @@ class WavePlayer:
         datapin = Pin(I2SDataPin, Pin.OUT)
         bitclockpin = Pin(I2SBitClockPin, Pin.OUT)
         channelpin = Pin(I2SChannelPin, Pin.OUT)
-        unmutepin = Pin(PicoAudioEnablePin, Pin.OUT)
-
-        # Turn the player on
-        unmutepin.on()
 
         # Create the audio out channel over I2S
         self.audio_out = I2S(1,
@@ -110,24 +134,52 @@ class WavePlayer:
         # Read in first buffer so we are ready to play
         self.loadbuffer(self.currbuffer)
         self.stopflag = False
+        self.controlstop = False
 
     def fillqueue(self):
         startTicks = utime.ticks_us()
-        while len(self.queue) < self.queuesize:
+        while len(self.fullqueue) < self.queuesize:
             line = self.csvfile.readline()
             self.queuelock.acquire()
-            self.queue.append(line)
+            self.fullqueue.append(line)
             self.queuelock.release()
         self.csvfiletime += utime.ticks_diff(utime.ticks_us(), startTicks)
 
-    def readline(self):
+    def bfillqueue(self):
+        while len(self.emptyqueue) > 0:
+            # Pop empty buffer off of empty queue
+            self.queuelock.acquire()
+            buffer = self.emptyqueue.pop(0)
+            self.queuelock.release()
+            # Fill it up
+            BLOCKSIZE = 512  # Don't read more than 512 bytes per read
+            f = self.csvfile
+            n = self.binblocksize
+            mv = memoryview(buffer)
+            bytes_read = 0
+            for i in range(0, n - BLOCKSIZE, BLOCKSIZE):
+                bytes_read += f.readinto(mv[i:i + BLOCKSIZE])
+            if bytes_read < n:
+                bytes_read += f.readinto(mv[bytes_read:n])
+            # Push it onto full queue
+            if bytes_read == 0: buffer = b''    # Klugey way to tell it the file is empty so it will stop??
+            self.queuelock.acquire()
+            self.fullqueue.append(buffer)
+            self.queuelock.release()
+
+    def readline(self, emptybuf=None):
         # Must be called from another thread to prevent locking
-        while len(self.queue) < 1:
+        if self.controlstop:
+            return('')
+        if emptybuf is not None and self.binblocksize > 0:
+            self.emptyqueue.append(emptybuf)
+        while len(self.fullqueue) < 1:
             self.suspendedusec += 20
             utime.sleep_us(20)
         self.queuelock.acquire()
-        outline = self.queue.pop(0)
+        outline = self.fullqueue.pop(0)
         self.queuelock.release()
+        self.controlstop = len(outline) == 0
         return outline
 
     def close(self):
@@ -143,6 +195,7 @@ class WavePlayer:
         if self.verbose > 0: print('Running play() in thread', _thread.get_ident())
         # Play until done or stopped
         self.stopflag = False
+        self.controlstop = False
         # Kick off playback in a new thread
         _thread.start_new_thread(self.threadplay, (False,))
 
@@ -160,58 +213,54 @@ class WavePlayer:
         self.audio_out.irq(self.irq)
 
         # Play until end of data or stopped
-        while not self.stopflag: self.playblock(False)
+        while not self.stopflag or not self.controlstop: self.playblock(False)
 
         # Try to more explicitly kill the thread
         _thread.exit()
 
     def playblock(self, junk):
         #print('Entered playblock')
-        # Check to see if we are stopped
-        if self.stopflag: return
-        #if self.verbose > 1: print('Running playblock() in thread', _thread.get_ident())
-
         # Make sure data queue is full
-        self.fillqueue()
+        if not self.controlstop:
+            if self.binblocksize > 0:
+                self.bfillqueue()
+            else:
+                self.fillqueue()
 
-        if self.emptyflag:
-            self.emptyflag = False
-            # Play one block of audio data from current ping-pong buffer
-            startTicks = utime.ticks_us()
-            self.audio_out.write(self.audiodata[self.currbuffer])
-            totaluploadticks = utime.ticks_diff(utime.ticks_us(), startTicks)
-            if self.verbose > 1: print('Ticks to write block to i2s', totaluploadticks)
-            self.sumuploadticks += totaluploadticks
-            self.blocksplayed += 1
+        # Check to see if we are stopped
+        if not self.stopflag:
+            #if self.verbose > 1: print('Running playblock() in thread', _thread.get_ident())
 
-            # Fill the buffer while playing previous buffer
-            # Switch to other buffer
-            self.currbuffer = 1 - self.currbuffer
-            startTicks = utime.ticks_us()
-            self.loadbuffer(self.currbuffer)
-            self.sumreadfileticks += utime.ticks_diff(utime.ticks_us(), startTicks)
+            if self.emptyflag:
+                self.emptyflag = False
+                # Play one block of audio data from current ping-pong buffer
+                startTicks = utime.ticks_us()
+                self.audio_out.write(self.audiodata[self.currbuffer])
+                totaluploadticks = utime.ticks_diff(utime.ticks_us(), startTicks)
+                if self.verbose > 1: print('Ticks to write block to i2s', totaluploadticks)
+                self.sumuploadticks += totaluploadticks
+                self.blocksplayed += 1
+    
+                # Fill the buffer while playing previous buffer
+                # Switch to other buffer
+                self.currbuffer = 1 - self.currbuffer
+                startTicks = utime.ticks_us()
+                self.loadbuffer(self.currbuffer)
+                self.sumreadfileticks += utime.ticks_diff(utime.ticks_us(), startTicks)
 
 
     def loadbuffer(self, buffer):
         startTicks = utime.ticks_us()
         self.readLock.acquire()
-        tbuff = self.file.readframes(self.blockframes)
+        size = self.file.readframes(AudioBlockSize, databuf=self.audiodata[buffer])
+        if size == 0: self.stopflag = True
         self.readLock.release()
-        self.audiodata[buffer] = tbuff
-        while len(tbuff) > 0 and len(self.audiodata[buffer]) < AudioBlockSize:
-            self.readLock.acquire()
-            tbuff = self.file.readframes(self.blockframes)
-            self.readLock.release()
-            self.audiodata[buffer] += tbuff
-        if len(self.audiodata[buffer]) == 0:
-            #self.stop()
-            #print('Got no bytes from audio file so stopping')
-            pass
         if self.verbose > 1: print('Ticks to read block:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usec')
 
     def stop(self):
         # Stop playing
         self.stopflag = True
+        self.controlstop = True
         # Dump statistics
         if self.verbose > 0:
             print('Total time spent reading csv file  :', self.csvfiletime, 'usec')
@@ -224,7 +273,7 @@ class WavePlayer:
 
     def rewind(self):
         if self.file is None: return
-        if not self.stopflag: self.stop()
+        if not self.stopflag or not self.controlstop: self.stop()
         # Get ready to start from the top
         self.file.close()
         try:
@@ -239,13 +288,13 @@ class WavePlayer:
             self._volume = newVolume
 
     def playing(self):
-        return not self.stopflag
+        return not self.stopflag or not self.controlstop
 
 
 
 ############# SD Card Code #################################
 import machine
-import uos
+import os
 import sdcard
 
 def mountSDCard(mountpoint='/sd'):
@@ -271,8 +320,8 @@ def mountSDCard(mountpoint='/sd'):
     spi.init(baudrate=40000000)
 
     # Mount filesystem
-    vfs = uos.VfsFat(sd)
-    uos.mount(vfs, mountpoint)
+    vfs = os.VfsFat(sd)
+    os.mount(vfs, mountpoint)
 
 ################ USB data transfer code ###############################################
 import select
@@ -327,10 +376,85 @@ def handleInput():
                 fsize -= len(line)
                 if fsize > 0: line = sys.stdin.buffer.read(min(fsize, 512))
             file.close()
+            if tables.PreferBinary:
+                # Convert the file to binary format
+                tables.csvToBin(filename)
         except:
             # sys.stderr.write('\nWhoops - Unable to write file %d\n' % filename)
             pass
     return 0
+
+################################### Animation File Finder ############################
+def isfile(testfile):
+    try:
+        size = os.stat(testfile)[6]
+        return size > 0
+    except:
+        return False
+
+def pathjoin(path, fname):
+    if path is not None:
+        if path[-1] != '/':
+            path += '/'
+        fname = path + fname
+    return fname
+
+def findAnimFiles(dir='/anims'):
+    # Find animation files
+    # Create empty list of csv/audio file pairs
+    animList = []
+
+    # Look for binary or ascii files?
+    if tables.PreferBinary:
+        ext = '.bin'
+    else:
+        ext = '.csv'
+
+    # Check for an existing list of files
+    testfile = pathjoin(dir, 'animlist')
+    if isfile(testfile):
+        with open(testfile, 'r') as infile:
+            line = infile.readline()
+            while len(line) > 0:
+                names = line.split()
+                if len(names) == 2:
+                    # Should be both a csv filename and an audio filename
+                    # Not checking for existence yet
+                    animList.append(names)
+                elif len(names) == 1:
+                    # Should be a fileroot that will be appended with .csv or .wav
+                    tpair = []
+                    if isfile(names[0] + ext):
+                        tpair.append(names[0] + ext)
+                    elif isfile(pathjoin(dir, names[0] + ext)):
+                        tpair.append(pathjoin(dir, names[0] + ext))
+                    else:
+                        tpair.append(None)
+                    if isfile(names[0] + '.wav'):
+                        tpair.append(names[0] + '.wav')
+                    elif isfile(pathjoin(dir, names[0] + '.wav')):
+                        tpair.append(pathjoin(dir, names[0] + '.wav'))
+                    else:
+                        tpair.append(None)
+                    animList.append(tpair)
+                line = infile.readline()
+    else:
+        # Check for matching filename pairs
+        try:
+            filelist = os.listdir(dir)
+            for filename in filelist:
+                tpair = []
+                if filename[-4:] == ext:
+                    tpair.append(pathjoin(dir, filename))
+                    tname = filename[:-4] + '.wav'
+                    if tname in filelist:
+                        tpair.append(pathjoin(dir, tname))
+                        animList.append(tpair)
+        except:
+            # Ignore problems
+            pass
+
+    return animList
 
 ################################### Test Code ########################################
 def testSDCard(filename, verbosity=False):

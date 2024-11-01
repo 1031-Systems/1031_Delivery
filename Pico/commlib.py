@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
@@ -135,7 +134,7 @@ def angleToDutyCycle(angle, servotype=None):
         return 1000000 + int(1000000 * angle / 180.0)   # FIXME Hardcoded to pG90 servo
     else:
         return None
-    
+
 def _setServoOnPico(channel, angle):
     # Send the value, appropriately formatted, to hardware controller
     # print('Sending to controller port %d value %d' % (self.port, value))
@@ -159,7 +158,7 @@ def setServo(channel, cyclefrac):
     # Call setLocalServo or setServoViaPCA9685 depending
     _setServoViaPCA9685(channel, cyclefrac)
     pass
-    
+
 def releaseServo(channel, angle):
     # Call releaseLocalServo or releaseServoViaPCA9685 depending
     pass
