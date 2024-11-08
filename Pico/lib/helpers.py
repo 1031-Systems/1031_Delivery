@@ -57,6 +57,7 @@ class WavePlayer:
         self.emptyqueue = []
         self.queuesize = 0
         self.binblocksize = 0
+        self.csvfile = None
 
         # Set up for binary or ascii control file I/O
         if binblocksize > 0:
@@ -134,7 +135,7 @@ class WavePlayer:
         # Read in first buffer so we are ready to play
         self.loadbuffer(self.currbuffer)
         self.stopflag = False
-        self.controlstop = False
+        if self.csvfile is not None: self.controlstop = False
 
     def fillqueue(self):
         startTicks = utime.ticks_us()
@@ -184,6 +185,7 @@ class WavePlayer:
 
     def close(self):
         # Just to make it look like a file
+        self.stop()
         pass
 
     def irq(self, arg):
@@ -195,7 +197,7 @@ class WavePlayer:
         if self.verbose > 0: print('Running play() in thread', _thread.get_ident())
         # Play until done or stopped
         self.stopflag = False
-        self.controlstop = False
+        if self.csvfile is not None: self.controlstop = False
         # Kick off playback in a new thread
         _thread.start_new_thread(self.threadplay, (False,))
 

@@ -141,6 +141,46 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
     # Reset the machine to clear out other thread and allow easier rshell access
     machine.reset()
 
+class LocalSource:
+    def __init__(self, filename=None, binblocksize=0, readlock=None):
+        self.file = None
+        self.binblocksize = binblocksize
+        self.readlock = readlock
+        if self.readlock: self.readlock.acquire()
+        if binblocksize > 0:
+            self.file = open(filename, 'rb')
+        else:
+            self.file = open(filename, 'r')
+        if self.readlock: self.readlock.release()
+
+    def readline(self, returnblock=None):
+        BLOCKSIZE = 512  # Don't read more than 512 bytes per read
+        if self.file is None: return ''
+        if self.readlock: self.readlock.acquire()
+        if self.binblocksize > 0:
+            if returnblock is None:
+                returnblock = bytearray(self.binblocksize)
+            mv = memoryview(returnblock)
+            bytes_read = 0
+            n = self.binblocksize
+            for i in range(0, n - BLOCKSIZE, BLOCKSIZE):
+                bytes_read += self.file.readinto(mv[i:i + BLOCKSIZE])
+            if bytes_read < n:
+                bytes_read += self.file.readinto(mv[bytes_read:n])
+            if bytes_read == 0:
+                # At end of file
+                return ''
+        else:
+            returnblock = self.file.readline()
+        if self.readlock: self.readlock.release()
+        return returnblock
+
+    def close(self):
+        if self.file is not None:
+            self.file.close()
+            self.file = None
+
+
 def play_one_anim(csvfile, wavefile):
     # Initially assume ascii file format
     binblocksize = 0
@@ -178,7 +218,7 @@ def play_one_anim(csvfile, wavefile):
     except:
         # bad
         if verbose: print('Whoops - Unable to open and read control file:', csvfile)
-        return
+        #return
 
     # Create the player
     player = None   # Set player to None so later we know if it exists
@@ -190,7 +230,7 @@ def play_one_anim(csvfile, wavefile):
     source = None
     if helpers.isfile(csvfile):
         if player is None:
-            source = open(csvfile, 'r')
+            source = LocalSource(csvfile, binblocksize)
         else:
             source = player
 
@@ -237,6 +277,7 @@ def play_one_anim(csvfile, wavefile):
     buttonTicks = 0
     garbageTicks = 0
     LEDTicks = 0
+    maxCycleTicks = 0
 
     # Temporary ticks
     ticks1 = 0
@@ -273,17 +314,18 @@ def play_one_anim(csvfile, wavefile):
             values = line.split(',')   # Initial split
             nextTicks = int(values[0])
         elif csvformat == HEX:
-            tval = bytes.fromhex(line[0:16])
-            nextTicks = ustruct.unpack('<Q', tval)[0]
+            tval = bytes.fromhex(line[0:8])
+            nextTicks = ustruct.unpack('<L', tval)[0]
         elif csvformat == BIN:
-            nextTicks = ustruct.unpack('<Q', line[0:8])[0]
+            nextTicks = ustruct.unpack('<L', line[0:4])[0]
         splitTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
 
         loopTicks = utime.ticks_us()
         while len(line) > 0:
             #if verbose: print('Processing line:', line)
-            # Wait until it is time to go to next state
-            while(utime.ticks_diff(utime.ticks_ms(), startTicks) < nextTicks):
+            cycleTicks = utime.ticks_us()
+            # Wait until it is 20msec before time to go to next state
+            while(utime.ticks_diff(utime.ticks_ms(), startTicks) < nextTicks - 20):
                 utime.sleep_ms(1)
                 waitTime += 1
 
@@ -315,7 +357,7 @@ def play_one_anim(csvfile, wavefile):
                             if csvformat == CSV:
                                 value = int(values[i])
                             elif csvformat == HEX:
-                                tval = bytes.fromhex(line[16:32])
+                                tval = bytes.fromhex(line[8:24])    # FIXME - assumes 8 bytes for digital which is flexible now
                                 value = ustruct.unpack('<Q', tval)[0]
                             if ports[i] >= 0:
                                 # Nonnegative ports go directly to that port
@@ -402,13 +444,13 @@ def play_one_anim(csvfile, wavefile):
                     nextTicks = int(values[0])
                     splitTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
                 elif csvformat == HEX:
-                    tval = bytes.fromhex(line[0:16])
-                    nextTicks = ustruct.unpack('<Q', tval)[0]
+                    tval = bytes.fromhex(line[0:8])
+                    nextTicks = ustruct.unpack('<L', tval)[0]
                     splitTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
                 elif csvformat == BIN:
-                    nextTicks = ustruct.unpack('<Q', line[0:8])[0]
+                    nextTicks = ustruct.unpack('<L', line[0:4])[0]
                     splitTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
-                if nextTicks >= utime.ticks_diff(utime.ticks_ms(), startTicks) - 10: break
+                if nextTicks >= utime.ticks_diff(utime.ticks_ms(), startTicks): break
                 skips += 1
                 if csvformat == CSV:
                     line = source.readline()
@@ -418,17 +460,17 @@ def play_one_anim(csvfile, wavefile):
 
             ticks1 = utime.ticks_us()
             #gc.collect()
+            #if verbose: print('At time:', nextTicks, 'Memory use:', gc.mem_alloc())
             garbageTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
+
+            cycleTicks = utime.ticks_diff(utime.ticks_us(), cycleTicks)
+            if cycleTicks > maxCycleTicks: maxCycleTicks = cycleTicks
 
         # Compute how much time it took to perform the entire animation
         loopTime = utime.ticks_diff(utime.ticks_us(), loopTicks)
 
-        if(verbose): print('At end of read file loop')
-        if player is not None:
-            while player.playing():
-                # Waiting a bit to see if audio is done
-                utime.sleep_ms(1)
         source.close()
+        if(verbose): print('At end of read file loop')
 
         # Optionally report stats
         if(verbose):
@@ -461,8 +503,14 @@ def play_one_anim(csvfile, wavefile):
             print('For an average of', LEDTicks/(servoCount+skips),'usec per cycle')
             print('Used', loopTime, 'usec to run', (servoCount), 'cycles')
             print('For an average of', (loopTime-waitTime*1000)/(servoCount),'usec per cycle')
+            print('Maximum cycle duration:', maxCycleTicks, 'usec')
 
             print('Time spent waiting for lock:', lockTicks, 'usec')
+
+    if player is not None:
+        while player.playing():
+            # Waiting a bit to see if audio is done
+            utime.sleep_ms(1)
 
         # Let all the servos relax
         helpers.releaseAllServos()
