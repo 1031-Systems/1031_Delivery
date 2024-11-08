@@ -49,6 +49,6 @@ addDigitalPortTableEntry(24, {'func':dogpiodigital , 'pin':22})
 # Configure a contiguous block of 24 Digital ports on 3x595 chips
 configure595s(firstport=0, portcount=24, datapin=5, clockpin=2, rclkpin=3, clearpin=4)
 
-PreferBinary = True      # Set to True for larger applications
+setPreferBinary(True)      # Set to True for larger applications
 
 
