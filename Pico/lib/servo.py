@@ -51,6 +51,7 @@ class Servos:
 
     def duty(self, index, duty):
         self.positions[index] = duty
+        self.pca9685.duty(index, duty)
 
     def release(self, index):
         self.pca9685.duty(index, 0)
