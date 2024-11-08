@@ -7,7 +7,6 @@ except:
 import os
 import sys
 import random
-import ustruct
 import helpers
 import gc
 
@@ -205,6 +204,7 @@ def play_one_anim(csvfile, wavefile):
             elif testbyte == b'0':
                 # ASCII hex-encoded file
                 csvformat = HEX
+                print('Whoops - HEX format no longer supported!!')
                 pass
             elif testbyte == b'\x00':
                 # Binary encoded file
@@ -216,9 +216,9 @@ def play_one_anim(csvfile, wavefile):
                 if verbose: print('Whoops - Unrecognized control file format:', csvfile)
                 return
     except:
-        # bad
         if verbose: print('Whoops - Unable to open and read control file:', csvfile)
-        #return
+        # Continue on for case of csvfile is None
+        csvfile = None
 
     # Create the player
     player = None   # Set player to None so later we know if it exists
@@ -253,11 +253,6 @@ def play_one_anim(csvfile, wavefile):
                     porttypes[i] = DIGITAL
                 elif indicator == 'S':
                     porttypes[i] = PWM
-        elif csvformat == HEX:
-            # Assumed column titles and order
-            titles = ['Time', 'D-1', 'S-1']
-            ports = [None, -1, -1]
-            porttypes = [None, DIGITAL, PWM]
         elif csvformat == BIN:
             # Get information from tables
             pass
@@ -313,11 +308,8 @@ def play_one_anim(csvfile, wavefile):
         if csvformat == CSV:
             values = line.split(',')   # Initial split
             nextTicks = int(values[0])
-        elif csvformat == HEX:
-            tval = bytes.fromhex(line[0:8])
-            nextTicks = ustruct.unpack('<L', tval)[0]
         elif csvformat == BIN:
-            nextTicks = ustruct.unpack('<L', line[0:4])[0]
+            nextTicks = int.from_bytes(line[0:4], 'little')
         splitTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
 
         loopTicks = utime.ticks_us()
@@ -356,9 +348,6 @@ def play_one_anim(csvfile, wavefile):
                             #if verbose: print('Channel', ports[i],'is DIGITAL')
                             if csvformat == CSV:
                                 value = int(values[i])
-                            elif csvformat == HEX:
-                                tval = bytes.fromhex(line[8:24])    # FIXME - assumes 8 bytes for digital which is flexible now
-                                value = ustruct.unpack('<Q', tval)[0]
                             if ports[i] >= 0:
                                 # Nonnegative ports go directly to that port
                                 ticks2 = utime.ticks_us()
@@ -389,19 +378,6 @@ def play_one_anim(csvfile, wavefile):
                                         vals.append(value & 0xFFFF)
                                         value >>= 16
                                     helpers.tables.intsToPWM(vals)
-                                elif csvformat == HEX:
-                                    poop = utime.ticks_us()
-                                    thebytes = bytes.fromhex(line[32:-1])
-                                    #print('usec to convert from hex:', utime.ticks_diff(utime.ticks_us(), poop ))
-                                    poop = utime.ticks_us()
-                                    vals = ustruct.unpack(theformat, thebytes)
-                                    #print('usec to unpack:', utime.ticks_diff(utime.ticks_us(), poop ))
-                                    poop = utime.ticks_us()
-                                    helpers.tables.intsToPWM(vals)
-                                    #print('usec to run intsToPWM:', utime.ticks_diff(utime.ticks_us(), poop ))
-                                    #poop = utime.ticks_us()
-                                    #helpers.tables._PWMBoards[0].pca9685.jambytes(thebytes)
-                                    #print('usec to run jambytes:', utime.ticks_diff(utime.ticks_us(), poop ))
                                 servodataTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
                 setTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
 
@@ -443,12 +419,8 @@ def play_one_anim(csvfile, wavefile):
                     values = line.split(',')
                     nextTicks = int(values[0])
                     splitTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
-                elif csvformat == HEX:
-                    tval = bytes.fromhex(line[0:8])
-                    nextTicks = ustruct.unpack('<L', tval)[0]
-                    splitTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
                 elif csvformat == BIN:
-                    nextTicks = ustruct.unpack('<L', line[0:4])[0]
+                    nextTicks = int.from_bytes(line[0:4], 'little')
                     splitTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
                 if nextTicks >= utime.ticks_diff(utime.ticks_ms(), startTicks): break
                 skips += 1
