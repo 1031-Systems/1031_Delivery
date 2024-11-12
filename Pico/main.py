@@ -21,6 +21,8 @@ BIN = 7
 
 
 verbose=False
+                # Analysis of memory usage severely affects timing data so keep that in mind
+memuse = 0      # 0 = no memory usage stats, 1 = garbage collection count, 2 = debug memuse printing
 
 # Use the on board LED for status
 led_onboard = machine.Pin(25, machine.Pin.OUT)
@@ -193,6 +195,12 @@ def play_one_anim(csvfile, wavefile):
         for board in boardlist:
             print('Board ID:', board.pca9685.address, 'First port:', board.firstport, 'First byte:', board.firstport+blockSizes[1]+blockSizes[2])
 
+    # Get the list of PWMs on GPIO pins
+    pwmlist = helpers.tables.pwmList()
+    if verbose:
+        for port in pwmlist:
+            print('PWM Port:', port, 'is on a GPIO pin')
+
     # Sample the control file to see what format it is in
     try:
         with open(csvfile, 'rb') as source:
@@ -285,6 +293,9 @@ def play_one_anim(csvfile, wavefile):
     theformat = helpers.tables.getPWMstructformat()
     if verbose: print('PWM Struct format:', theformat, 'of length:', len(theformat))
 
+    if memuse > 0:
+        memused = gc.mem_alloc()
+
     # Start the audio playing whether there is a CSV file or not
     if verbose: print('Playing file:', wavefile)
     if player is not None: player.play()
@@ -312,31 +323,43 @@ def play_one_anim(csvfile, wavefile):
             nextTicks = int.from_bytes(line[0:4], 'little')
         splitTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
 
+        collectioncount = 0
         loopTicks = utime.ticks_us()
         while len(line) > 0:
             #if verbose: print('Processing line:', line)
+            if memuse > 1:
+                print('At loop start, memory use:', gc.mem_alloc())
             cycleTicks = utime.ticks_us()
             # Wait until it is 20msec before time to go to next state
             while(utime.ticks_diff(utime.ticks_ms(), startTicks) < nextTicks - 20):
                 utime.sleep_ms(1)
                 waitTime += 1
+            if memuse > 1:
+                print('After loop wait, memory use:', gc.mem_alloc())
 
             # Send all values in the row to the Pins
             #if verbose: print('Sending data at time:',utime.ticks_diff(utime.ticks_ms(), startTicks), 'which should be:', nextTicks)
             ticks1 = utime.ticks_us()
             if csvformat == BIN:
-                ticks1 = utime.ticks_us()
                 boardstart = blockSizes[1] + blockSizes[2]
                 for board in boardlist:
                     board.pca9685.jambytes(line[board.firstport*4+boardstart:board.firstport*4+boardstart+board.numbytes])
+                if memuse > 1:
+                    print('After jambytes, memory use:', gc.mem_alloc())
                 # Now process all the PWMs on GPIO pins
-                for indx in range(0, blockSizes[3] >> 2):
-                    addr = indx*4 + blockSizes[1] + blockSizes[2]
-                    helpers.tables.dosomething(indx, line[addr+2:addr+4])
+                for port in pwmlist:
+                    addr = port*4 + blockSizes[1] + blockSizes[2]
+                    helpers.tables.dosomething(port, line[addr+2:addr+4])
                 servodataTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
+                if memuse > 1:
+                    print('After servos, memory use:', gc.mem_alloc())
                 bits = int.from_bytes(line[blockSizes[1]:blockSizes[1] + blockSizes[2]], 'little')
                 helpers.tables.intToDigital(bits)
+                if memuse > 1:
+                    print('After intToDigital, memory use:', gc.mem_alloc())
                 helpers.tables.outputDigital()
+                if memuse > 1:
+                    print('After outputDigital, memory use:', gc.mem_alloc())
                 setTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
                 servoCount += 1
                 pass
@@ -430,10 +453,16 @@ def play_one_anim(csvfile, wavefile):
                     line = source.readline(line)
             readTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
 
-            ticks1 = utime.ticks_us()
-            #gc.collect()
-            #if verbose: print('At time:', nextTicks, 'Memory use:', gc.mem_alloc())
-            garbageTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
+            if memuse > 0:
+                memnow = gc.mem_alloc()
+                if memused > memnow:
+                    memused = memnow
+                    collectioncount += 1
+            if memuse > 1:
+                ticks1 = utime.ticks_us()
+                print('At time:', nextTicks, 'Memory use:', gc.mem_alloc())
+                #gc.collect()
+                garbageTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
 
             cycleTicks = utime.ticks_diff(utime.ticks_us(), cycleTicks)
             if cycleTicks > maxCycleTicks: maxCycleTicks = cycleTicks
@@ -453,8 +482,11 @@ def play_one_anim(csvfile, wavefile):
             print('Read time :', readTicks, 'usec')
             print('Skip count:', skips)
 
-            print('Used', garbageTicks, 'usec for garbage collection', servoCount+skips, 'times')
-            print('For an average of', garbageTicks/(servoCount+skips), 'usec per cycle')
+            if memuse > 0:
+                print('Garbage collection was run about:', collectioncount, 'times')
+            if memuse > 1:
+                print('Used', garbageTicks, 'usec for garbage collection', servoCount+skips, 'times')
+                print('For an average of', garbageTicks/(servoCount+skips), 'usec per cycle')
             print('Used', readTicks, 'usec to input the line', servoCount+skips, 'times')
             print('For an average of', readTicks/(servoCount+skips), 'usec per cycle')
             print('Used', splitTicks, 'usec to split the line', servoCount+skips, 'times')
@@ -481,11 +513,17 @@ def play_one_anim(csvfile, wavefile):
 
     if player is not None:
         while player.playing():
+            # If button is pressed, abort playback
+            if button_pressed():
+                utime.sleep_ms(50)    # Debounce switch
+                if button_pressed():
+                    if verbose: print('Caught Stop button')
+                    player.stop()
             # Waiting a bit to see if audio is done
             utime.sleep_ms(1)
 
-        # Let all the servos relax
-        helpers.releaseAllServos()
+    # Let all the servos relax
+    helpers.releaseAllServos()
 
 
 if __name__ == "__main__":

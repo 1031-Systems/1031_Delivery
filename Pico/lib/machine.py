@@ -1,3 +1,9 @@
+import select
+import sys
+
+inpoll = select.poll()
+inpoll.register(sys.stdin.buffer, select.POLLIN)
+
 # This is a stub version of the Pico machine library
 class Pin:
     IN = 1
@@ -5,9 +11,11 @@ class Pin:
     PULL_DOWN = 21
     PULL_UP = 22
 
+    pinID = -1  # ID of last pin to be set
+
     def __init__(self, pinNum, inorout, pull=None):
     
-        self.pinNumber = pinNum
+        self.pinNumber = int(pinNum)
         self.inorout = inorout
         self.pull = pull
         self.state = False
@@ -24,9 +32,25 @@ class Pin:
         self.state = True
         print('Pin', self.pinNumber, 'State is now:', self.state)
 
-    def value(self, value):
-        print('Setting Pin ', self.pinNumber, 'to state of:', value)
-        return(self.state)
+    def value(self, value=None):
+        if value is not None:
+            print('Setting Pin ', self.pinNumber, 'to state of:', value)
+            self.state = value
+            return(self.state)
+        else:
+            # Check for keyboard input as to which pin is activated
+            result = inpoll.poll(0)
+            if len(result) > 0:
+                line = input()
+                if len(line) > 1:
+                    Pin.pinID = int(line)
+                else:
+                    Pin.pinID = 0
+            if self.pinNumber == Pin.pinID:
+                print('Matches pinNumber:', self.pinNumber)
+                return False
+            else:
+                return True
 
 class PWM:
     def __init__(self, inPin):

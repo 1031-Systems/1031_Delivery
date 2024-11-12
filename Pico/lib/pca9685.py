@@ -6,15 +6,8 @@
 '''
 
 import struct
-import time
+import utime
 
-try:
-    time.sleep_us(1)
-    def sleep_us(usec):
-        time.sleep_us(usec)
-except:
-    def sleep_us(usec):
-        time.sleep(float(usec) / 1000000.0)
 
 class PCA9685:
     """
@@ -52,7 +45,7 @@ class PCA9685:
         self._write(0x00, (old_mode & 0x7F) | 0x10) # Mode 1, sleep
         self._write(0xfe, prescale) # Prescale
         self._write(0x00, old_mode) # Mode 1
-        sleep_us(5)
+        utime.sleep_us(5)
         self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
 
     def pwm(self, index, on=None, off=None):
@@ -69,10 +62,10 @@ class PCA9685:
         Generally starts at location 0 and writes all the pairs to the board.
         This should be the fastest way to set all 16 PWM duty cycles.
         """
-        old_mode = self._read(0x00) # Mode 1
-        self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
+        #old_mode = self._read(0x00) # Mode 1
+        #self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
         self.i2c.writeto_mem(self.address, 0x06 + 4 * start, thebytes)
-        self._write(0x00, old_mode) # Mode 1, original mode
+        #self._write(0x00, old_mode) # Mode 1, original mode
 
     def allpwm(self, off=None, on=None, start=0):
         """
