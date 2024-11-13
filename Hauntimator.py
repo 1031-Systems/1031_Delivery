@@ -4509,10 +4509,7 @@ class MainWindow(QMainWindow):
 
         """ Perform Copy action"""
         # Make sure there is only one channel selected
-        selection = []
-        for name in self.plots:
-            if self.plots[name].selected:
-                selection.append(name)
+        selection = self.getSelectedChannelNames()
 
         if len(selection) == 0:
             # If none are selected, see if the cursor is in a ChannelPane
@@ -4569,10 +4566,7 @@ class MainWindow(QMainWindow):
             return
 
         # Get a list of all the currently selected channels
-        selection = []
-        for name in self.plots:
-            if self.plots[name].selected:
-                selection.append(name)
+        selection = self.getSelectedChannelNames()
 
         if len(selection) == 0:
             # If none are selected, see if the cursor is in a ChannelPane
@@ -4619,10 +4613,16 @@ class MainWindow(QMainWindow):
     def getSelectedChannels(self):
         # Get a list of all the currently selected channels
         selection = []
+        for name in self.getSelectedChannelNames():
+            selection.append(self.plots[name].channel)
+        return selection
+
+    def getSelectedChannelNames(self):
+        namelist = []
         for name in self.plots:
             if self.plots[name].selected:
-                selection.append(self.plots[name].channel)
-        return selection
+                namelist.append(name)
+        return namelist
 
     def Amplitudize_action(self):
         """
@@ -4637,10 +4637,7 @@ class MainWindow(QMainWindow):
             return
 
         # Get a list of all the currently selected channels
-        selection = []
-        for name in self.plots:
-            if self.plots[name].selected:
-                selection.append(name)
+        selection = self.getSelectedChannelNames()
 
         if len(selection) == 0:
             return
@@ -4714,10 +4711,7 @@ class MainWindow(QMainWindow):
         """
 
         """ Perform Delete action"""
-        dellist = []
-        for name in self.plots:
-            if self.plots[name].selected:
-                dellist.append(name)
+        dellist = self.getSelectedChannelNames()
         if len(dellist) > 0:
             self.deleteChannels(dellist)
         pass
