@@ -289,7 +289,7 @@ class LimitWidget(QDialog):
         self.display.setText('%d' % value)
         if self.liveCheck.isChecked() and self.port >= 0 and COMMLIB_ENABLED:
             # Send the value, appropriately formatted, to hardware controller
-            print('Sending to controller port %d value %d' % (self.port, value))
+            #print('Sending to controller port %d value %d' % (self.port, value))
             code = commlib.setServo(self.port, value)
             pass
 
@@ -3556,7 +3556,7 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = currState[4]
                 for plot in currState[5]:
                     self.plots[plot].setState(currState[5][plot])
-                print('Number of undos left:', len(self.previousStates))
+                #print('Number of undos left:', len(self.previousStates))
         else:
             msgBox = QMessageBox(parent=self)
             msgBox.setText('At earliest state')
@@ -3666,7 +3666,7 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = currState[4]
                 for plot in currState[5]:
                     self.plots[plot].setState(currState[5][plot])
-                print('Number of redos left:', len(self.pendingStates))
+                #print('Number of redos left:', len(self.pendingStates))
         else:
             msgBox = QMessageBox(parent=self)
             msgBox.setText('At latest state')
