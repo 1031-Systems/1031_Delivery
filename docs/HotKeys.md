@@ -26,7 +26,7 @@
 ### In Control Channel Pane
 - Shift-Left - Insert or delete control point in channel
 - Ctrl-Left - Toggle selection of channel
-- Left - Select to modify control point
+- Left - Select to modify control point(s) or Click-n-drag to select multiple points
 - Right - Bring up channel submenu
 - Wheel - Zoom vertical range of channel
 ### In Tag Pane

@@ -1025,6 +1025,7 @@ class ChannelPane(qwt.QwtPlot):
         self.holder = mainwindow
         self.curve = None
         self.curve2 = None
+        self.curve3 = None
 
         # Set initial values to avoid data race
         self.minTime = 0.0
@@ -1033,7 +1034,10 @@ class ChannelPane(qwt.QwtPlot):
         self.maxVal = 1.0
         self.xoffset = 0
         self.yoffset = 0
-        self.selectedKey= None
+        self.selectedKey = None
+        self.selectedKeyList = []
+        self.dragend = -1.0
+        self.dragstart = -1.0
         self.selected = False
         self.settimerange(0.0, 100.0)
         self.setDataRange(-1.0, 1.0)
@@ -1209,6 +1213,13 @@ class ChannelPane(qwt.QwtPlot):
         self.curve2.setStyle(qwt.QwtPlotCurve.NoCurve)
         self.curve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self, linewidth=2)
 
+        # Create a curve for selected knots
+        self.curve3 = qwt.QwtPlotCurve.make(xdata=[], ydata=[], plot=self,
+            symbol=qwt.symbol.QwtSymbol(qwt.symbol.QwtSymbol.Rect,
+                QBrush(Qt.red), QPen(Qt.black), QSize(self.BoxSize, self.BoxSize))
+        )
+        self.curve3.setStyle(qwt.QwtPlotCurve.NoCurve)
+
         # Add filler for the On times for the digital channels
         if self.channel.type == Channel.DIGITAL:
             fillbrush = QBrush(Qt.gray)
@@ -1375,8 +1386,8 @@ class ChannelPane(qwt.QwtPlot):
         The method mousePressEvent handles the mouse press events.  They
         are:
             Left: If on knot (see FindClosestWithinBox) grab it
-                else do nothing
-            Shift-Left: If on knot (see FindClosestWithinBox) grab it
+                else begin multi-knot selection
+            Shift-Left: If on knot (see FindClosestWithinBox) delete it
                 else Add a new knot at clicked location and grab it
             Control-Left: If on knot (see FindClosestWithinBox) grab it
                 else Select Channel
@@ -1428,9 +1439,14 @@ class ChannelPane(qwt.QwtPlot):
                 if nearkey is not None:
                     # If close enough, select it and drag it around
                     self.selectedKey = nearkey
+                    self.redrawme() # Redraw the knot with its fill color
                     # Push current state for undo
                     pushState()
-                pass
+                else:
+                    # Mark beginning of drag area to select multiple knots
+                    self.selectedKeyList = []   # Clear current list of selected keys
+                    self.dragstart = xplotval
+                    self.redrawme()
         elif event.buttons()== Qt.MiddleButton :
             # Vertical pan of pane with wheel/mouse?
             pass
@@ -1455,7 +1471,7 @@ class ChannelPane(qwt.QwtPlot):
         """
         if self.selectedKey is not None:
             self.selectedKey = None
-            self.replot()
+            self.redrawme() # Redraw the knot with its fill color
             main_win.updateXMLPane()
         pass
 
@@ -1469,26 +1485,70 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         event : type
         """
-        if event.buttons() == Qt.LeftButton :
+        modifiers = QApplication.keyboardModifiers()
+        if modifiers == Qt.ControlModifier: return
+        if event.buttons() == Qt.LeftButton:
             if self.selectedKey is not None:
+                if self.selectedKey not in self.selectedKeyList:
+                    self.selectedKeyList = []   # Clear current list of selected keys
+                    xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
+                    yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
+                    if self.channel.type == Channel.DIGITAL:
+                        if yplotval >= 0.5: yplotval = 1.0
+                        elif yplotval < 0.5: yplotval = 0.0
+                    del self.channel.knots[self.selectedKey]
+                    # Avoid overwriting existing point as we drag past
+                    if xplotval in self.channel.knots:
+                        xplotval += 0.00000001
+                    # Apply limits
+                    if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                        if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
+                        if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
+                    self.channel.knots[xplotval] = yplotval
+                    self.selectedKey = xplotval
+                    if yplotval < self.minVal: self.minVal = yplotval
+                    if yplotval > self.maxVal: self.maxVal = yplotval
+                    self.redrawme()
+                else:
+                    # Move all the knots that are selected
+                    xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
+                    yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
+                    xprev = self.selectedKey
+                    yprev = self.channel.knots[xprev]
+                    xdelta = xplotval - xprev
+                    ydelta = yplotval - yprev
+                    newList = []
+                    for key in self.selectedKeyList:
+                        newx = key + xdelta
+                        newy = self.channel.knots[key] + ydelta
+                        del self.channel.knots[key]
+                        if newx in self.channel.knots:
+                            newx += 0.00000001
+                        if self.channel.type == Channel.DIGITAL:
+                            if newy >= 0.5: newy = 1.0
+                            else: newy = 0.0
+                        # Apply limits
+                        if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                            if newy > self.channel.maxLimit: newy = self.channel.maxLimit
+                            if newy < self.channel.minLimit: newy = self.channel.minLimit
+
+                        self.channel.knots[newx] = newy
+                        if key == self.selectedKey: self.selectedKey = newx
+                        newList.append(newx)
+                    self.selectedKeyList = newList
+                    self.redrawme()
+                        
+                    pass
+            else:
+                # Mark current end of drag area to select multiple knots
+                self.selectedKeyList = []   # Clear current list of selected keys
                 xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
-                yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
-                if self.channel.type == Channel.DIGITAL:
-                    if yplotval >= 0.5: yplotval = 1.0
-                    elif yplotval < 0.5: yplotval = 0.0
-                del self.channel.knots[self.selectedKey]
-                # Avoid overwriting existing point as we drag past
-                if xplotval in self.channel.knots:
-                    xplotval += 0.00000001
-                # Apply limits
-                if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
-                    if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
-                    if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
-                self.channel.knots[xplotval] = yplotval
-                self.selectedKey = xplotval
-                if yplotval < self.minVal: self.minVal = yplotval
-                if yplotval > self.maxVal: self.maxVal = yplotval
+                self.dragend = xplotval
+                for keyval in self.channel.knots:
+                    if keyval >= min(self.dragend, self.dragstart) and keyval <= max(self.dragend, self.dragstart):
+                        self.selectedKeyList.append(keyval)
                 self.redrawme()
+                
         pass
 
     def setSlider(self, timeVal):
@@ -1526,10 +1586,18 @@ class ChannelPane(qwt.QwtPlot):
         xdata,ydata = self.channel.getKnotData(self.minTime, self.maxTime, 10000)
         if self.curve2 is not None:
             self.curve2.setData(xdata, ydata)
+        if self.curve3 is not None:
+            # Color all selected knots
+            xdata = []
+            if self.selectedKey is not None:
+                xdata = [self.selectedKey]
+            for key in self.selectedKeyList:
+                if xdata not in self.selectedKeyList: xdata.append(key)
+            ydata = [self.channel.knots[key] for key in xdata]
+            self.curve3.setData(xdata, ydata)
 
         if xdata is not None:
-            # Erase tip on how to add points
-            self.setToolTip('')
+            self.setToolTip('Use Left Mouse Button to drag individual points or select multiple points to drag')
         self.redrawLimits()
         self.replot()
 
