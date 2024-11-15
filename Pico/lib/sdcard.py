@@ -35,18 +35,18 @@ Example usage on atsamd21:
 import time
 
 
-_CMD_TIMEOUT = const(150)
+_CMD_TIMEOUT = 150
 
-_R1_IDLE_STATE = const(1 << 0)
-#R1_ERASE_RESET = const(1 << 1)
-_R1_ILLEGAL_COMMAND = const(1 << 2)
-#R1_COM_CRC_ERROR = const(1 << 3)
-#R1_ERASE_SEQUENCE_ERROR = const(1 << 4)
-#R1_ADDRESS_ERROR = const(1 << 5)
-#R1_PARAMETER_ERROR = const(1 << 6)
-_TOKEN_CMD25 = const(0xfc)
-_TOKEN_STOP_TRAN = const(0xfd)
-_TOKEN_DATA = const(0xfe)
+_R1_IDLE_STATE = 1 << 0
+#R1_ERASE_RESET = 1 << 1
+_R1_ILLEGAL_COMMAND = 1 << 2
+#R1_COM_CRC_ERROR = 1 << 3
+#R1_ERASE_SEQUENCE_ERROR = 1 << 4
+#R1_ADDRESS_ERROR = 1 << 5
+#R1_PARAMETER_ERROR = 1 << 6
+_TOKEN_CMD25 = 0xfc
+_TOKEN_STOP_TRAN = 0xfd
+_TOKEN_DATA = 0xfe
 
 
 class SDCard:

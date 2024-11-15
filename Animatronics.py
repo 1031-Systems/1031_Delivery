@@ -106,9 +106,12 @@ class AudioChannel:
             currTime = minTime
             xdata = []
             ydata = []
+            startidx = int((minTime-self.audiostart) * self.samplerate * self.numchannels)
+            endidx = int((maxTime-self.audiostart) * self.samplerate * self.numchannels)
+            if endidx-startidx < maxCount: maxCount = endidx-startidx
             timeStep = (maxTime - minTime) / maxCount
             while currTime <= maxTime:
-                sampleindex = int((currTime-self.audiostart) * self.samplerate * self.numchannels * self.samplesize)
+                sampleindex = int((currTime-self.audiostart) * self.samplerate) * self.numchannels * self.samplesize
                 if sampleindex >= 0 and sampleindex <= len(self.audio_data) - self.samplesize*self.numchannels:
                     short = struct.unpack(structformat, self.audio_data[sampleindex:(sampleindex+self.samplesize*self.numchannels)])
                     xdata.append(currTime)
@@ -122,9 +125,12 @@ class AudioChannel:
             xdata = []
             leftdata = []
             rightdata = []
+            startidx = int((minTime-self.audiostart) * self.samplerate * self.numchannels)
+            endidx = int((maxTime-self.audiostart) * self.samplerate * self.numchannels)
+            if endidx-startidx < maxCount: maxCount = endidx-startidx
             timeStep = (maxTime - minTime) / maxCount
             while currTime <= maxTime:
-                sampleindex = int((currTime-self.audiostart) * self.samplerate * self.numchannels * self.samplesize)
+                sampleindex = int((currTime-self.audiostart) * self.samplerate) * self.numchannels * self.samplesize
                 if sampleindex >= 0 and sampleindex <= len(self.audio_data) - self.samplesize*self.numchannels:
                     short = struct.unpack(structformat, self.audio_data[sampleindex:sampleindex+self.samplesize*self.numchannels])
                     xdata.append(currTime)
@@ -379,7 +385,7 @@ class Channel:
             self.add_knot(currTime, currValue)
             currTime += 1.0/popRate
 
-    def amplitudize(self, minTime, maxTime, signal, maxRate=0.0, popRate=0.0):
+    def amplitudize(self, minTime, maxTime, signal, maxRate=0.0, cutoff=0.0, popRate=0.0):
         # If maxRate not specified, compute it
         if maxRate == 0.0:
             maxRate = (self.maxLimit - self.minLimit)
@@ -406,10 +412,12 @@ class Channel:
         while currTime <= maxTime:
             if indx >= len(signal): break
             if self.type == self.DIGITAL:
-                if signal[indx] > topval/2:
+                currValue = 0.0
+                if cutoff > 0.0:
+                    if signal[indx] > cutoff:
+                        currValue = 1.0
+                elif signal[indx] > topval/2:
                     currValue = 1.0
-                else:
-                    currValue = 0.0
             else:
                 # Scale from min to max based on amplitude from 0 to topval
                 currValue = (signal[indx] / topval) * (self.maxLimit - self.minLimit) + self.minLimit
@@ -851,6 +859,12 @@ class Animatronics:
         self.csvUploadFile = SystemPreferences['UploadCSVFile']
         self.audioUploadFile = SystemPreferences['UploadAudioFile']
 
+    def clearTags(self):
+        self.tags = {}
+
+    def addTag(self, name, time):
+        self.tags[time] = name
+
     def parseXML(self, inXMLFilename):
         """
         The method parseXML accepts a filename of an XML file containing an
@@ -882,7 +896,7 @@ class Animatronics:
         # Clean up existing stuff
         self.newAudio = None
         self.channels = {}
-        self.tags = {}
+        self.clearTags()
         self.sample_rate = 50.0
         self.csvUploadFile = SystemPreferences['UploadCSVFile']
         self.audioUploadFile = SystemPreferences['UploadAudioFile']
@@ -913,7 +927,7 @@ class Animatronics:
                     if tag.tag == 'Tag':
                         if 'time' in tag.attrib:
                             time = float(tag.attrib['time'])
-                            self.tags[time] = tag.text.strip()
+                            self.addTag(tag.text.strip(), time)
 
 
     def toXML(self):

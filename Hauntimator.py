@@ -124,12 +124,12 @@ def fromHMS(string):
 #####################################################################
 class AmpingWidget(QDialog):
 
-    def __init__(self, parent=None, startTime=0.0, endTime=0.0, maxRate=0.0, popRate=10.0):
+    def __init__(self, parent=None, startTime=0.0, endTime=0.0, cutoff=0.0, popRate=10.0):
         super().__init__(parent)
 
         self.startTime = startTime
         self.endTime = endTime
-        self.maxRate = maxRate
+        self.cutoff = cutoff
         self.popRate = popRate
         
         self.setWindowTitle('Amplitudize Control')
@@ -143,6 +143,10 @@ class AmpingWidget(QDialog):
         self._endedit = QLineEdit()
         self._endedit.setText('%.3f' % endTime)
         layout.addRow(QLabel('End Time:'), self._endedit)
+
+        self._cutoffedit = QLineEdit()
+        self._cutoffedit.setText('%.3f' % cutoff)
+        layout.addRow(QLabel('Cutoff:'), self._cutoffedit)
 
         self._rateedit = QLineEdit()
         self._rateedit.setText('%.3f' % popRate)
@@ -180,6 +184,10 @@ class AmpingWidget(QDialog):
             self.endTime = float(tstring)
         else:
             self.endTime = 1.0e34
+
+        tstring = self._cutoffedit.text()
+        if len(tstring) > 0:
+            self.cutoff = float(tstring)
 
         tstring = self._rateedit.text()
         if len(tstring) > 0:
@@ -281,7 +289,7 @@ class LimitWidget(QDialog):
         self.display.setText('%d' % value)
         if self.liveCheck.isChecked() and self.port >= 0 and COMMLIB_ENABLED:
             # Send the value, appropriately formatted, to hardware controller
-            print('Sending to controller port %d value %d' % (self.port, value))
+            #print('Sending to controller port %d value %d' % (self.port, value))
             code = commlib.setServo(self.port, value)
             pass
 
@@ -367,6 +375,10 @@ class TagPane(qwt.QwtPlot):
             marker.setLineStyle(qwt.QwtPlotMarker.VLine)
             self.allMarkers[tag] = marker
         self.replot()
+
+    def setTags(self, tagList):
+        self._tags = tagList
+        self.redrawme()
 
     def addTag(self, time, text):
         while time in self._tags:
@@ -1013,6 +1025,7 @@ class ChannelPane(qwt.QwtPlot):
         self.holder = mainwindow
         self.curve = None
         self.curve2 = None
+        self.curve3 = None
 
         # Set initial values to avoid data race
         self.minTime = 0.0
@@ -1021,7 +1034,10 @@ class ChannelPane(qwt.QwtPlot):
         self.maxVal = 1.0
         self.xoffset = 0
         self.yoffset = 0
-        self.selectedKey= None
+        self.selectedKey = None
+        self.selectedKeyList = []
+        self.dragend = -1.0
+        self.dragstart = -1.0
         self.selected = False
         self.settimerange(0.0, 100.0)
         self.setDataRange(-1.0, 1.0)
@@ -1197,6 +1213,13 @@ class ChannelPane(qwt.QwtPlot):
         self.curve2.setStyle(qwt.QwtPlotCurve.NoCurve)
         self.curve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=ydata, plot=self, linewidth=2)
 
+        # Create a curve for selected knots
+        self.curve3 = qwt.QwtPlotCurve.make(xdata=[], ydata=[], plot=self,
+            symbol=qwt.symbol.QwtSymbol(qwt.symbol.QwtSymbol.Rect,
+                QBrush(Qt.red), QPen(Qt.black), QSize(self.BoxSize, self.BoxSize))
+        )
+        self.curve3.setStyle(qwt.QwtPlotCurve.NoCurve)
+
         # Add filler for the On times for the digital channels
         if self.channel.type == Channel.DIGITAL:
             fillbrush = QBrush(Qt.gray)
@@ -1363,8 +1386,8 @@ class ChannelPane(qwt.QwtPlot):
         The method mousePressEvent handles the mouse press events.  They
         are:
             Left: If on knot (see FindClosestWithinBox) grab it
-                else do nothing
-            Shift-Left: If on knot (see FindClosestWithinBox) grab it
+                else begin multi-knot selection
+            Shift-Left: If on knot (see FindClosestWithinBox) delete it
                 else Add a new knot at clicked location and grab it
             Control-Left: If on knot (see FindClosestWithinBox) grab it
                 else Select Channel
@@ -1416,9 +1439,14 @@ class ChannelPane(qwt.QwtPlot):
                 if nearkey is not None:
                     # If close enough, select it and drag it around
                     self.selectedKey = nearkey
+                    self.redrawme() # Redraw the knot with its fill color
                     # Push current state for undo
                     pushState()
-                pass
+                else:
+                    # Mark beginning of drag area to select multiple knots
+                    self.selectedKeyList = []   # Clear current list of selected keys
+                    self.dragstart = xplotval
+                    self.redrawme()
         elif event.buttons()== Qt.MiddleButton :
             # Vertical pan of pane with wheel/mouse?
             pass
@@ -1443,7 +1471,7 @@ class ChannelPane(qwt.QwtPlot):
         """
         if self.selectedKey is not None:
             self.selectedKey = None
-            self.replot()
+            self.redrawme() # Redraw the knot with its fill color
             main_win.updateXMLPane()
         pass
 
@@ -1457,26 +1485,70 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         event : type
         """
-        if event.buttons() == Qt.LeftButton :
+        modifiers = QApplication.keyboardModifiers()
+        if modifiers == Qt.ControlModifier: return
+        if event.buttons() == Qt.LeftButton:
             if self.selectedKey is not None:
+                if self.selectedKey not in self.selectedKeyList:
+                    self.selectedKeyList = []   # Clear current list of selected keys
+                    xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
+                    yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
+                    if self.channel.type == Channel.DIGITAL:
+                        if yplotval >= 0.5: yplotval = 1.0
+                        elif yplotval < 0.5: yplotval = 0.0
+                    del self.channel.knots[self.selectedKey]
+                    # Avoid overwriting existing point as we drag past
+                    if xplotval in self.channel.knots:
+                        xplotval += 0.00000001
+                    # Apply limits
+                    if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                        if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
+                        if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
+                    self.channel.knots[xplotval] = yplotval
+                    self.selectedKey = xplotval
+                    if yplotval < self.minVal: self.minVal = yplotval
+                    if yplotval > self.maxVal: self.maxVal = yplotval
+                    self.redrawme()
+                else:
+                    # Move all the knots that are selected
+                    xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
+                    yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
+                    xprev = self.selectedKey
+                    yprev = self.channel.knots[xprev]
+                    xdelta = xplotval - xprev
+                    ydelta = yplotval - yprev
+                    newList = []
+                    for key in self.selectedKeyList:
+                        newx = key + xdelta
+                        newy = self.channel.knots[key] + ydelta
+                        del self.channel.knots[key]
+                        if newx in self.channel.knots:
+                            newx += 0.00000001
+                        if self.channel.type == Channel.DIGITAL:
+                            if newy >= 0.5: newy = 1.0
+                            else: newy = 0.0
+                        # Apply limits
+                        if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                            if newy > self.channel.maxLimit: newy = self.channel.maxLimit
+                            if newy < self.channel.minLimit: newy = self.channel.minLimit
+
+                        self.channel.knots[newx] = newy
+                        if key == self.selectedKey: self.selectedKey = newx
+                        newList.append(newx)
+                    self.selectedKeyList = newList
+                    self.redrawme()
+                        
+                    pass
+            else:
+                # Mark current end of drag area to select multiple knots
+                self.selectedKeyList = []   # Clear current list of selected keys
                 xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
-                yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
-                if self.channel.type == Channel.DIGITAL:
-                    if yplotval >= 0.5: yplotval = 1.0
-                    elif yplotval < 0.5: yplotval = 0.0
-                del self.channel.knots[self.selectedKey]
-                # Avoid overwriting existing point as we drag past
-                if xplotval in self.channel.knots:
-                    xplotval += 0.00000001
-                # Apply limits
-                if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
-                    if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
-                    if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
-                self.channel.knots[xplotval] = yplotval
-                self.selectedKey = xplotval
-                if yplotval < self.minVal: self.minVal = yplotval
-                if yplotval > self.maxVal: self.maxVal = yplotval
+                self.dragend = xplotval
+                for keyval in self.channel.knots:
+                    if keyval >= min(self.dragend, self.dragstart) and keyval <= max(self.dragend, self.dragstart):
+                        self.selectedKeyList.append(keyval)
                 self.redrawme()
+                
         pass
 
     def setSlider(self, timeVal):
@@ -1507,17 +1579,25 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         """
         # Recreate the data plot
-        xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 100)
+        xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 10000)
         if self.curve is not None:
             self.curve.setData(xdata, ydata)
         # Recreate the knot plot
-        xdata,ydata = self.channel.getKnotData(self.minTime, self.maxTime, 100)
+        xdata,ydata = self.channel.getKnotData(self.minTime, self.maxTime, 10000)
         if self.curve2 is not None:
             self.curve2.setData(xdata, ydata)
+        if self.curve3 is not None:
+            # Color all selected knots
+            xdata = []
+            if self.selectedKey is not None:
+                xdata = [self.selectedKey]
+            for key in self.selectedKeyList:
+                if xdata not in self.selectedKeyList: xdata.append(key)
+            ydata = [self.channel.knots[key] for key in xdata]
+            self.curve3.setData(xdata, ydata)
 
         if xdata is not None:
-            # Erase tip on how to add points
-            self.setToolTip('')
+            self.setToolTip('Use Left Mouse Button to drag individual points or select multiple points to drag')
         self.redrawLimits()
         self.replot()
 
@@ -2866,6 +2946,9 @@ class MainWindow(QMainWindow):
         self._slideTime = 0.0
         self.clipboard = QGuiApplication.clipboard()
 
+        # Create the TimeRangeDialog
+        self.timerangedialog = self.TimeRangeDialog(parent=self)
+
         # Initialize with an empty animatronics object
         self.setAnimatronics(Animatronics())
 
@@ -3001,6 +3084,8 @@ class MainWindow(QMainWindow):
             if self.audioMax > self.totalMax: self.totalMax = self.audioMax
             self.lastXmin = self.audioMin
             self.lastXmax = self.audioMax
+
+            self.redrawAudio(self.audioMin, self.audioMax)
 
             self._show_audio_menu.setEnabled(True)
             self._audio_amplitude_action.setChecked(False)
@@ -3215,6 +3300,12 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % self.animatronics.filename)
                 sys.stderr.write("Message: %s\n" % e)
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Whoops - Unable to write to animatronics file:')
+                msgBox.setInformativeText(self.animatronics.filename)
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
                 return
         pass
 
@@ -3233,6 +3324,7 @@ class MainWindow(QMainWindow):
         """
 
         """Save the current animatronics file"""
+        fileName = 'Unknown'
         self.filedialog.setDefaultSuffix('anim')
         self.filedialog.setNameFilter("Anim Files (*.anim);;All Files (*)")
         if self.filedialog.exec_():
@@ -3249,6 +3341,12 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Whoops - Unable to write to specified file:')
+                msgBox.setInformativeText(fileName)
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Warning)
+                ret = msgBox.exec_()
                 return
 
         pass
@@ -3262,13 +3360,16 @@ class MainWindow(QMainWindow):
                 # Push current state for undo
                 pushState()
                 # Pass selected channels to the plugin function in the data field
-                value = self.sender().data()(channellist, self.animatronics)
+                starttime = self.lastXmin
+                endtime = self.lastXmax
+                value = self.sender().data()(channellist, self.animatronics, starttime=starttime, endtime=endtime)
                 if value:
                     # Redraw the modified channels
                     for name in self.plots:
                         if self.plots[name].selected:
                             self.plots[name].redrawme()
                     self.updateXMLPane()
+                    self.tagPlot.setTags(self.animatronics.tags)
                 else:
                     # Nothing was done so clean up
                     #popState()
@@ -3322,6 +3423,7 @@ class MainWindow(QMainWindow):
                 _,tend = self.plots[plot].getTimeRange()
                 if tend > endtime: endtime = tend
         currtime = starttime
+        endtime += samplestep   # To make sure we get final state
         while currtime < endtime:
             if integers:
                 timecolumn.append(int(currtime * 1000)) # Convert time column to integer milliseconds
@@ -3522,7 +3624,7 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = currState[4]
                 for plot in currState[5]:
                     self.plots[plot].setState(currState[5][plot])
-                print('Number of undos left:', len(self.previousStates))
+                #print('Number of undos left:', len(self.previousStates))
         else:
             msgBox = QMessageBox(parent=self)
             msgBox.setText('At earliest state')
@@ -3632,7 +3734,7 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = currState[4]
                 for plot in currState[5]:
                     self.plots[plot].setState(currState[5][plot])
-                print('Number of redos left:', len(self.pendingStates))
+                #print('Number of redos left:', len(self.pendingStates))
         else:
             msgBox = QMessageBox(parent=self)
             msgBox.setText('At latest state')
@@ -3994,9 +4096,17 @@ class MainWindow(QMainWindow):
                 if self.audioCurveRight is not None and rightdata is not None:
                     self.audioCurveRight.setData(xdata, rightdata)
             self.audioPlot.setAxisScale(qwt.QwtPlot.xBottom, minTime, maxTime)
+            if len(ydata) > 0:
+                minVal = min(ydata)
+                maxVal = max(ydata)
+                self.audioPlot.setAxisScale(qwt.QwtPlot.yLeft, minVal, maxVal)
             self.audioPlot.replot()
             if self.audioPlotRight is not None:
                 self.audioPlotRight.setAxisScale(qwt.QwtPlot.xBottom, minTime, maxTime)
+                if len(rightdata) > 0:
+                    minVal = min(rightdata)
+                    maxVal = max(rightdata)
+                    self.audioPlotRight.setAxisScale(qwt.QwtPlot.yLeft, minVal, maxVal)
                 self.audioPlotRight.replot()
                 
     def redrawTags(self, minTime, maxTime):
@@ -4036,6 +4146,21 @@ class MainWindow(QMainWindow):
         """ Perform scaletotimerange action"""
         # Reset all horizontal scales to time range but not vertical scales to local Y ranges
         self.setTimeRange(self.animatronics.start, self.animatronics.end)
+        pass
+
+    def settimerange_action(self):
+        """
+        The method settimerange_action brings up a dialog box to set the visible time range to 
+        match that specified by the user, even of some channels contain data points outside that range.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
+        """ show the dialog and use its methods to set the time range """
+        self.timerangedialog.show()
         pass
 
     def showall_action(self):
@@ -4452,10 +4577,7 @@ class MainWindow(QMainWindow):
 
         """ Perform Copy action"""
         # Make sure there is only one channel selected
-        selection = []
-        for name in self.plots:
-            if self.plots[name].selected:
-                selection.append(name)
+        selection = self.getSelectedChannelNames()
 
         if len(selection) == 0:
             # If none are selected, see if the cursor is in a ChannelPane
@@ -4512,10 +4634,7 @@ class MainWindow(QMainWindow):
             return
 
         # Get a list of all the currently selected channels
-        selection = []
-        for name in self.plots:
-            if self.plots[name].selected:
-                selection.append(name)
+        selection = self.getSelectedChannelNames()
 
         if len(selection) == 0:
             # If none are selected, see if the cursor is in a ChannelPane
@@ -4562,10 +4681,16 @@ class MainWindow(QMainWindow):
     def getSelectedChannels(self):
         # Get a list of all the currently selected channels
         selection = []
+        for name in self.getSelectedChannelNames():
+            selection.append(self.plots[name].channel)
+        return selection
+
+    def getSelectedChannelNames(self):
+        namelist = []
         for name in self.plots:
             if self.plots[name].selected:
-                selection.append(self.plots[name].channel)
-        return selection
+                namelist.append(name)
+        return namelist
 
     def Amplitudize_action(self):
         """
@@ -4580,10 +4705,7 @@ class MainWindow(QMainWindow):
             return
 
         # Get a list of all the currently selected channels
-        selection = []
-        for name in self.plots:
-            if self.plots[name].selected:
-                selection.append(name)
+        selection = self.getSelectedChannelNames()
 
         if len(selection) == 0:
             return
@@ -4596,10 +4718,22 @@ class MainWindow(QMainWindow):
 
         # Do the amplitudize process
         popRate = twidget.popRate   # amplitude buckets per second
+        cutoff = twidget.cutoff
 
         # Get the audio amplitude sampled at the desired rate
         # Use mono/left unless right is only one visible
         audio = self.animatronics.newAudio
+
+        # Check to see if we are sampling too fast (30 is a constant found in Animatronics.py)
+        if popRate > audio.samplerate/30.0:
+            popRate = audio.samplerate/30.0
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Maximum sample rate for this audio is %f!' % popRate)
+            msgBox.setInformativeText("Will sample at this rate but > 50Hz is a waste.")
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+        
         start = twidget.startTime
         if start < self.animatronics.newAudio.audiostart:
             start = self.animatronics.newAudio.audiostart
@@ -4609,13 +4743,14 @@ class MainWindow(QMainWindow):
         bincount = int((end - start) * popRate + 0.999)
         _,signal,_ = audio.getAmplitudeData(start, 
                     start + bincount/popRate, bincount)
-        
+
         pushState()     # Push current state for undo
 
         for name in selection:
             self.plots[name].channel.amplitudize(start,
                     start + bincount/popRate,
                     signal,
+                    cutoff=cutoff,
                     popRate=popRate)
             self.plots[name].redrawme()
 
@@ -4644,10 +4779,7 @@ class MainWindow(QMainWindow):
         """
 
         """ Perform Delete action"""
-        dellist = []
-        for name in self.plots:
-            if self.plots[name].selected:
-                dellist.append(name)
+        dellist = self.getSelectedChannelNames()
         if len(dellist) > 0:
             self.deleteChannels(dellist)
         pass
@@ -4794,6 +4926,14 @@ class MainWindow(QMainWindow):
             self.tagSelectUpdate()
         pass
 
+    def clearAllTags_action(self):
+        if len(self.animatronics.tags) > 0:
+            pushState()
+            # First remove all tags from the animation
+            self.animatronics.clearTags()
+            # Remove all tags in the tags pane
+            self.tagPlot.setTags([])
+
     def create_menus(self):
         """
         The method create_menus creates all the dropdown menus for the 
@@ -4926,6 +5066,11 @@ class MainWindow(QMainWindow):
             triggered=self.scaletotimerange_action)
         self.view_menu.addAction(self._scaletotimerange_action)
 
+        # settimerange menu item
+        self._settimerange_action = QAction("Set Time Range", self,
+            triggered=self.settimerange_action)
+        self.view_menu.addAction(self._settimerange_action)
+
         self.view_menu.addSeparator()
 
         # showall menu item
@@ -5048,6 +5193,11 @@ class MainWindow(QMainWindow):
             triggered=self.togglePane_action)
         self.tag_menu.addAction(self._togglePane_action)
 
+        # clearAllTags menu item
+        self._clearAllTags_action = QAction("Clear All Tags", self,
+            triggered=self.clearAllTags_action)
+        self.tag_menu.addAction(self._clearAllTags_action)
+
         # Build Plugins menu returning list of plugins that provide a help file
         helped_plugins = self.buildplugins()
 
@@ -5136,6 +5286,73 @@ class MainWindow(QMainWindow):
 
         return helped_plugins
 
+    class TimeRangeDialog(QDialog):
+        def __init__(self, parent=None):
+            super().__init__(parent)
+
+            self.mainwindow = parent
+            startTime = parent.lastXmin
+            endTime = parent.lastXmax
+
+            self.setWindowTitle('Set Time Range')
+
+            widget = QWidget()
+            layout = QFormLayout()
+
+            self._startedit = QLineEdit()
+            self._startedit.setText('%.3f' % startTime)
+            layout.addRow(QLabel('Start Time:'), self._startedit)
+
+            self._endedit = QLineEdit()
+            self._endedit.setText('%.3f' % endTime)
+            layout.addRow(QLabel('End Time:'), self._endedit)
+
+            widget.setLayout(layout)
+
+            self.okButton = QPushButton('Okay')
+            self.okButton.setDefault(True)
+            self.cancelButton = QPushButton('Cancel')
+            self.applyButton = QPushButton('Apply')
+
+            hbox = QHBoxLayout()
+            hbox.addStretch(1)
+            hbox.addWidget(self.applyButton)
+            hbox.addWidget(self.okButton)
+            hbox.addWidget(self.cancelButton)
+
+            vbox = QVBoxLayout(self)
+            vbox.addWidget(widget)
+            vbox.addStretch(1)
+            vbox.addLayout(hbox)
+            self.setLayout(vbox)
+
+            self.applyButton.clicked.connect(self.onApply)
+            self.okButton.clicked.connect(self.onAccepted)
+            self.cancelButton.clicked.connect(self.reject)
+
+        def onApply(self):
+            tstring = self._startedit.text()
+            if len(tstring) > 0:
+                startTime = float(tstring)
+            else:
+                startTime = -1.0e34
+
+            tstring = self._endedit.text()
+            if len(tstring) > 0:
+                endTime = float(tstring)
+            else:
+                endTime = 1.0e34
+
+            # Pass the time values to MainWindow
+            self.mainwindow.setTimeRange(startTime, endTime)
+
+        def onAccepted(self):
+            # Execute the Apply function
+            self.onApply()
+
+            # And close up shop but not delete the dialog
+            self.accept()
+
 
 #/* Main */
 def doAnimatronics():
@@ -5183,17 +5400,23 @@ def doAnimatronics():
 
     # If an input file was specified, parse it or die trying
     if infilename is not None:
-        # Do not update state if we read here
-        main_win.saveStateOkay = False
-        try:
-            animation.parseXML(infilename)
+        if os.path.isfile(infilename):
+            # Do not update state if we read here
+            main_win.saveStateOkay = False
+            try:
+                animation.parseXML(infilename)
 
-        except Exception as e:
-            sys.stderr.write("\nWhoops - Error reading input file %s\n" % infilename)
-            sys.stderr.write("Message: %s\n" % e)
+            except Exception as e:
+                sys.stderr.write("\nWhoops - Error reading input file %s\n" % infilename)
+                sys.stderr.write("Message: %s\n" % e)
+                sys.exit(11)
+
+            main_win.saveStateOkay = True
+        elif not os.path.exists(infilename):
+            animation.filename = infilename
+        else:
+            sys.stderr.write("\nWhoops - Unable to use %s as a file\n" % infilename)
             sys.exit(11)
-
-        main_win.saveStateOkay = True
 
     # Open the main window and process events
     main_win.setAnimatronics(animation)

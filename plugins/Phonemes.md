@@ -165,6 +165,18 @@ control channel to generate (which column in the conversion file).  The
 audio file will default to the main audio file of the animation so do not
 forget to select the one that has been processed to the appropriate format
 as described above.
+
+In addition to the audio file and channel type selections, the user may also 
+choose to populate the Tags pane with the words or phonemes recognized by
+the plugin.  If the user selects None, the Tags pane will be unchanged.  If
+the user selects Words, the Tags pane will be cleared and repopulated with
+a tag for each individual word in the audio and located at the time the word
+starts in the audio.  If Phonemes is selected,the Tags pane will be cleared
+and repopulated with a tag for each individual phoneme located at the time
+of the center or maximum of the phoneme.  If the user is not familiar with
+the phonemes, it is likely best to use Words.  The user may then make
+adjustments to the channel(s) where the recognized words are incorrect.
+
 Once the selections have been made, select Run and the selected channels will be
 populated.  Install the control file on the controller and see if it works.
 

@@ -8,122 +8,42 @@ import os
 import sys
 import random
 import helpers
+import gc
 
 # Constants for port types
 DIGITAL = 1
-SERVO = 2
+PWM = 2
+
+# Constants for control data file format
+CSV = 5
+HEX = 6     # No longer used
+BIN = 7
+
 
 verbose=False
+                # Analysis of memory usage severely affects timing data so keep that in mind
+memuse = 0      # 0 = no memory usage stats, 1 = garbage collection count, 2 = debug memuse printing
+
+# Use the on board LED for status
+led_onboard = machine.Pin(25, machine.Pin.OUT)
+# Use the off board LED for status too
+led_offboard = machine.Pin(26, machine.Pin.OUT)
+
+# Pin 24 is the onboard USR button on some Pico clones
+button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
+# Pin 28 is the RUN button connected to external jumper connector
+runbutton = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_UP)
 
 def button_pressed():
-    # Pin 24 is the onboard USR button on some Pico clones
-    button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
-    # Pin 28 is the external jumper connector on the Xmas board
-    runbutton = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_UP)
     return (not button.value()) or (not runbutton.value())
 
 def toggle_LEDs():
-    # Use the on board LED for status
-    led_onboard = machine.Pin(25, machine.Pin.OUT)
-    # Use the of board LED for status too
-    led_offboard = machine.Pin(5, machine.Pin.OUT)
-
     led_onboard.toggle()
     led_offboard.toggle()
 
 def on_LEDs():
-    # Use the on board LED for status
-    led_onboard = machine.Pin(25, machine.Pin.OUT)
-    # Use the of board LED for status too
-    led_offboard = machine.Pin(5, machine.Pin.OUT)
-
     led_onboard.on()
     led_offboard.on()
-
-def isfile(testfile):
-    try:
-        size = os.stat(testfile)[6]
-        return size > 0
-    except:
-        return False
-
-def findAnimFiles(dir='/anims'):
-    # Find animation files
-    # Create empty list of csv/audio file pairs
-    animList = []
-    # Force directory to have '/' at the end
-    if dir[-1] != '/': dir += '/'
-
-    # Check for an existing list of files
-    if isfile(dir + 'animlist'):
-        infile = open(dir + 'animlist', 'r')
-        line = infile.readline()
-        while len(line) > 0:
-            names = line.split()
-            if len(names) == 2:
-                # Should be both a csv filename and an audio filename
-                # Not checking for existence yet
-                animList.append(names)
-            elif len(names) == 1:
-                # Should be a fileroot that will be appended with .csv or .wav
-                tpair = []
-                if isfile(names[0] + '.csv'):
-                    tpair.append(names[0] + '.csv')
-                elif isfile(dir + names[0] + '.csv'):
-                    tpair.append(dir + names[0] + '.csv')
-                else:
-                    tpair.append(None)
-                if isfile(names[0] + '.wav'):
-                    tpair.append(names[0] + '.wav')
-                elif isfile(dir + names[0] + '.wav'):
-                    tpair.append(dir + names[0] + '.wav')
-                else:
-                    tpair.append(None)
-                animList.append(tpair)
-            line = infile.readline()
-    else:
-        # Check for matching filename pairs
-        if isfile(dir):
-            filelist = os.listdir(dir)
-            for filename in filelist:
-                tpair = []
-                if filename[-4:] == '.csv':
-                    tpair.append(dir + filename)
-                    tname = filename[:-4] + '.wav'
-                    if tname in filelist:
-                        tpair.append(dir + tname)
-                        animList.append(tpair)
-            # May want nonmatching filenames as well
-
-
-    if len(animList) == 0:
-        # Try looking for data.csv and data.wav
-        # Attempt to mount an SD card if not done in boot.py (preferred)
-        try:
-            helpers.mountSDCard()       # Mount SD card for all data files
-        except:
-            # Ignore errors
-            pass
-
-        if isfile('/sd/data.csv'):
-            datafile = '/sd/data.csv'
-        elif isfile('/data.csv'):
-            datafile = '/data.csv'
-        else:
-            datafile = None
-
-        # Find the preferred audio file on the SD card or in flash
-        if isfile('/sd/data.wav'):
-            wavefile = '/sd/data.wav'
-        elif isfile('/data.wav'):
-            wavefile = '/data.wav'
-        else:
-            wavefile = None
-
-        if datafile is not None or wavefile is not None:
-            animList.append([datafile, wavefile])
-
-    return animList
 
 def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce=False):
 
@@ -134,12 +54,18 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
     playIndex = 0
     if len(animList) > 0:
         if randomize: playIndex = random.randint(0, len(animList)-1)
+    else:
+        return
     if verbose: print(animList)
 
     # Swallow strange initially pressed state
     while button_pressed():
         utime.sleep_ms(1000)
         button_pressed()
+
+    # Turn off all our status LEDs so they are always synced
+    led_onboard.off()
+    led_offboard.off()
 
     # if skip is True then immediately begin execution
     # if continuous is True then execute continuously until interrupted
@@ -173,7 +99,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
             # Blink LED at 10 Hz until button released
             while True:
                 toggle_LEDs()
-                utime.sleep_ms(10)
+                utime.sleep_ms(100)
                 if not button_pressed():
                     utime.sleep_ms(50)    # Debounce switch
                     if not button_pressed(): break
@@ -213,161 +139,401 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
 
     if(verbose): print('At end of do_the_thing()')
 
+    # Reset the machine to clear out other thread and allow easier rshell access
+    machine.reset()
+
+class LocalSource:
+    def __init__(self, filename=None, binblocksize=0, readlock=None):
+        self.file = None
+        self.binblocksize = binblocksize
+        self.readlock = readlock
+        if self.readlock: self.readlock.acquire()
+        if binblocksize > 0:
+            self.file = open(filename, 'rb')
+        else:
+            self.file = open(filename, 'r')
+        if self.readlock: self.readlock.release()
+
+    def readline(self, returnblock=None):
+        BLOCKSIZE = 512  # Don't read more than 512 bytes per read
+        if self.file is None: return ''
+        if self.readlock: self.readlock.acquire()
+        if self.binblocksize > 0:
+            if returnblock is None:
+                returnblock = bytearray(self.binblocksize)
+            mv = memoryview(returnblock)
+            bytes_read = 0
+            n = self.binblocksize
+            for i in range(0, n - BLOCKSIZE, BLOCKSIZE):
+                bytes_read += self.file.readinto(mv[i:i + BLOCKSIZE])
+            if bytes_read < n:
+                bytes_read += self.file.readinto(mv[bytes_read:n])
+            if bytes_read == 0:
+                # At end of file
+                return ''
+        else:
+            returnblock = self.file.readline()
+        if self.readlock: self.readlock.release()
+        return returnblock
+
+    def close(self):
+        if self.file is not None:
+            self.file.close()
+            self.file = None
+
+
 def play_one_anim(csvfile, wavefile):
-    # Open the default CSV file
-    infile = False
-    if isfile(csvfile): infile = open(csvfile, 'r')
-    if infile:
+    # Initially assume ascii file format
+    binblocksize = 0
+
+    # Get expected binary file block sizes just in case
+    blockSizes = helpers.tables.getBinarysizes()
+    print('blockSizes:', blockSizes)
+
+    boardlist = helpers.tables.boardList()
+    if verbose:
+        for board in boardlist:
+            print('Board ID:', board.pca9685.address, 'First port:', board.firstport, 'First byte:', board.firstport+blockSizes[1]+blockSizes[2])
+
+    # Get the list of PWMs on GPIO pins
+    pwmlist = helpers.tables.pwmList()
+    if verbose:
+        for port in pwmlist:
+            print('PWM Port:', port, 'is on a GPIO pin')
+
+    # Sample the control file to see what format it is in
+    try:
+        with open(csvfile, 'rb') as source:
+            testbyte = source.read(1)
+            if testbyte == b'T':
+                # Ascii CSV file
+                csvformat = CSV
+                pass
+            elif testbyte == b'0':
+                # ASCII hex-encoded file
+                csvformat = HEX
+                print('Whoops - HEX format no longer supported!!')
+                pass
+            elif testbyte == b'\x00':
+                # Binary encoded file
+                csvformat = BIN
+                binblocksize = blockSizes[0]
+                pass
+            else:
+                # bad
+                if verbose: print('Whoops - Unrecognized control file format:', csvfile)
+                return
+    except:
+        if verbose: print('Whoops - Unable to open and read control file:', csvfile)
+        # Continue on for case of csvfile is None
+        csvfile = None
+
+    # Create the player
+    player = None   # Set player to None so later we know if it exists
+    if helpers.isfile(wavefile):
+        player = helpers.WavePlayer(wavefile, csvfilename=csvfile, binblocksize=binblocksize, verbose=(0 if not verbose else 1))
+
+
+    # Open the default CSV file if there is no player
+    source = None
+    if helpers.isfile(csvfile):
+        if player is None:
+            source = LocalSource(csvfile, binblocksize)
+        else:
+            source = player
+
+    if source is not None:
         if verbose: print('Playing animation file:', csvfile)
-        # Read the first line to get ports
-        hdr = infile.readline()
-        if verbose: print('Processing header:', hdr)
-        titles = hdr.split(',')
-        ports = [None]      # No port for frame column
-        porttypes = [None]  # List of port types
-        for i in range(1,len(titles)):
-            ports.append(None)
-            porttypes.append(None)
-            indicator = titles[i][0]
-            ports[i] = int(titles[i][1:])
-            # Skip all channels with port number < 0 meaning unassigned
-            if indicator == 'D':
-                porttypes[i] = DIGITAL
-            elif indicator == 'S':
-                porttypes[i] = SERVO
+        if csvformat == CSV:
+            # Read the first line to get ports
+            hdr = source.readline()
+            if verbose: print('Processing header:', hdr)
+            titles = hdr.split(',')
+            ports = [None]      # No port for frame column
+            porttypes = [None]  # List of port types
+            for i in range(1,len(titles)):
+                ports.append(None)
+                porttypes.append(None)
+                indicator = titles[i][0]
+                ports[i] = int(titles[i][1:])
+                # Skip all channels with port number < 0 meaning unassigned
+                if indicator == 'D':
+                    porttypes[i] = DIGITAL
+                elif indicator == 'S':
+                    porttypes[i] = PWM
+        elif csvformat == BIN:
+            # Get information from tables
+            pass
 
-        # Get ready to rock-n-roll
-        # Read the first line of data
-        line = infile.readline()
 
-    # Start the audio playing whether there is a CSV file or not
-    if verbose: print('Playing file:', wavefile)
+    # Initialize stats for optional display
+    setTicks = 0
+    digTicks = 0
     servoTicks = 0
     servoCount = 0
     lockTicks = 0
+    skips = 0
     readTicks = 0
-    player = None   # Set player to None so later we know if it exists
-    if isfile(wavefile):
-        player = helpers.WavePlayer(wavefile)
-        player.play()
+    splitTicks = 0
+    dataTicks = 0
+    servodataTicks = 0
+    buttonTicks = 0
+    garbageTicks = 0
+    LEDTicks = 0
+    maxCycleTicks = 0
 
-    if infile:
+    # Temporary ticks
+    ticks1 = 0
+    ticks2 = 0
+    ticks3 = 0
+    ticks4 = 0
+    ticks5 = 0
+
+    # Get the struct unpacking format for the known range of port IDs
+    theformat = helpers.tables.getPWMstructformat()
+    if verbose: print('PWM Struct format:', theformat, 'of length:', len(theformat))
+
+    if memuse > 0:
+        memused = gc.mem_alloc()
+
+    # Start the audio playing whether there is a CSV file or not
+    if verbose: print('Playing file:', wavefile)
+    if player is not None: player.play()
+
+    if source:
         # Get the current time
         startTicks = utime.ticks_ms()
 
         # Gather waittime stats
         waitTime = 0
 
+        # Get first line of real data
+        if csvformat == CSV:
+            line = source.readline()
+        elif csvformat == BIN:
+            line = source.readline()
+
         # Run animatronics until done or button is pressed
+        # Parse the line
+        ticks1 = utime.ticks_us()
+        if csvformat == CSV:
+            values = line.split(',')   # Initial split
+            nextTicks = int(values[0])
+        elif csvformat == BIN:
+            nextTicks = int.from_bytes(line[0:4], 'little')
+        splitTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
+
+        collectioncount = 0
+        loopTicks = utime.ticks_us()
         while len(line) > 0:
             #if verbose: print('Processing line:', line)
-            # Parse the line
-            values = line.split(',')
-            # Wait until it is time to go to next state
-            nextTicks = int(values[0])
-            while(utime.ticks_diff(utime.ticks_ms(), startTicks) < nextTicks):
+            if memuse > 1:
+                print('At loop start, memory use:', gc.mem_alloc())
+            cycleTicks = utime.ticks_us()
+            # Wait until it is 20msec before time to go to next state
+            while(utime.ticks_diff(utime.ticks_ms(), startTicks) < nextTicks - 20):
                 utime.sleep_ms(1)
                 waitTime += 1
+            if memuse > 1:
+                print('After loop wait, memory use:', gc.mem_alloc())
 
             # Send all values in the row to the Pins
             #if verbose: print('Sending data at time:',utime.ticks_diff(utime.ticks_ms(), startTicks), 'which should be:', nextTicks)
-            for i in range(1,len(titles)):
-                if porttypes[i] is not None:
-                    if porttypes[i] == DIGITAL:
-                        # Must be a digital channel
-                        #if verbose: print('Channel', ports[i],'is DIGITAL')
-                        value = int(values[i])
-                        helpers.setDigital(ports[i], value)
-                        #if verbose: print('Setting digital port:', ports[i], 'to:', value)
-                    elif porttypes[i] == SERVO:
-                        #if verbose: print('Channel', ports[i],'is SERVO')
-                        value = int(values[i])
-                        helpers.setServo(ports[i], value, push=False)
-
-            # Make sure all the digital channels are output
-            helpers.outputDigital()
-            # Push out all the servo values as well
             ticks1 = utime.ticks_us()
-            helpers.pushServos()
-            servoTicks += utime.ticks_us() - ticks1
-            servoCount += 1
+            if csvformat == BIN:
+                boardstart = blockSizes[1] + blockSizes[2]
+                for board in boardlist:
+                    board.pca9685.jambytes(line[board.firstport*4+boardstart:board.firstport*4+boardstart+board.numbytes])
+                if memuse > 1:
+                    print('After jambytes, memory use:', gc.mem_alloc())
+                # Now process all the PWMs on GPIO pins
+                for port in pwmlist:
+                    addr = port*4 + blockSizes[1] + blockSizes[2]
+                    helpers.tables.dosomething(port, line[addr+2:addr+4])
+                servodataTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
+                if memuse > 1:
+                    print('After servos, memory use:', gc.mem_alloc())
+                bits = int.from_bytes(line[blockSizes[1]:blockSizes[1] + blockSizes[2]], 'little')
+                helpers.tables.intToDigital(bits)
+                if memuse > 1:
+                    print('After intToDigital, memory use:', gc.mem_alloc())
+                helpers.tables.outputDigital()
+                if memuse > 1:
+                    print('After outputDigital, memory use:', gc.mem_alloc())
+                setTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
+                servoCount += 1
+                pass
+            else:
+                for i in range(1,len(titles)):
+                    if porttypes[i] is not None:
+                        if porttypes[i] == DIGITAL:
+                            # Must be a digital channel
+                            #if verbose: print('Channel', ports[i],'is DIGITAL')
+                            if csvformat == CSV:
+                                value = int(values[i])
+                            if ports[i] >= 0:
+                                # Nonnegative ports go directly to that port
+                                ticks2 = utime.ticks_us()
+                                helpers.setDigital(ports[i], value)
+                                dataTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
+                                #if verbose: print('Setting digital port:', ports[i], 'to:', value)
+                            else:
+                                # Negative port indicates compacted controls in a single value
+                                ticks2 = utime.ticks_us()
+                                helpers.tables.intToDigital(value)
+                                dataTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
+                        elif porttypes[i] == PWM:
+                            #if verbose: print('Channel', ports[i],'is PWM')
+                            if ports[i] >= 0:
+                                value = int(values[i])
+                                # Nonnegative ports go directly to that port
+                                ticks2 = utime.ticks_us()
+                                helpers.setServo(ports[i], value, push=False)
+                                servodataTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
+                            else:
+                                # Negative port indicates compacted controls in a single value
+                                ticks2 = utime.ticks_us()
+                                if csvformat == CSV:
+                                    value = int(values[i])
+                                    vals = []
+                                    port = 0
+                                    for port in range(32):
+                                        vals.append(value & 0xFFFF)
+                                        value >>= 16
+                                    helpers.tables.intsToPWM(vals)
+                                servodataTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
+                setTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
+
+                # Make sure all the digital channels are output
+                ticks1 = utime.ticks_us()
+                helpers.outputDigital()
+                digTicks += utime.ticks_us() - ticks1
+
+                # Push out all the servo values as well
+                ticks1 = utime.ticks_us()
+                helpers.pushServos()
+                servoTicks += utime.ticks_us() - ticks1
+                servoCount += 1
 
             # Check to see if button is pressed and quit if so
+            ticks1 = utime.ticks_us()
             if button_pressed():
                 utime.sleep_ms(50)    # Debounce switch
                 if button_pressed():
                     if verbose: print('Caught Stop button')
-                    if player is not None: player.stop()
                     break
+            buttonTicks += utime.ticks_us() - ticks1
 
             # Toggle LED to let us know something is happening
+            ticks1 = utime.ticks_us()
             toggle_LEDs()
+            LEDTicks += utime.ticks_us() - ticks1
 
             # Read another line from CSV file
-            startLockTicks = utime.ticks_us()
-            if player is not None: player.readLock.acquire()
-            lockTicks += utime.ticks_diff(utime.ticks_us(), startLockTicks)
-            startLockTicks = utime.ticks_us()
-            line = infile.readline()
+            ticks1 = utime.ticks_us()
+            if csvformat == CSV:
+                line = source.readline()
+            elif csvformat == BIN:
+                line = source.readline(line)
             # If our time is already past the next time, continue reading
             while len(line) > 0:
-                values = line.split(',')
-                nextTicks = int(values[0])
+                ticks2 = utime.ticks_us()
+                if csvformat == CSV:
+                    values = line.split(',')
+                    nextTicks = int(values[0])
+                    splitTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
+                elif csvformat == BIN:
+                    nextTicks = int.from_bytes(line[0:4], 'little')
+                    splitTicks += utime.ticks_diff(utime.ticks_us(), ticks2)
                 if nextTicks >= utime.ticks_diff(utime.ticks_ms(), startTicks): break
-                line = infile.readline()
-            readTicks += utime.ticks_diff(utime.ticks_us(), startLockTicks)
-            if player is not None: player.readLock.release()
+                skips += 1
+                if csvformat == CSV:
+                    line = source.readline()
+                elif csvformat == BIN:
+                    line = source.readline(line)
+            readTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
 
+            if memuse > 0:
+                memnow = gc.mem_alloc()
+                if memused > memnow:
+                    memused = memnow
+                    collectioncount += 1
+            if memuse > 1:
+                ticks1 = utime.ticks_us()
+                print('At time:', nextTicks, 'Memory use:', gc.mem_alloc())
+                #gc.collect()
+                garbageTicks += utime.ticks_diff(utime.ticks_us(), ticks1)
+
+            cycleTicks = utime.ticks_diff(utime.ticks_us(), cycleTicks)
+            if cycleTicks > maxCycleTicks: maxCycleTicks = cycleTicks
+
+        # Compute how much time it took to perform the entire animation
+        loopTime = utime.ticks_diff(utime.ticks_us(), loopTicks)
+
+        source.close()
         if(verbose): print('At end of read file loop')
-        infile.close()
 
         # Optionally report stats
         if(verbose):
+            print('Total time:', utime.ticks_diff(utime.ticks_ms(), startTicks), 'msec')
             print('Wait time :', waitTime, 'msec')
-            print('Total time:', nextTicks, 'msec')
+            print('Duration  :', nextTicks, 'msec')
             print('Wait frac :', waitTime/nextTicks)
-            print('Read time :', readTicks, 'msec')
+            print('Read time :', readTicks, 'usec')
+            print('Skip count:', skips)
 
-            print('Used', servoTicks, 'usec to write to servo', servoCount,'times')
-            print('For an average of', servoTicks/servoCount,'usec per write')
+            if memuse > 0:
+                print('Garbage collection was run about:', collectioncount, 'times')
+            if memuse > 1:
+                print('Used', garbageTicks, 'usec for garbage collection', servoCount+skips, 'times')
+                print('For an average of', garbageTicks/(servoCount+skips), 'usec per cycle')
+            print('Used', readTicks, 'usec to input the line', servoCount+skips, 'times')
+            print('For an average of', readTicks/(servoCount+skips), 'usec per cycle')
+            print('Used', splitTicks, 'usec to split the line', servoCount+skips, 'times')
+            print('For an average of', splitTicks/(servoCount+skips), 'usec per cycle')
+            print('Used', dataTicks, 'usec to save the digital data', servoCount, 'times')
+            print('For an average of', dataTicks/servoCount, 'usec per cycle')
+            print('Used', servodataTicks, 'usec to save the servo data', servoCount, 'times')
+            print('For an average of', servodataTicks/servoCount, 'usec per cycle')
+            print('Used', servoTicks, 'usec to push to servos', servoCount, 'times')
+            print('For an average of', servoTicks/servoCount, 'usec per cycle')
+            print('Used', digTicks, 'usec to shift out digital values', servoCount, 'times')
+            print('For an average of', digTicks/servoCount,'usec per cycle')
+            print('Used', setTicks, 'usec to read and interpret ascii values', servoCount, 'times')
+            print('For an average of', setTicks/servoCount,'usec per cycle')
+            print('Used', buttonTicks, 'usec to read read stop button', (servoCount+skips), 'times')
+            print('For an average of', buttonTicks/(servoCount+skips),'usec per cycle')
+            print('Used', LEDTicks, 'usec to toggle LEDs', (servoCount+skips), 'times')
+            print('For an average of', LEDTicks/(servoCount+skips),'usec per cycle')
+            print('Used', loopTime, 'usec to run', (servoCount), 'cycles')
+            print('For an average of', (loopTime-waitTime*1000)/(servoCount),'usec per cycle')
+            print('Maximum cycle duration:', maxCycleTicks, 'usec')
 
             print('Time spent waiting for lock:', lockTicks, 'usec')
 
-        # Let all the servos relax
-        helpers.releaseAllServos()
-
-    # Wait for audio player to be done also
     if player is not None:
-        while player.playing(): utime.sleep_ms(1)
+        while player.playing():
+            # If button is pressed, abort playback
+            if button_pressed():
+                utime.sleep_ms(50)    # Debounce switch
+                if button_pressed():
+                    if verbose: print('Caught Stop button')
+                    player.stop()
+            # Waiting a bit to see if audio is done
+            utime.sleep_ms(1)
 
-    # Optionally report stats
-    if(verbose):
-        # Run some tests on control functions
-        startTicks = utime.ticks_us()
-        for j in range(1000):
-            helpers.outputDigital()
-        print('Time for 1000 outputDigital calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
-        startTicks = utime.ticks_us()
-        for j in range(100):
-            helpers.setServo(7,50)
-            helpers.pushServos()
-        print('Time for 100 pushServo calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
-        startTicks = utime.ticks_us()
-        for j in range(1000):
-            helpers.setServo(7,50,push=False)
-        print('Time for 1000 setServo calls:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
-        startTicks = utime.ticks_us()
-        if isfile(csvfile):
-            infile = open(csvfile, 'r')
-            if infile:
-                for j in range(100):
-                    infile.seek(0)
-                    line = infile.readline()
-                    while len(line) > 0:
-                        line = infile.readline()
-                print('Time for 100 file reads:', utime.ticks_diff(utime.ticks_us(), startTicks), 'usecs')
+    # Let all the servos relax
+    helpers.releaseAllServos()
 
 
 if __name__ == "__main__":
-    animList = findAnimFiles()
+    animList = []
+    try:
+        animList = helpers.findAnimFiles(dir='/sd/anims')
+    except:
+        pass
+
+    if len(animList) == 0:
+        animList = helpers.findAnimFiles()
+
     do_the_thing(animList)

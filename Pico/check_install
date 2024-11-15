@@ -1,0 +1,37 @@
+#!/bin/csh
+# set echo
+
+# Set up virtual environment so we can run rshell
+source ../../.venv/bin/activate
+
+# Get a temporary file name
+set tmpfile = `mktemp`
+
+# Process all python files unless a spec has been specified
+set files = `ls *.py lib/*.py lib/tabledefs`
+if ($#argv > 0) then
+    set files = $argv[1]
+endif
+
+# loop through all the python files in list
+foreach f ($files)
+    echo Checking $f
+    # Remove any existing file
+    rm -f $tmpfile
+
+    # Copy the same file from pyboard
+    rshell cp /pyboard/$f $tmpfile >& /dev/null
+
+    # If something copied over, compare them
+    if(-e $tmpfile) then
+        cmp -s $f $tmpfile
+        if($status) then
+            echo '  'Detected differences between $f and /pyboard/$f
+        endif
+    else
+        echo '  'File: $f not installed on Pico
+    endif
+end
+
+# Remove any existing file
+rm -f $tmpfile
