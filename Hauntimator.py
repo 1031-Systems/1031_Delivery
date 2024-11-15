@@ -1230,7 +1230,7 @@ class ChannelPane(qwt.QwtPlot):
         # Create green bar for audio sync
         self.timeSlider = qwt.QwtPlotCurve()
         self.timeSlider.setStyle(qwt.QwtPlotCurve.Sticks)
-        self.timeSlider.setData([0.0], [30000.0])
+        self.timeSlider.setData([0.0], [70000.0])
         self.timeSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
         self.timeSlider.setBaseline(-30000.0)
         self.timeSlider.attach(self)
@@ -1564,7 +1564,7 @@ class ChannelPane(qwt.QwtPlot):
             The time at which the time bar should be set
         """
         if self.timeSlider is not None:
-            self.timeSlider.setData([timeVal], [30000.0])
+            self.timeSlider.setData([timeVal], [70000.0])
             self.replot()
         
     def redrawme(self):
