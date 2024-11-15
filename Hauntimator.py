@@ -4656,6 +4656,8 @@ class MainWindow(QMainWindow):
                 # Paste from clipboard
                 try:
                     root = ET.fromstring(self.clipboard.text())
+                    self.plots[channame].selectedKey = None
+                    self.plots[channame].selectedKeyList = []
                     self.animatronics.channels[channame].parseXML(root)
                     self.plots[channame].redrawme()
                     main_win.updateXMLPane()
@@ -4670,6 +4672,8 @@ class MainWindow(QMainWindow):
             try:
                 root = ET.fromstring(self.clipboard.text())
                 for name in selection:
+                    self.plots[name].selectedKey = None
+                    self.plots[name].selectedKeyList = []
                     self.animatronics.channels[name].parseXML(root)
                     self.plots[name].redrawme()
                 main_win.updateXMLPane()
