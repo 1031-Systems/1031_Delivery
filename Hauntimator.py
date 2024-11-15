@@ -1381,6 +1381,20 @@ class ChannelPane(qwt.QwtPlot):
         maxval = yplotval - (yplotval - self.maxVal) * (1.0 - vertDegrees/100.0)
         self.setDataRange(minval, maxval)
 
+    def keyReleaseEvent(self, event):
+        print('Got key in ChannelPane')
+        xdelta = 0.1    # 1/10th of a second
+        ydelta = 128.0
+        if event.key() == Qt.Key_Up:
+            self.moveSelectedPoints(0.0, ydelta)
+        elif event.key() == Qt.Key_Down:
+            self.moveSelectedPoints(0.0, -ydelta)
+        elif event.key() == Qt.Key_Left:
+            self.moveSelectedPoints(-xdelta, 0.0)
+        elif event.key() == Qt.Key_Right:
+            self.moveSelectedPoints(xdelta, 0.0)
+        self.redrawme()
+
     def mousePressEvent(self, event):
         """
         The method mousePressEvent handles the mouse press events.  They
@@ -1475,6 +1489,27 @@ class ChannelPane(qwt.QwtPlot):
             main_win.updateXMLPane()
         pass
 
+    def moveSelectedPoints(self, xdelta, ydelta):
+        newList = []
+        for key in self.selectedKeyList:
+            newx = key + xdelta
+            newy = self.channel.knots[key] + ydelta
+            del self.channel.knots[key]
+            if newx in self.channel.knots:
+                newx += 0.00000001
+            if self.channel.type == Channel.DIGITAL:
+                if newy >= 0.5: newy = 1.0
+                else: newy = 0.0
+            # Apply limits
+            if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                if newy > self.channel.maxLimit: newy = self.channel.maxLimit
+                if newy < self.channel.minLimit: newy = self.channel.minLimit
+
+            self.channel.knots[newx] = newy
+            if key == self.selectedKey: self.selectedKey = newx
+            newList.append(newx)
+        self.selectedKeyList = newList
+
     def mouseMoveEvent(self, event):
         """
         The method mouseMoveEvent handles drag events in the pane.  Only
@@ -1517,6 +1552,8 @@ class ChannelPane(qwt.QwtPlot):
                     yprev = self.channel.knots[xprev]
                     xdelta = xplotval - xprev
                     ydelta = yplotval - yprev
+                    self.moveSelectedPoints(xdelta, ydelta)
+                    """
                     newList = []
                     for key in self.selectedKeyList:
                         newx = key + xdelta
@@ -1536,6 +1573,7 @@ class ChannelPane(qwt.QwtPlot):
                         if key == self.selectedKey: self.selectedKey = newx
                         newList.append(newx)
                     self.selectedKeyList = newList
+                    """
                     self.redrawme()
                         
                     pass
@@ -4564,6 +4602,31 @@ class MainWindow(QMainWindow):
             self.plots[name].deselect()
         pass
 
+    def getFocusChannel(self):
+        cursorpos = QCursor.pos()
+        channame = None
+        for name in self.plots:
+            if self.plots[name].isHidden(): continue
+            widgetpos = self.plots[name].mapFromGlobal(cursorpos)
+            width = self.plots[name].size().width()
+            height = self.plots[name].size().height()
+            if widgetpos.x() > 0 and widgetpos.x() < width and widgetpos.y() > 0 and widgetpos.y() < height:
+                channame = name
+                break
+        return channame
+
+    def keyReleaseEvent(self, event):
+        """
+        Apparently, Arrow Keys and Page Up/Down keys are only passed into the
+        keyReleaseEvent methods, NOT the keyPressEvent methods.  WTF?
+        """
+        # Pass arrow keys to focused channel
+        if event.key() in [Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right]:
+            focuschannel = self.getFocusChannel()
+            if focuschannel is not None:
+                print('Sending arrow key to channel:', focuschannel)
+                self.plots[focuschannel].keyReleaseEvent(event)
+
     def Copy_action(self):
         """
         The method Copy_action copies the content of a single channel to
@@ -4581,18 +4644,9 @@ class MainWindow(QMainWindow):
 
         if len(selection) == 0:
             # If none are selected, see if the cursor is in a ChannelPane
-            cursorpos = QCursor.pos()
-            channame = None
-            for name in self.plots:
-                if self.plots[name].isHidden(): continue
-                widgetpos = self.plots[name].mapFromGlobal(cursorpos)
-                width = self.plots[name].size().width()
-                height = self.plots[name].size().height()
-                if widgetpos.x() > 0 and widgetpos.x() < width and widgetpos.y() > 0 and widgetpos.y() < height:
-                    channame = name
-                    break
+            channame = self.getFocusChannel()
             if channame is not None:
-                self.clipboard.setText(self.animatronics.channels[name].toXML())
+                self.clipboard.setText(self.animatronics.channels[channame].toXML())
                 self.ClipboardPane.setText(self.clipboard.text())
         elif len(selection) > 1:
             # Warn that they need to select only one channel to copy
@@ -4638,17 +4692,7 @@ class MainWindow(QMainWindow):
 
         if len(selection) == 0:
             # If none are selected, see if the cursor is in a ChannelPane
-            cursorpos = QCursor.pos()
-            channame = None
-            for name in self.plots:
-                # Check if cursor is in any visible channel pane
-                if self.plots[name].isHidden(): continue
-                widgetpos = self.plots[name].mapFromGlobal(cursorpos)
-                width = self.plots[name].size().width()
-                height = self.plots[name].size().height()
-                if widgetpos.x() > 0 and widgetpos.x() < width and widgetpos.y() > 0 and widgetpos.y() < height:
-                    channame = name
-                    break
+            channame = self.getFocusChannel()
             if channame is not None:
                 # Push current state for undo
                 pushState()
