@@ -1407,6 +1407,8 @@ class ChannelPane(qwt.QwtPlot):
             self.moveSelectedPoints(xdelta, 0.0)
         elif event.key() == Qt.Key_Delete:
             self.deleteSelectedKnots()
+        elif event.key() == Qt.Key_R and modifiers == Qt.ControlModifier:
+            self.resetDataRange()
         self.redrawme()
 
     def mousePressEvent(self, event):
@@ -5031,7 +5033,7 @@ class MainWindow(QMainWindow):
 
         # Open action
         self._open_file_action = QAction("&Open Anim File",
-                self, shortcut="Ctrl+O", triggered=self.openAnimFile)
+                self, shortcut=QKeySequence.Open, triggered=self.openAnimFile)
         self.file_menu.addAction(self._open_file_action)
 
         self._selectaudio_action = QAction("Open &Audio File", self,
@@ -5046,12 +5048,12 @@ class MainWindow(QMainWindow):
 
         # Save action
         self._save_file_action = QAction("&Save Anim File",
-                self, shortcut="Ctrl+S", triggered=self.saveAnimFile)
+                self, shortcut=QKeySequence.Save, triggered=self.saveAnimFile)
         self.file_menu.addAction(self._save_file_action)
 
         # Save As action
         self._save_as_file_action = QAction("&Save As",
-                self, triggered=self.saveAsFile)
+                self, shortcut=QKeySequence.SaveAs, triggered=self.saveAsFile)
         self.file_menu.addAction(self._save_as_file_action)
 
         # Export action
@@ -5075,7 +5077,7 @@ class MainWindow(QMainWindow):
 
         # exit action
         self.file_menu.addSeparator()
-        self._exit_action = QAction("&Quit", self, shortcut="Ctrl+Q",
+        self._exit_action = QAction("&Quit", self, shortcut=QKeySequence.Quit,
                 triggered=self.exit_action)
         self.file_menu.addAction(self._exit_action)
 
@@ -5083,11 +5085,11 @@ class MainWindow(QMainWindow):
         self.edit_menu = self.menuBar().addMenu("&Edit")
         self.edit_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
 
-        self._undo_action = QAction("Undo", self, shortcut="Ctrl+Z",
+        self._undo_action = QAction("Undo", self, shortcut=QKeySequence.Undo,
             triggered=self.undo_action)
         self.edit_menu.addAction(self._undo_action)
 
-        self._redo_action = QAction("Redo", self, shortcut="Ctrl+Shift+Z",
+        self._redo_action = QAction("Redo", self, shortcut=QKeySequence.Redo,
             triggered=self.redo_action)
         self.edit_menu.addAction(self._redo_action)
 
@@ -5193,13 +5195,13 @@ class MainWindow(QMainWindow):
 
         # selectAll menu item
         self._selectAll_action = QAction("Select All", self,
-            shortcut="Ctrl+A",
+            shortcut=QKeySequence.SelectAll,
             triggered=self.selectAll_action)
         self.channel_menu.addAction(self._selectAll_action)
 
         # deselectAll menu item
         self._deselectAll_action = QAction("Deselect All", self,
-            shortcut="Ctrl+Shift+A",
+            shortcut=QKeySequence.Deselect,
             triggered=self.deselectAll_action)
         self.channel_menu.addAction(self._deselectAll_action)
 
@@ -5213,13 +5215,13 @@ class MainWindow(QMainWindow):
 
         # Copy menu item
         self._Copy_action = QAction("Copy", self,
-            shortcut="Ctrl+C",
+            shortcut=QKeySequence.Copy,
             triggered=self.Copy_action)
         self.channel_menu.addAction(self._Copy_action)
 
         # Paste menu item
         self._Paste_action = QAction("Paste", self,
-            shortcut="Ctrl+V",
+            shortcut=QKeySequence.Paste,
             triggered=self.Paste_action)
         self.channel_menu.addAction(self._Paste_action)
 
@@ -5249,7 +5251,7 @@ class MainWindow(QMainWindow):
 
         # tagInsert menu item
         self._tagInsert_action = QAction("Insert Tag", self,
-            shortcut="Ctrl+T",
+            shortcut=QKeySequence.AddTab,
             triggered=self.tagInsert_action)
         self.tag_menu.addAction(self._tagInsert_action)
 
