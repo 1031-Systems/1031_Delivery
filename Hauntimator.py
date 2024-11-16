@@ -1381,10 +1381,22 @@ class ChannelPane(qwt.QwtPlot):
         maxval = yplotval - (yplotval - self.maxVal) * (1.0 - vertDegrees/100.0)
         self.setDataRange(minval, maxval)
 
+    def deleteSelectedKnots(self):
+        pushState()
+        for knot in self.selectedKeyList:
+            del self.channel.knots[knot]
+        self.selectedKeyList = []
+
     def keyReleaseEvent(self, event):
-        print('Got key in ChannelPane')
+        modifiers = QApplication.keyboardModifiers()
         xdelta = 0.1    # 1/10th of a second
         ydelta = 128.0
+        if modifiers == Qt.ShiftModifier:
+            xdelta *= 10
+            ydelta *= 10
+        elif modifiers == Qt.ControlModifier:
+            xdelta /= 10
+            ydelta /= 10
         if event.key() == Qt.Key_Up:
             self.moveSelectedPoints(0.0, ydelta)
         elif event.key() == Qt.Key_Down:
@@ -1393,6 +1405,8 @@ class ChannelPane(qwt.QwtPlot):
             self.moveSelectedPoints(-xdelta, 0.0)
         elif event.key() == Qt.Key_Right:
             self.moveSelectedPoints(xdelta, 0.0)
+        elif event.key() == Qt.Key_Delete:
+            self.deleteSelectedKnots()
         self.redrawme()
 
     def mousePressEvent(self, event):
@@ -1509,6 +1523,9 @@ class ChannelPane(qwt.QwtPlot):
             if key == self.selectedKey: self.selectedKey = newx
             newList.append(newx)
         self.selectedKeyList = newList
+        # Record motion in mainwindow
+        self.holder.lastDeltaX += xdelta
+        self.holder.lastDeltaY += ydelta
 
     def mouseMoveEvent(self, event):
         """
@@ -1553,27 +1570,6 @@ class ChannelPane(qwt.QwtPlot):
                     xdelta = xplotval - xprev
                     ydelta = yplotval - yprev
                     self.moveSelectedPoints(xdelta, ydelta)
-                    """
-                    newList = []
-                    for key in self.selectedKeyList:
-                        newx = key + xdelta
-                        newy = self.channel.knots[key] + ydelta
-                        del self.channel.knots[key]
-                        if newx in self.channel.knots:
-                            newx += 0.00000001
-                        if self.channel.type == Channel.DIGITAL:
-                            if newy >= 0.5: newy = 1.0
-                            else: newy = 0.0
-                        # Apply limits
-                        if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
-                            if newy > self.channel.maxLimit: newy = self.channel.maxLimit
-                            if newy < self.channel.minLimit: newy = self.channel.minLimit
-
-                        self.channel.knots[newx] = newy
-                        if key == self.selectedKey: self.selectedKey = newx
-                        newList.append(newx)
-                    self.selectedKeyList = newList
-                    """
                     self.redrawme()
                         
                     pass
@@ -2983,6 +2979,10 @@ class MainWindow(QMainWindow):
         self.totalMax = 1.0
         self._slideTime = 0.0
         self.clipboard = QGuiApplication.clipboard()
+        # For saving drags after pasting
+        self.lastDeltaX = 0.0
+        self.lastDeltaY = 0.0
+        self.repCount = 0
 
         # Create the TimeRangeDialog
         self.timerangedialog = self.TimeRangeDialog(parent=self)
@@ -4621,11 +4621,9 @@ class MainWindow(QMainWindow):
         keyReleaseEvent methods, NOT the keyPressEvent methods.  WTF?
         """
         # Pass arrow keys to focused channel
-        if event.key() in [Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right]:
-            focuschannel = self.getFocusChannel()
-            if focuschannel is not None:
-                print('Sending arrow key to channel:', focuschannel)
-                self.plots[focuschannel].keyReleaseEvent(event)
+        focuschannel = self.getFocusChannel()
+        if focuschannel is not None:
+            self.plots[focuschannel].keyReleaseEvent(event)
 
     def Copy_action(self):
         """
@@ -4646,8 +4644,24 @@ class MainWindow(QMainWindow):
             # If none are selected, see if the cursor is in a ChannelPane
             channame = self.getFocusChannel()
             if channame is not None:
-                self.clipboard.setText(self.animatronics.channels[channame].toXML())
-                self.ClipboardPane.setText(self.clipboard.text())
+                pane = self.plots[channame]
+                if len(pane.selectedKeyList) > 0:
+                    # Copy the selected knots as XML string
+                    theXML = StringIO()
+                    theXML.write('<Channel>\n')
+                    for key in pane.selectedKeyList:
+                        theXML.write('  <Point time="%f">%f</Point>\n' % (key, pane.channel.knots[key]))
+                    theXML.write('</Channel>\n')
+                    self.lastDeltaX = 0.0
+                    self.lastDeltaY = 0.0
+                    self.repCount = 1
+                    self.clipboard.setText(theXML.getvalue())
+                    self.ClipboardPane.setText(self.clipboard.text())
+                    pass
+                else:
+                    # Copy all the knots
+                    self.clipboard.setText(self.animatronics.channels[channame].toXML())
+                    self.ClipboardPane.setText(self.clipboard.text())
         elif len(selection) > 1:
             # Warn that they need to select only one channel to copy
             msgBox = QMessageBox(parent=self)
@@ -4698,14 +4712,24 @@ class MainWindow(QMainWindow):
                 pushState()
 
                 # Paste from clipboard
-                try:
+                if True: #try:
                     root = ET.fromstring(self.clipboard.text())
                     self.plots[channame].selectedKey = None
                     self.plots[channame].selectedKeyList = []
+                    existingknots = list(self.animatronics.channels[channame].knots)
                     self.animatronics.channels[channame].parseXML(root)
+                    # Select new knots
+                    for knot in list(self.animatronics.channels[channame].knots):
+                        if knot not in existingknots:
+                            knottime = knot + self.lastDeltaX * self.repCount
+                            knotvalue = self.animatronics.channels[channame].knots[knot] + self.lastDeltaY * self.repCount
+                            self.animatronics.channels[channame].delete_knot(knot)
+                            self.animatronics.channels[channame].add_knot(knottime, knotvalue)
+                            self.plots[channame].selectedKeyList.append(knottime)
+                    self.repCount += 1
                     self.plots[channame].redrawme()
                     main_win.updateXMLPane()
-                except:
+                else: #except:
                     popState()
                     pass
         else:
@@ -4718,7 +4742,11 @@ class MainWindow(QMainWindow):
                 for name in selection:
                     self.plots[name].selectedKey = None
                     self.plots[name].selectedKeyList = []
+                    existingknots = dict(self.plots[name].channel.knots)
                     self.animatronics.channels[name].parseXML(root)
+                    # Select new knots
+                    for knot in self.plots[name].channel.knots:
+                        if knot not in existingknots: self.plots[name].selectedKeyList.append(knot)
                     self.plots[name].redrawme()
                 main_win.updateXMLPane()
             except:
