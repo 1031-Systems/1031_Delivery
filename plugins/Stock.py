@@ -123,10 +123,11 @@ def repeat(channelList, theanim, starttime=None, endtime=None):
         # Duplicate knots between start and end time, adding delta time to each
         knotTimes,knotValues = channel.getKnotData(startTime, endTime, 1000000)
         for i in range(len(knotTimes)):
-            for rep in range(count):
-                channel.add_knot(knotTimes[i]+deltaTime*(rep+1), knotValues[i])
-                # We will return True if ANY knots were added to ANY channels
-                retval = True
+            if knotTimes[i] >= startTime and knotTimes[i] <= endTime:
+                for rep in range(count):
+                    channel.add_knot(knotTimes[i]+deltaTime*(rep+1), knotValues[i])
+                    # We will return True if ANY knots were added to ANY channels
+                    retval = True
 
     return(retval)
 
