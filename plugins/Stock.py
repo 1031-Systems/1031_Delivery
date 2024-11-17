@@ -130,5 +130,37 @@ def repeat(channelList, theanim, starttime=None, endtime=None):
 
     return(retval)
 
-external_callables = [invert, repeat]
+def shift(channelList, theanim, starttime=None, endtime=None):
+    global lastrepeatend
+    global lastrepeatstart
+    global lastrepeatcount
+
+    retval = False  # Return False if NO channels are modified
+
+    # Create the dialog to prompt for range, reps, etc.
+    widget = _ShiftUserPrompt(starttime=starttime, endtime=endtime)
+    code = widget.exec_()
+    if code != QDialog.Accepted: return False
+
+    startTime = widget.getStartTime()
+    endTime = widget.getEndTime()
+    shiftval = widget.getCount()
+    deltaTime = endTime - startTime
+
+    lastrepeatstart = startTime
+    lastrepeatend = endTime
+    lastrepeatcount = count
+
+    for channel in channelList:
+        # Duplicate knots between start and end time, adding delta time to each
+        knotTimes,knotValues = channel.getKnotData(startTime, endTime, 1000000)
+        for i in range(len(knotTimes)):
+            for rep in range(count):
+                channel.add_knot(knotTimes[i]+deltaTime*(rep+1), knotValues[i])
+                # We will return True if ANY knots were added to ANY channels
+                retval = True
+
+    return(retval)
+
+external_callables = [invert, repeat]  # , shift]
 

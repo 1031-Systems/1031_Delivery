@@ -748,6 +748,7 @@ class Channel:
         """
         The method parseXML parses an etree ElementTree and populates the
         channel fields from the XML.
+        IFF name is not specified, the Points will be ADDed to the existing channel
             member of class: Channel
         Parameters
         ----------
@@ -757,6 +758,9 @@ class Channel:
         """
         if inXML.tag == 'Channel':
             # Populate metadata from attributes
+            if 'name' in inXML.attrib:
+                # Clean out all current knots only if name is specified
+                self.knots = {}
             if 'name' in inXML.attrib and len(self.name) == 0:
                 self.name = inXML.attrib['name']
             if 'minLimit' in inXML.attrib:
@@ -783,8 +787,6 @@ class Channel:
         else:
             raise Exception('XML is not a Channel')
 
-        # Clean out all current knots
-        self.knots = {}
         # Populate knots from Point blocks
         for point in inXML:
             if point.tag == 'Point':
