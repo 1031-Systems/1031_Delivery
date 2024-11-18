@@ -470,7 +470,9 @@ def play_one_anim(csvfile, wavefile):
         # Compute how much time it took to perform the entire animation
         loopTime = utime.ticks_diff(utime.ticks_us(), loopTicks)
 
-        source.close()
+        # If source is a local file then close it but not if it is the audio player
+        if source != player: source.close()
+
         if(verbose): print('At end of read file loop')
 
         # Optionally report stats
@@ -510,6 +512,7 @@ def play_one_anim(csvfile, wavefile):
             print('Maximum cycle duration:', maxCycleTicks, 'usec')
 
             print('Time spent waiting for lock:', lockTicks, 'usec')
+
 
     if player is not None:
         while player.playing():
