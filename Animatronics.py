@@ -857,8 +857,17 @@ class Animatronics:
         self.start = 0.0
         self.end = -1.0
         self.sample_rate = 50.0
-        self.csvUploadFile = SystemPreferences['UploadCSVFile']
-        self.audioUploadFile = SystemPreferences['UploadAudioFile']
+        self.csvUploadFile = None
+        self.audioUploadFile = None
+
+    def setFilename(self, inXMLFilename):
+        self.filename = inXMLFilename
+        # Use filename as root for CSV and audio uploads
+        rootname = os.path.splitext(os.path.basename(inXMLFilename))[0]
+        if self.csvUploadFile is None:
+            self.csvUploadFile = os.path.join(SystemPreferences['UploadPath'], rootname + '.csv')
+        if self.audioUploadFile is None:
+            self.audioUploadFile = os.path.join(SystemPreferences['UploadPath'], rootname + '.wav')
 
     def clearTags(self):
         self.tags = {}
@@ -881,7 +890,7 @@ class Animatronics:
         with open(inXMLFilename, 'r') as infile:
             testtext = infile.read()
             self.fromXML(testtext)
-            self.filename = inXMLFilename
+            self.setFilename(inXMLFilename)
 
     def fromXML(self, testtext):
         """
@@ -899,8 +908,6 @@ class Animatronics:
         self.channels = {}
         self.clearTags()
         self.sample_rate = 50.0
-        self.csvUploadFile = SystemPreferences['UploadCSVFile']
-        self.audioUploadFile = SystemPreferences['UploadAudioFile']
 
         # Scan the XML text
         root = ET.fromstring(testtext)

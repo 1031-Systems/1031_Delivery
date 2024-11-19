@@ -3371,6 +3371,8 @@ class MainWindow(QMainWindow):
             try:
                 fileName = self.filedialog.selectedFiles()[0]
                 with open(fileName, 'w') as outfile:
+                    # Set upload paths prior to writing
+                    self.animatronics.setFilename(fileName)
                     outfile.write(self.animatronics.toXML())
                 self.unsavedChanges = False
                 if self.animatronics.filename is None:
@@ -3528,6 +3530,17 @@ class MainWindow(QMainWindow):
         tempfilename = 'tempdata.csv'
         self.writeCSVFile(tempfilename)
 
+        # Verify that destination is specified
+        if self.animatronics.csvUploadFile is None:
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Whoops - Upload destination not set.\n' +
+                'Save animation file to implicitly set or\n' +
+                'Edit metadata to explicitly set.')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Information)
+            ret = msgBox.exec_()
+            return
+
         # Upload with commlib
         localprogressdialog = self.newProgressBar('Uploading Controls')
         if COMMLIB_ENABLED: 
@@ -3557,6 +3570,26 @@ class MainWindow(QMainWindow):
             os.remove(tempfilename)
 
     def uploadAudio(self):
+        # Verify that destination is specified
+        if self.animatronics.audioUploadFile is None:
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Whoops - Upload destination not set.\n' +
+                'Save animation file to implicitly set or\n' +
+                'Edit metadata to explicitly set.')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Information)
+            ret = msgBox.exec_()
+            return
+
+        # Verify that an audio file has been specified
+        if self.animatronics.newAudio is None or self.animatronics.newAudio.audiofile is None:
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Whoops - No audio has been selected.\n')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Information)
+            ret = msgBox.exec_()
+            return
+
         # Upload the audio file
         localprogressdialog = self.newProgressBar('Uploading Audio')
         if COMMLIB_ENABLED:
