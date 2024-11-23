@@ -30,12 +30,13 @@ led_onboard = machine.Pin(25, machine.Pin.OUT)
 led_offboard = machine.Pin(26, machine.Pin.OUT)
 
 # Pin 24 is the onboard USR button on some Pico clones
-button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
+#button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
 # Pin 28 is the RUN button connected to external jumper connector
 runbutton = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_UP)
 
 def button_pressed():
-    return (not button.value()) or (not runbutton.value())
+    #return (not button.value()) or (not runbutton.value())
+    return not runbutton.value()
 
 def toggle_LEDs():
     led_onboard.toggle()
@@ -188,7 +189,6 @@ def play_one_anim(csvfile, wavefile):
 
     # Get expected binary file block sizes just in case
     blockSizes = helpers.tables.getBinarysizes()
-    print('blockSizes:', blockSizes)
 
     boardlist = helpers.tables.boardList()
     if verbose:
