@@ -3569,6 +3569,18 @@ class MainWindow(QMainWindow):
             # Delete data.csv
             os.remove(tempfilename)
 
+        starttime = self.animatronics.start
+        endtime = self.animatronics.end
+        binarytime = int((self.totalMax - self.totalMin) / 4 + len(self.plots) * 10)
+        msgBox = QMessageBox(parent=self)
+        msgBox.setText('Conversion to binary format may be in progress.\n' + 
+            'Wait for status LED to resume flashing before proceeding.\n' +
+            'Do not reset or power down hardware to avoid loss of data.\n' +
+            'May take up to %d seconds.' % binarytime)
+        msgBox.setStandardButtons(QMessageBox.Ok)
+        msgBox.setIcon(QMessageBox.Information)
+        msgBox.exec_()
+
     def uploadAudio(self):
         # Verify that destination is specified
         if self.animatronics.audioUploadFile is None:
