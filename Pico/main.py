@@ -19,6 +19,7 @@ CSV = 5
 HEX = 6     # No longer used
 BIN = 7
 
+firstTime = True    # Flag to prevent idle animation running until started
 
 verbose=False
                 # Analysis of memory usage severely affects timing data so keep that in mind
@@ -30,12 +31,13 @@ led_onboard = machine.Pin(25, machine.Pin.OUT)
 led_offboard = machine.Pin(26, machine.Pin.OUT)
 
 # Pin 24 is the onboard USR button on some Pico clones
-button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
+#button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
 # Pin 28 is the RUN button connected to external jumper connector
 runbutton = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_UP)
 
 def button_pressed():
-    return (not button.value()) or (not runbutton.value())
+    #return (not button.value()) or (not runbutton.value())
+    return not runbutton.value()
 
 def toggle_LEDs():
     led_onboard.toggle()
@@ -45,7 +47,8 @@ def on_LEDs():
     led_onboard.on()
     led_offboard.on()
 
-def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce=False):
+def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False, skip=False, doOnce=False):
+    global firstTime
 
     helpers.setAllDigital(0)    # All digital channels off
     helpers.releaseAllServos()  # All servos relaxed
@@ -74,6 +77,8 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
         # Toggle LED every second until button pressed
         if not continuous and not skip:
             while not button_pressed():
+                if idleanimation is not None and not firstTime:
+                    play_one_anim(idleanimation[0], idleanimation[1])
                 code = 0
                 toggle_LEDs()
                 for i in range(100):
@@ -106,6 +111,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
             continuous = True
 
         if playIndex < len(animList):
+            firstTime = False
             # Get next animation to play
             if verbose: print('Print playing animation:', playIndex,'named:',animList[playIndex][0])
             # Play it
@@ -188,7 +194,6 @@ def play_one_anim(csvfile, wavefile):
 
     # Get expected binary file block sizes just in case
     blockSizes = helpers.tables.getBinarysizes()
-    print('blockSizes:', blockSizes)
 
     boardlist = helpers.tables.boardList()
     if verbose:
@@ -470,7 +475,9 @@ def play_one_anim(csvfile, wavefile):
         # Compute how much time it took to perform the entire animation
         loopTime = utime.ticks_diff(utime.ticks_us(), loopTicks)
 
-        source.close()
+        # If source is a local file then close it but not if it is the audio player
+        if source != player: source.close()
+
         if(verbose): print('At end of read file loop')
 
         # Optionally report stats
@@ -511,6 +518,7 @@ def play_one_anim(csvfile, wavefile):
 
             print('Time spent waiting for lock:', lockTicks, 'usec')
 
+
     if player is not None:
         while player.playing():
             # If button is pressed, abort playback
@@ -536,4 +544,4 @@ if __name__ == "__main__":
     if len(animList) == 0:
         animList = helpers.findAnimFiles()
 
-    do_the_thing(animList)
+    do_the_thing(animList, idleanimation=['/sd/anims/zylon.bin', None])

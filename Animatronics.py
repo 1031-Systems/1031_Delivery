@@ -511,25 +511,24 @@ class Channel:
 
         """Returns up to maxCount of the knots along the visible part of the curve"""
         keys = sorted(self.knots.keys())
-        if len(keys) < 1:
-            # Return Nones if channel is empty
-            return None,None
-        if len(keys) < 2:
-            # return single values if only one knot in channel
-            return [keys[0]], [self.knots[keys[0]]]
         xdata = []
         ydata = []
+        if len(keys) < 1:
+            # Return empty lists if channel is empty
+            pass
         if len(keys) < maxCount:
-            # Return all of them
+            # Return all of them in range
             for key in self.knots:
-                xdata.append(key)
-                ydata.append(self.knots[key])
+                if key >= minTime and key <= maxTime:
+                    xdata.append(key)
+                    ydata.append(self.knots[key])
         else:
             # Weed them out somehow
             # Return all of them for now
             for key in self.knots:
-                xdata.append(key)
-                ydata.append(self.knots[key])
+                if key >= minTime and key <= maxTime:
+                    xdata.append(key)
+                    ydata.append(self.knots[key])
         return xdata,ydata
 
     def getPlotData(self, minTime, maxTime, maxCount):
@@ -858,8 +857,17 @@ class Animatronics:
         self.start = 0.0
         self.end = -1.0
         self.sample_rate = 50.0
-        self.csvUploadFile = SystemPreferences['UploadCSVFile']
-        self.audioUploadFile = SystemPreferences['UploadAudioFile']
+        self.csvUploadFile = None
+        self.audioUploadFile = None
+
+    def setFilename(self, inXMLFilename):
+        self.filename = inXMLFilename
+        # Use filename as root for CSV and audio uploads
+        rootname = os.path.splitext(os.path.basename(inXMLFilename))[0]
+        if self.csvUploadFile is None:
+            self.csvUploadFile = os.path.join(SystemPreferences['UploadPath'], rootname + '.csv')
+        if self.audioUploadFile is None:
+            self.audioUploadFile = os.path.join(SystemPreferences['UploadPath'], rootname + '.wav')
 
     def clearTags(self):
         self.tags = {}
@@ -882,7 +890,7 @@ class Animatronics:
         with open(inXMLFilename, 'r') as infile:
             testtext = infile.read()
             self.fromXML(testtext)
-            self.filename = inXMLFilename
+            self.setFilename(inXMLFilename)
 
     def fromXML(self, testtext):
         """
@@ -900,8 +908,6 @@ class Animatronics:
         self.channels = {}
         self.clearTags()
         self.sample_rate = 50.0
-        self.csvUploadFile = SystemPreferences['UploadCSVFile']
-        self.audioUploadFile = SystemPreferences['UploadAudioFile']
 
         # Scan the XML text
         root = ET.fromstring(testtext)

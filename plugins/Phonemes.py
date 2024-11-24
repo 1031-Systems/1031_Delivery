@@ -116,93 +116,134 @@ class UserPrompt(QDialog):
         if fileName:
             self._nameedit.setText(fileName)
 
-def runSphinxWords(audiofile, dict=None):
+def runSphinxWords(audiofile, dict=None, lm=None, starttime=0, endtime=0):
     # Create a decoder with certain model
     config = Config()
+    if lm is not None:
+        config.set_string('-lm', lm)
     if dict is not None:
         config.set_string('-dict', dict)
 
     # Decode streaming data.
     decoder = Decoder(config)
 
+    print('Phonemes: Processing audio file')
     decoder.start_utt()
     stream = open(audiofile, 'rb')
+    buf = stream.read(36)   # Skip wave file header for raw processing
+    if starttime > 0:
+        # Skip enough bytes to start at desired time
+        skipbytes = int(starttime * 2 * 16000)
+        while skipbytes > 1024:
+            buf = stream.read(1024)
+            skipbytes -= 1024
+        if skipbytes > 0:
+            buf = stream.read(skipbytes)
+    if endtime > starttime:
+        playbytes = int((endtime - starttime)* 2 * 16000)
+    else:
+        playbytes = 100000000000
     while True:
-      buf = stream.read(1024)
+      if playbytes > 1024:
+        buf = stream.read(1024)
+      else:
+        buf = stream.read(playbytes)
+      playbytes -= 1024
       if buf:
         decoder.process_raw(buf, False, False)
+        if playbytes <= 0: break
       else:
         break
+    print('Phonemes: Processing audio data from file')
     decoder.end_utt()
 
     # Output list of words with start and end times
     words = []
+    print('Phonemes: Processing words from audio')
     for s in decoder.seg():
         if verbosity: print(s.start_frame, s.end_frame, s.word)
         theword = s.word
         # Remove silences that are contained in <> pairs
         if '<' not in theword and '>' not in theword:
-            # Also remove trailing stresses in parens
-            indx = theword.find('(')
-            if indx > 0:
-                theword = theword[0:indx]
             words.append((theword, float(s.start_frame) / 100.0, float(s.end_frame) / 100.0))
 
+    print('Phonemes: Done processing')
     return words
 
-def runSphinx(audiofile, dict=None):
-    # Create a decoder with certain model
-    config = Config()
-    config.set_string('-hmm', get_model_path('en-us/en-us'))
-    config.set_string('-lm', None)  # Must remove language model from default config
-    config.set_string('-allphone', get_model_path('en-us/en-us-phone.lm.bin'))
-    config.set_float('-lw', 2.0)
-    config.set_float('-beam', 1e-20)
-    config.set_float('-pbeam', 1e-20)
-    if dict is not None:
-        config.set_string('-dict', dict)
-
-    # Decode streaming data.
-    decoder = Decoder(config)
-
-    decoder.start_utt()
-    stream = open(audiofile, 'rb')
-    while True:
-      buf = stream.read(1024)
-      if buf:
-        decoder.process_raw(buf, False, False)
-      else:
-        break
-    decoder.end_utt()
-
-    # Output list of phonemes with start and end times
-    phones = []
-    for s in decoder.seg():
-        if verbosity: print(s.start_frame, s.end_frame, s.word)
-        phones.append((s.word, float(s.start_frame + s.end_frame) / 200.0))
-
+def runSphinx(audiofile, dict=None, lm=None, starttime=0, endtime=0):
     # If we don't have a dictionary, this is as good as we can do
-    if dict is None: return phones
+    words = None
+    if dict is None:
+        # Create a decoder with certain model
+        config = Config()
+        config.set_string('-hmm', get_model_path('en-us/en-us'))
+        config.set_string('-lm', None)  # Must remove language model from default config
+        config.set_string('-allphone', get_model_path('en-us/en-us-phone.lm.bin'))
+        config.set_float('-lw', 2.0)
+        config.set_float('-beam', 1e-20)
+        config.set_float('-pbeam', 1e-20)
+        if dict is not None:
+            config.set_string('-dict', dict)
 
-    # Because the above seems to be not so good, we try something else
-    # First get the words and timing
-    words = runSphinxWords(audiofile, dict)
-    # Now distribute phonemes in word evenly over the duration of the word
-    phones = []
-    dict = readLocalDictionary(dict)
-    for word in words:
-        if word[0] in dict:
-            phonelist = dict[word[0]].split()[1:]
-            if verbosity: print('Word:', word[0], 'Phonemes:', phonelist)
-            # If the word is a single phoneme, it is a vowel and will be held for the word duration
-            if len(phonelist) == 1: phonelist.append(phonelist[0])
-            step = (word[2] - word[1]) / (len(phonelist) - 1)
-            time = word[1]
-            for phone in phonelist:
-                phones.append((phone, time))
-                time += step
+        # Decode streaming data.
+        decoder = Decoder(config)
 
-    return phones
+        print('Phonemes: Processing audio file')
+        decoder.start_utt()
+        stream = open(audiofile, 'rb')
+        buf = stream.read(36)   # Skip wave file header for raw processing
+        if starttime > 0:
+            # Skip enough bytes to start at desired time
+            skipbytes = int(starttime * 2 * 16000)
+            while skipbytes > 1024:
+                buf = stream.read(1024)
+                skipbytes -= 1024
+            if skipbytes > 0:
+                buf = stream.read(skipbytes)
+        if endtime > starttime:
+            playbytes = int((endtime - starttime)* 2 * 16000)
+        else:
+            playbytes = 100000000000
+        while True:
+          if playbytes > 1024:
+            buf = stream.read(1024)
+          else:
+            buf = stream.read(playbytes)
+          playbytes -= 1024
+          if buf:
+            decoder.process_raw(buf, False, False)
+            if playbytes <= 0: break
+          else:
+            break
+        print('Phonemes: Processing audio data from file')
+        decoder.end_utt()
+
+        # Output list of phonemes with start and end times
+        print('Phonemes: Processing words from audio')
+        phones = []
+        for s in decoder.seg():
+            if verbosity: print(s.start_frame, s.end_frame, s.word)
+            phones.append((s.word, float(s.start_frame + s.end_frame) / 200.0))
+    else:
+        # Because the above seems to be not so good, we try something else with a dictionary
+        # First get the words and timing
+        words = runSphinxWords(audiofile, dict=dict, lm=lm, starttime=starttime, endtime=endtime)
+        # Now distribute phonemes in word evenly over the duration of the word
+        phones = []
+        dict = readLocalDictionary(dict)
+        for word in words:
+            if word[0] in dict:
+                phonelist = dict[word[0]].split()[1:]
+                if verbosity: print('Word:', word[0], 'Phonemes:', phonelist)
+                # If the word is a single phoneme, it is a vowel and will be held for the word duration
+                if len(phonelist) == 1: phonelist.append(phonelist[0])
+                step = (word[2] - word[1]) / (len(phonelist) - 1)
+                time = word[1]
+                for phone in phonelist:
+                    phones.append((phone, time))
+                    time += step
+
+    return phones, words
 
 def readLocalDictionary(infile):
     thedict = {}
@@ -243,6 +284,19 @@ def createLocalDictionary(transcript=None):
             dictfile = 'temp.dict'
 
     return dictfile
+
+def checkForSupplementalFiles(audiofile):
+    # Check for supplemental files
+    lmfilename = os.path.splitext(audiofile)[0] +'.lm'
+    if not os.path.isfile(lmfilename): lmfilename = None
+    dictfilename = os.path.splitext(audiofile)[0] +'.dict'
+    if not os.path.isfile(dictfilename): dictfilename = None
+    if dictfilename is None:
+        # Check for a transcript
+        txtfilename = os.path.splitext(audiofile)[0] + '.txt'
+        if not os.path.isfile(txtfilename):
+            dictfilename = createLocalDictionary(txtfilename)
+    return lmfilename,dictfilename
 
 def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
     global lastAudioFile
@@ -285,15 +339,28 @@ def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
     if code != QDialog.Accepted: return False
 
     audiofile = widget.getAudioFile()
-    if not os.path.exists(audiofile): return False
-    # Check for matching transcript for audio file
+    if not os.path.isfile(audiofile): return False
+
+    # Check for matching transcript, dictionary, and/or language model for audio file
     dictfile = None
-    transcript = audiofile[:-3] + 'txt'
-    if os.path.exists(transcript):
-        dictfile = createLocalDictionary(transcript)
+    lmfile = None
+
+    # Check for existing dictionary file
+    tfilename = audiofile[:-3] + 'dict'
+    if os.path.isfile(tfilename):
+        dictfile = tfilename
+    else:
+        transcript = audiofile[:-3] + 'txt'
+        if os.path.isfile(transcript):
+            dictfile = createLocalDictionary(transcript)
+
+    # Check for existing language model file
+    tfilename = audiofile[:-3] + 'lm'
+    if os.path.isfile(tfilename):
+        lmfile = tfilename
 
     # Run through sphinx
-    phones = runSphinx(widget.getAudioFile(), dict=dictfile)
+    phones, words = runSphinx(widget.getAudioFile(), dict=dictfile, lm=lmfile, starttime=starttime, endtime=endtime)
 
     # Convert phonemes to positions and insert in channel(s)
     type = widget.getType()
@@ -304,21 +371,68 @@ def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
             if phone[0] in channelpositions[type]:
                 phonevalue = float(channelpositions[type][phone[0]]) / 100.0
                 value = (maxval - minval) * phonevalue + minval
-                channel.add_knot(phone[1], value)
-                if verbosity: print('Adding knot value:', value, 'at time:', phone[1], 'to channel:', channel.name, 'for phone:', phone[0])
+                channel.add_knot(phone[1] + starttime, value)
+                if verbosity: print('Adding knot value:', value, 'at time:', phone[1] + starttime, 'to channel:', channel.name, 'for phone:', phone[0])
 
-    if widget.getTagFlag() == 'Words':
+    if widget.getTagFlag() == 'Words' and words is None:
         # Rerun sphinx just looking for word timing
-        phones = runSphinxWords(widget.getAudioFile(), dict=dictfile)
+        words = runSphinxWords(widget.getAudioFile(), dict=dictfile, lm=lmfile, starttime=starttime, endtime=endtime)
 
     if widget.getTagFlag() != 'None':
         theanim.clearTags()
-        for phone in phones:
-            theanim.addTag(phone[0], phone[1])
+        for word in words:
+            if word[0][0] != '[': theanim.addTag(word[0], word[1])
 
     return True
 
 external_callables = [create_phoneme_channel]
+
+def runSphinxTest(audiofile, starttime=0, endtime=0):
+    # Create a decoder with certain model
+    config = Config()
+    # Check for existing dictionary file
+    tfilename = audiofile[:-3] + 'dict'
+    if os.path.isfile(tfilename):
+        config.set_string('-dict', tfilename)
+    # Check for existing language model file
+    tfilename = audiofile[:-3] + 'lm'
+    if os.path.isfile(tfilename):
+        config.set_string('-lm', tfilename)
+
+    # Decode streaming data.
+    decoder = Decoder(config)
+
+    decoder.start_utt()
+    stream = open(audiofile, 'rb')
+    if starttime > 0:
+        # Skip enough bytes to start at desired time
+        skipbytes = int(starttime * 2 * 16000)
+        while skipbytes > 1024:
+            buf = stream.read(1024)
+            skipbytes -= 1024
+        if skipbytes > 0:
+            buf = stream.read(skipbytes)
+    if endtime > starttime:
+        playbytes = int((endtime - starttime)* 2 * 16000)
+    else:
+        playbytes = 100000000000
+    while True:
+      if playbytes > 1024:
+        buf = stream.read(1024)
+      else:
+        buf = stream.read(playbytes)
+      playbytes -= 1024
+      if buf:
+        decoder.process_raw(buf, False, False)
+        if playbytes <= 0: break
+      else:
+        break
+    decoder.end_utt()
+
+    # Output list of words with start and end times
+    words = []
+    for s in decoder.seg():
+        print(s.start_frame, s.end_frame, s.word)
 
 #/* Usage method */
 def print_usage(name):
@@ -335,7 +449,6 @@ def print_usage(name):
     sys.stderr.write("-/-h/-help        :show this information\n");
     sys.stderr.write("-v/-verbose       :run more verbosely\n");
     sys.stderr.write("-f/-file audio    :name of audio file to test and process\n");
-    sys.stderr.write("-t/-text textfile :name of transcription file to test and process\n");
     sys.stderr.write("\n\n");
 
 #/* Main */
@@ -355,10 +468,6 @@ if __name__ == "__main__":
             i += 1
             if i < len(sys.argv):
                 audiofile = sys.argv[i]
-        elif sys.argv[i] == '-t' or sys.argv[i] == '-text':
-            i += 1
-            if i < len(sys.argv):
-                transcript = sys.argv[i]
         else:
             sys.stderr.write("\nWhoops - Unrecognized argument: %s\n" % sys.argv[i]);
             print_usage(sys.argv[0]);
@@ -366,25 +475,11 @@ if __name__ == "__main__":
 
         i += 1
 
-    dictfile = createLocalDictionary(transcript)
-
     if audiofile is not None:
         import wave
-        okay = False
+        okay = True
         # Attempt to process the audio file and print the text derived from it
         with wave.open(audiofile, "rb") as audio:
-            if audio.getframerate() < 13600:
-                sys.stderr.write("Specified audio file must be sampled at a minimum of 13600 Hz for pocketsphinx.\n")
-            else:
-                okay = True
-                decoder = Decoder(samprate=audio.getframerate())
-                decoder.start_utt()
-                decoder.process_raw(audio.getfp().read(), full_utt=True)
-                decoder.end_utt()
-                print('Sphinx raw speech recognition results:')
-                print(decoder.hyp().hypstr)
-                print()
-
             if audio.getframerate() != 16000:
                 sys.stderr.write("Error: Specified audio file not sampled at 16000 Hz as required for phonemes\n")
                 okay = False
@@ -395,19 +490,26 @@ if __name__ == "__main__":
                 sys.stderr.write("Error: Specified audio file not mono as required for phonemes\n")
                 okay = False
 
-        if okay:
-            phones = runSphinx(audiofile, dict=dictfile)
-            if verbosity:
-                print(phones)
-            words = runSphinxWords(audiofile, dict=dictfile)
-            print('Sphinx adjusted speech recognition results:')
-            for word in words:
-                sys.stdout.write(word[0] + ' ')
-            sys.stdout.write('\n')
+            if okay:
+                print('\n>>> Specified audio file meets phoneme requirements!\n')
+
+                # Check for supplemental files
+                lmfilename,dictfilename = checkForSupplementalFiles(audiofile)
+                if lmfilename is not None:
+                    print('Found associated language model file:', lmfilename)
+                if dictfilename is not None:
+                    print('Found, or generated from transcript, dictionary file:', dictfilename)
+
+                phones, words = runSphinx(audiofile, dict=dictfilename, lm=lmfilename)
+                if verbosity:
+                    print(phones)
+                if words is None:
+                    words = runSphinxWords(audiofile, dict=dictfilename, lm=lmfilename)
+                print('Sphinx adjusted speech recognition results:')
+                for word in words:
+                    sys.stdout.write(word[0] + ' ')
+                sys.stdout.write('\n')
 
     else:
         pass
-
-
-
 
