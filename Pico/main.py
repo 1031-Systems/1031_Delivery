@@ -19,6 +19,7 @@ CSV = 5
 HEX = 6     # No longer used
 BIN = 7
 
+firstTime = True    # Flag to prevent idle animation running until started
 
 verbose=False
                 # Analysis of memory usage severely affects timing data so keep that in mind
@@ -46,7 +47,8 @@ def on_LEDs():
     led_onboard.on()
     led_offboard.on()
 
-def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce=False):
+def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False, skip=False, doOnce=False):
+    global firstTime
 
     helpers.setAllDigital(0)    # All digital channels off
     helpers.releaseAllServos()  # All servos relaxed
@@ -75,6 +77,8 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
         # Toggle LED every second until button pressed
         if not continuous and not skip:
             while not button_pressed():
+                if idleanimation is not None and not firstTime:
+                    play_one_anim(idleanimation[0], idleanimation[1])
                 code = 0
                 toggle_LEDs()
                 for i in range(100):
@@ -107,6 +111,7 @@ def do_the_thing(animList, randomize=False, continuous=False, skip=False, doOnce
             continuous = True
 
         if playIndex < len(animList):
+            firstTime = False
             # Get next animation to play
             if verbose: print('Print playing animation:', playIndex,'named:',animList[playIndex][0])
             # Play it
@@ -539,4 +544,4 @@ if __name__ == "__main__":
     if len(animList) == 0:
         animList = helpers.findAnimFiles()
 
-    do_the_thing(animList)
+    do_the_thing(animList, idleanimation=['/sd/anims/zylon.bin', None])
