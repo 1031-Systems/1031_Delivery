@@ -2606,9 +2606,9 @@ class Player(QWidget):
                     if desiredPosn >= 0 and desiredPosn < self.mediaPlayer.duration():
                         self.mediaPlayer.setPosition(desiredPosn)
                         self.mediaPlayer.play()
+        self.currPosition = self.mediaPlayer.position() # Will this work on Mac with PyQt6???
         for cb in self.timeChangedCallbacks:
             cb(float(self.currPosition) / 1000.0)
-        self.currPosition += self.interval
 
     def rewind(self):
         """
