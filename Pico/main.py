@@ -534,14 +534,25 @@ def play_one_anim(csvfile, wavefile):
     helpers.releaseAllServos()
 
 
-if __name__ == "__main__":
+def main():
+    # Turn on all our status LEDs so they are always synced
+    # And to let us know that main actually started
+    on_LEDs()
+
     animList = []
+    idler = None
     try:
         animList = helpers.findAnimFiles(dir='/sd/anims')
+        if helpers.isfile('/sd/anims/zylon.bin'):
+            idler = ['/sd/anims/zylon.bin', None]
     except:
         pass
 
     if len(animList) == 0:
         animList = helpers.findAnimFiles()
 
-    do_the_thing(animList, idleanimation=['/sd/anims/zylon.bin', None])
+    do_the_thing(animList, idleanimation=idler)
+
+
+if __name__ == "__main__":
+    main()
