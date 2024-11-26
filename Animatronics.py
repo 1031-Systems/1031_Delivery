@@ -869,8 +869,15 @@ class Animatronics:
         if self.audioUploadFile is None:
             self.audioUploadFile = os.path.join(SystemPreferences['UploadPath'], rootname + '.wav')
 
-    def clearTags(self):
-        self.tags = {}
+    def clearTags(self, starttime=0.0, endtime=-1.0):
+        if endtime <= starttime:
+            self.tags = {}
+        else:
+            oldtags = dict(self.tags)
+            self.tags = {}
+            for tag in oldtags:
+                if (tag < starttime) or (tag > endtime):
+                    self.tags[tag] = oldtags[tag]
 
     def addTag(self, name, time):
         self.tags[time] = name
