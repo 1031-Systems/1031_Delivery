@@ -439,6 +439,10 @@ class Channel:
         value : float
             Data (Y) value for the knot
         """
+        if value < self.minLimit:
+            value = self.minLimit
+        elif value > self.maxLimit:
+            value = self.maxLimit
         self.knots[key] = value
 
     def delete_knot(self, key):
@@ -879,8 +883,20 @@ class Animatronics:
                 if (tag < starttime) or (tag > endtime):
                     self.tags[tag] = oldtags[tag]
 
+    def addTags(self, inTags):
+        for tag in inTags:
+            self.addTag(inTags[tag], tag)
+
     def addTag(self, name, time):
         self.tags[time] = name
+
+    def addChannel(self, inXML):
+        tchannel = Channel()
+        if type(inXML) is str:
+            inXML = ET.fromstring(inXML)
+        tchannel.parseXML(inXML)
+        if tchannel.name not in self.channels:
+            self.channels[tchannel.name] = tchannel
 
     def parseXML(self, inXMLFilename):
         """
