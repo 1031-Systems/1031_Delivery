@@ -380,6 +380,10 @@ class TagPane(qwt.QwtPlot):
         self._tags = tagList
         self.redrawme()
 
+    def addTags(self, tagList):
+        for tag in tagList:
+            self.addTag(tag, tagList[tag])
+
     def addTag(self, time, text):
         while time in self._tags:
             time += 0.000001
@@ -3332,7 +3336,107 @@ class MainWindow(QMainWindow):
             # Clear out edit history
             self.pendingStates = []
             self.unsavedChanges = False
+
+    def matchup(self, newanim):
+        bothlist = []
+        newlist = []
+        oldlist = []
+
+        for name in self.animatronics.channels:
+            if name in newanim.channels:
+                bothlist.append(name)
+            else:
+                oldlist.append(name)
+        for name in newanim.channels:
+            if name not in self.animatronics.channels:
+                newlist.append(name)
+
+        return bothlist, newlist, oldlist
     
+    def appendAnimFile(self):
+        """
+        The method appendAnimFile opens a file dialog for the user to select
+        an Animatronics file to load and then appends that file into the
+        current Animatronics. (Not implemented yet).
+
+        The merge process is intended to be used for combining multiple
+        people's work on different sections of the animation.  It adds
+        new channels to the current set and combines knots for channels
+        with the same name.  It does not replace the current audio file.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
+        """Append an animatronics file onto the current one"""
+        fileName, _ = QFileDialog.getOpenFileName(self,"Get Append Filename", "",
+                            "Anim Files (*.anim);;All Files (*)",
+                            options=QFileDialog.DontUseNativeDialog)
+
+        if fileName:
+            try:
+                newanimatronics = Animatronics()
+                newanimatronics.parseXML(fileName)
+                bothlist, newlist, oldlist = self.matchup(newanimatronics)
+
+                if len(newlist) == 0 and len(oldlist) == 0:
+                    # easy append as all channels are in both
+                    pass
+                else:
+                    # Issue a warning
+                    msgBox = QMessageBox(parent=self)
+                    msgBox.setText('The two sets of animation channels do not match!')
+                    msgBox.setInformativeText("Proceed?")
+                    detailedtext = ''
+                    if len(bothlist) > 0:
+                        detailedtext += 'These channels match and will be appended:\n    '
+                        for name in bothlist:
+                            detailedtext += name + ', '
+                        detailedtext = detailedtext[:-2]
+                    if len(newlist) > 0:
+                        detailedtext += '\nThese channels are only in the incoming animation and will not be appended:\n    '
+                        for name in newlist:
+                            detailedtext += name + ', '
+                        detailedtext = detailedtext[:-2]
+                    if len(oldlist) > 0:
+                        detailedtext += '\nThese channels are only in the existing animation with nothing to append:\n    '
+                        for name in oldlist:
+                            detailedtext += name + ', '
+                        detailedtext = detailedtext[:-2]
+                    detailedtext += '\nTags will be appended.'
+                    msgBox.setDetailedText(detailedtext)
+
+                    msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                    msgBox.setDefaultButton(QMessageBox.Cancel)
+                    msgBox.setIcon(QMessageBox.Warning)
+                    ret = msgBox.exec_()
+                    if ret == QMessageBox.Cancel:
+                        return False
+                
+                # Push current state for undo
+                pushState()
+
+                # Do the actual appending of common channels
+                for name in bothlist:
+                    for knot in newanimatronics.channels[name].knots:
+                        self.animatronics.channels[name].add_knot(knot, newanimatronics.channels[name].knots[knot])
+
+                # Append the Tags channel as well
+                self.animatronics.addTags(newanimatronics.tags)
+
+                # Make sure everything gets redrawn
+                self.setAnimatronics(self.animatronics)
+
+            except Exception as e:
+                popState()
+                sys.stderr.write("\nWhoops - Error appending input file %s\n" % fileName)
+                sys.stderr.write("Message: %s\n" % e)
+                return
+
+        pass
+
     def mergeAnimFile(self):
         """
         The method mergeAnimFile opens a file dialog for the user to select
@@ -3357,14 +3461,56 @@ class MainWindow(QMainWindow):
 
         if fileName:
             try:
+                newanimatronics = Animatronics()
+                newanimatronics.parseXML(fileName)
+                bothlist, newlist, oldlist = self.matchup(newanimatronics)
+
+                if len(bothlist) == 0:
+                    # easy append as no channels are shared
+                    pass
+                else:
+                    # Issue a warning
+                    msgBox = QMessageBox(parent=self)
+                    msgBox.setText('The two sets of animation channels overlap!')
+                    msgBox.setInformativeText("Proceed?")
+                    detailedtext = ''
+                    if len(bothlist) > 0:
+                        detailedtext += 'These channels match and will be ignored:\n    '
+                        for name in bothlist:
+                            detailedtext += name + ', '
+                        detailedtext = detailedtext[:-2]
+                    if len(newlist) > 0:
+                        detailedtext += '\nThese channels are only in the incoming animation and will be merged:\n    '
+                        for name in newlist:
+                            detailedtext += name + ', '
+                        detailedtext = detailedtext[:-2]
+                    detailedtext += '\nTags will be merged.'
+                    msgBox.setDetailedText(detailedtext)
+
+                    msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+                    msgBox.setDefaultButton(QMessageBox.Cancel)
+                    msgBox.setIcon(QMessageBox.Warning)
+                    ret = msgBox.exec_()
+                    if ret == QMessageBox.Cancel:
+                        return False
+                
                 # Push current state for undo
                 pushState()
-                self.animatronics.parseXML(fileName)
+
+                # Do the actual appending of common channels
+                for name in newlist:
+                    xml = newanimatronics.channels[name].toXML()
+                    self.animatronics.addChannel(xml)
+
+                # Merge the Tags channel as well
+                self.animatronics.addTags(newanimatronics.tags)
+
+                # Make sure everything gets redrawn
                 self.setAnimatronics(self.animatronics)
-    
+
             except Exception as e:
                 popState()
-                sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
+                sys.stderr.write("\nWhoops - Error merging input file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
 
@@ -5168,8 +5314,14 @@ class MainWindow(QMainWindow):
         # Merge action
         self._merge_file_action = QAction("&Merge Anim File",
                 self, triggered=self.mergeAnimFile)
-        self._merge_file_action.setEnabled(False)
+        #self._merge_file_action.setEnabled(False)
         self.file_menu.addAction(self._merge_file_action)
+
+        # Append action
+        self._append_file_action = QAction("&Append Anim File",
+                self, triggered=self.appendAnimFile)
+        #self._append_file_action.setEnabled(False)
+        self.file_menu.addAction(self._append_file_action)
 
         # Save action
         self._save_file_action = QAction("&Save Anim File",
