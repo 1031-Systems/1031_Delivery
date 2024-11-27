@@ -1059,7 +1059,7 @@ class ChannelPane(qwt.QwtPlot):
         self.create()
 
     def getState(self):
-        return (self.minVal, self.maxVal, self.isHidden(), self.selected)
+        return (self.minVal, self.maxVal, self.isHidden(), self.selected, list(self.selectedKeyList))
 
     def setState(self, inState):
         self.setDataRange(inState[0], inState[1])
@@ -1068,6 +1068,13 @@ class ChannelPane(qwt.QwtPlot):
         else:
             self.show()
         self.setSelected(inState[3])
+        self.selectedKeyList = []
+        for key in inState[4]:
+            for tkey in self.channel.knots:
+                # Since we wrote to text and read back in they might change a smidge so check for nearness
+                if abs(key - tkey) < 1.0e-6:
+                    self.selectedKeyList.append(tkey)
+                    break
 
     def settimerange(self, mintime, maxtime):
         """
@@ -1383,6 +1390,19 @@ class ChannelPane(qwt.QwtPlot):
 
     def deleteSelectedKnots(self):
         pushState()
+        self.doTheDelete()
+
+    def doTheDelete(self):
+        if self.selected:
+            # Have mainwindow move all the selected points in all selected channels
+            if self.holder is not None:
+                self.holder.deleteSelectedPoints()
+            pass
+        else:
+            self.deleteMyPoints()
+            self.redrawme()
+
+    def deleteMyPoints(self):
         for knot in self.selectedKeyList:
             del self.channel.knots[knot]
         self.selectedKeyList = []
@@ -1477,6 +1497,7 @@ class ChannelPane(qwt.QwtPlot):
                     self.selectedKeyList = []   # Clear current list of selected keys
                     self.dragstart = xplotval
                     self.redrawme()
+                    pushState()     # Should improve when this is done - FIXME
         elif event.buttons()== Qt.MiddleButton :
             # Vertical pan of pane with wheel/mouse?
             pass
@@ -1506,6 +1527,20 @@ class ChannelPane(qwt.QwtPlot):
         pass
 
     def moveSelectedPoints(self, xdelta, ydelta):
+        pushState()
+        self.doTheMove(xdelta, ydelta)
+
+    def doTheMove(self, xdelta, ydelta):
+        if self.selected:
+            # Have mainwindow move all the selected points in all selected channels
+            if self.holder is not None:
+                self.holder.moveSelectedPoints(xdelta, ydelta)
+            pass
+        else:
+            self.moveMyPoints(xdelta, ydelta)
+            self.redrawme()
+
+    def moveMyPoints(self, xdelta, ydelta):
         newList = []
         for key in self.selectedKeyList:
             newx = key + xdelta
@@ -1571,8 +1606,7 @@ class ChannelPane(qwt.QwtPlot):
                     yprev = self.channel.knots[xprev]
                     xdelta = xplotval - xprev
                     ydelta = yplotval - yprev
-                    self.moveSelectedPoints(xdelta, ydelta)
-                    self.redrawme()
+                    self.doTheMove(xdelta, ydelta)
                         
                     pass
             else:
@@ -2519,6 +2553,7 @@ class Player(QWidget):
         self.timer.timeout.connect(self.stepFunction)
         self.currPosition = 0
         self.playing = False
+        self.wasPlaying = False
 
         btnSize = QSize(16, 16)
 
@@ -2570,6 +2605,12 @@ class Player(QWidget):
         self._startPosition = int(minTime * 1000)
         self._endPosition = int(maxTime * 1000)
 
+    def setCurrentPosition(self, newTime):
+        newTime = int(newTime * 1000)
+        if self.mediaPlayer is not None:
+            self.mediaPlayer.setPosition(newTime)
+        self.currPosition = newTime
+
     def addTimeChangedCallback(self, callback):
         """
         The method addTimeChangedCallback adds the specified callback
@@ -2595,7 +2636,7 @@ class Player(QWidget):
         ----------
         self : Player
         """
-        if self.currPosition >= self._endPosition:
+        if self.currPosition >= self._endPosition or (not self.is_media_playing() and self.wasPlaying):
             self.stopplaying()
         else:
             # If player not already playing
@@ -2606,9 +2647,10 @@ class Player(QWidget):
                     if desiredPosn >= 0 and desiredPosn < self.mediaPlayer.duration():
                         self.mediaPlayer.setPosition(desiredPosn)
                         self.mediaPlayer.play()
-        self.currPosition = self.mediaPlayer.position() # Will this work on Mac with PyQt6???
-        for cb in self.timeChangedCallbacks:
-            cb(float(self.currPosition) / 1000.0)
+                        self.wasPlaying = True
+                self.currPosition = self.mediaPlayer.position()
+                for cb in self.timeChangedCallbacks:
+                    cb(float(self.currPosition) / 1000.0)
 
     def rewind(self):
         """
@@ -2658,6 +2700,7 @@ class Player(QWidget):
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         if self.mediaPlayer is not None: self.mediaPlayer.pause()
         self.timer.stop()
+        self.wasPlaying = False
 
     def play(self):
         """
@@ -3211,6 +3254,20 @@ class MainWindow(QMainWindow):
                     usedPorts.append(self.animatronics.channels[channel].port)
         return usedPorts
 
+    def deleteSelectedPoints(self):
+        channellist = self.getSelectedChannelNames()
+        for name in channellist:
+            pane = self.plots[name]
+            pane.deleteMyPoints()
+            pane.redrawme()
+
+    def moveSelectedPoints(self, xdelta, ydelta):
+        channellist = self.getSelectedChannelNames()
+        for name in channellist:
+            pane = self.plots[name]
+            pane.moveMyPoints(xdelta, ydelta)
+            pane.redrawme()
+
     def _hardwareplay(self):
         """
         The method _hardwareplay uses commlib to signal the hardware to play
@@ -3705,10 +3762,11 @@ class MainWindow(QMainWindow):
                 self.animatronics.fromXML(currState[0])
                 self.setAnimatronics(self.animatronics)
                 self.animatronics.filename = currState[1]
-                self.setTimeRange(currState[2], currState[3])
-                self.unsavedChanges = currState[4]
+                # setTimeRange does the redraw so restore the state prior to that
                 for plot in currState[5]:
                     self.plots[plot].setState(currState[5][plot])
+                self.setTimeRange(currState[2], currState[3])
+                self.unsavedChanges = currState[4]
                 #print('Number of undos left:', len(self.previousStates))
         else:
             msgBox = QMessageBox(parent=self)
@@ -3815,10 +3873,11 @@ class MainWindow(QMainWindow):
                 self.animatronics.fromXML(currState[0])
                 self.setAnimatronics(self.animatronics)
                 self.animatronics.filename = currState[1]
-                self.setTimeRange(currState[2], currState[3])
-                self.unsavedChanges = currState[4]
+                # setTimeRange does the redraw so restore the state prior to that
                 for plot in currState[5]:
                     self.plots[plot].setState(currState[5][plot])
+                self.setTimeRange(currState[2], currState[3])
+                self.unsavedChanges = currState[4]
                 #print('Number of redos left:', len(self.pendingStates))
         else:
             msgBox = QMessageBox(parent=self)
@@ -4422,10 +4481,21 @@ class MainWindow(QMainWindow):
         self : MainWindow
         event : type
         """
-        if event.buttons() == Qt.LeftButton:
-            self.lastX = event.pos().x()
-            self.lastY = event.pos().y()
-            self.centerX,self.centerY = self.getPlotValues(event.pos().x(), event.pos().y())
+        modifiers = QApplication.keyboardModifiers()
+        if modifiers == Qt.ControlModifier:
+            if event.buttons() == Qt.LeftButton:
+                self.lastX = event.pos().x()
+                self.lastY = event.pos().y()
+                self.centerX,self.centerY = self.getPlotValues(event.pos().x(), event.pos().y())
+        elif modifiers == Qt.ShiftModifier:
+            pass
+        else:
+            if event.buttons() == Qt.LeftButton:
+                # Use horizontal motion to drag
+                newCenterX,_ = self.getPlotValues(event.pos().x()-8, event.pos().y())   # Fudge 8 pixels for some stupid reason
+                self.timeChanged(newCenterX)
+                if self._playwidget is not None:
+                    self._playwidget.setCurrentPosition(newCenterX)
 
     def mouseMoveEvent(self, event):
         """
@@ -4437,19 +4507,29 @@ class MainWindow(QMainWindow):
         self : MainWindow
         event : type
         """
-        if event.buttons() == Qt.LeftButton:
-            # Compute how far the cursor has moved vertically and horizontally
-            deltaX = self.lastX - event.pos().x()
-            deltaY = self.lastY - event.pos().y()
-            self.lastY = event.pos().y()
-            # Use horizontal motion to drag
-            newCenterX,_ = self.getPlotValues(event.pos().x(), event.pos().y())
-            # Use vertical motion to zoom
-            yScaler = pow(2.0, float(deltaY)/50.0)
-            self.setTimeRange(self.centerX + (self.lastXmin - self.centerX) / yScaler + (self.centerX - newCenterX),
-                self.centerX + (self.lastXmax - self.centerX) / yScaler + (self.centerX - newCenterX))
-            
-                
+        modifiers = QApplication.keyboardModifiers()
+        if modifiers == Qt.ControlModifier:
+            if event.buttons() == Qt.LeftButton:
+                # Compute how far the cursor has moved vertically and horizontally
+                deltaX = self.lastX - event.pos().x()
+                deltaY = self.lastY - event.pos().y()
+                self.lastY = event.pos().y()
+                # Use horizontal motion to drag
+                newCenterX,_ = self.getPlotValues(event.pos().x(), event.pos().y())
+                # Use vertical motion to zoom
+                yScaler = pow(2.0, float(deltaY)/50.0)
+                self.setTimeRange(self.centerX + (self.lastXmin - self.centerX) / yScaler + (self.centerX - newCenterX),
+                    self.centerX + (self.lastXmax - self.centerX) / yScaler + (self.centerX - newCenterX))
+        elif modifiers == Qt.ShiftModifier:
+            pass
+        else:
+            if event.buttons() == Qt.LeftButton:
+                # Use horizontal motion to drag
+                newCenterX,_ = self.getPlotValues(event.pos().x()-8, event.pos().y())   # Fudge 8 pixels for some stupid reason
+                self.timeChanged(newCenterX)
+                if self._playwidget is not None:
+                    self._playwidget.setCurrentPosition(newCenterX)
+
     def mouseReleaseEvent(self, event):
         """
         The method mouseReleaseEvent does nothing at this time
