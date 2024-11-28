@@ -2641,7 +2641,9 @@ class Player(QWidget):
         self : Player
         """
         if self.currPosition >= self._endPosition or (not self.is_media_playing() and self.wasPlaying):
+            # If we reached the end of the media, make sure everything is stopped and go to the beginning
             self.stopplaying()
+            self.rewind()
         else:
             # If player not already playing
             if self.mediaPlayer is not None:
@@ -2702,7 +2704,7 @@ class Player(QWidget):
         self.playing = False
         self._playbutton.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        if self.mediaPlayer is not None: self.mediaPlayer.pause()
+        if self.mediaPlayer is not None: self.mediaPlayer.stop()
         self.timer.stop()
         self.wasPlaying = False
 
