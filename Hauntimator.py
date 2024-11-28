@@ -2586,6 +2586,14 @@ class Player(QWidget):
         self._setrightbutton.setText('Set Right')
         layout.addWidget(self._setrightbutton)
 
+        tlabel = QLabel('Speed:')
+        layout.addWidget(tlabel)
+        self._speedselect = QComboBox()
+        self.speedchoices = ['100%', '50%', '25%', '10%']
+        self.speedfactors = [1.0, 0.5, 0.25, 0.1]
+        self._speedselect.addItems(self.speedchoices)
+        layout.addWidget(self._speedselect)
+
         layout.addStretch()
 
         self.setLayout(layout)
@@ -2647,6 +2655,7 @@ class Player(QWidget):
         else:
             # If player not already playing
             if self.mediaPlayer is not None:
+                self.mediaPlayer.setPlaybackRate(self.speedfactors[self._speedselect.currentIndex()])
                 if not self.is_media_playing():
                     # Check to see if it should be
                     desiredPosn = self.currPosition - self._offset
