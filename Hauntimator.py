@@ -3154,6 +3154,8 @@ class MainWindow(QMainWindow):
             if rightdata is None:
                 newplot = qwt.QwtPlot('Audio Mono')
                 newplot.setPlotLayout(LeftAlignLayout())
+                newplot.mousePressEvent = self.localmousePressEvent
+                newplot.mouseMoveEvent = self.localmouseMoveEvent
                 self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=leftdata,
                     title='Audio', plot=newplot,
                     )
@@ -3167,6 +3169,8 @@ class MainWindow(QMainWindow):
             else:
                 newplot = qwt.QwtPlot('Audio Left')
                 newplot.setPlotLayout(LeftAlignLayout())
+                newplot.mousePressEvent = self.localmousePressEvent
+                newplot.mouseMoveEvent = self.localmouseMoveEvent
                 self.audioCurve = qwt.QwtPlotCurve.make(xdata=xdata, ydata=leftdata,
                     title='Audio', plot=newplot,
                     )
@@ -3179,6 +3183,8 @@ class MainWindow(QMainWindow):
                 self._showleft_audio_action.setChecked(True)
                 newplot = qwt.QwtPlot('Audio Right')
                 newplot.setPlotLayout(LeftAlignLayout())
+                newplot.mousePressEvent = self.localmousePressEvent
+                newplot.mouseMoveEvent = self.localmouseMoveEvent
                 self.audioCurveRight = qwt.QwtPlotCurve.make(xdata=xdata, ydata=rightdata,
                     title='Audio', plot=newplot,
                     )
@@ -4650,7 +4656,7 @@ class MainWindow(QMainWindow):
 
         return valueX,valueY
 
-    def mousePressEvent(self, event):
+    def localmousePressEvent(self, event):
         """
         The method mousePressEvent marks the initial press of the left mouse
         button within an audio window and saves the data values at that
@@ -4674,12 +4680,12 @@ class MainWindow(QMainWindow):
         else:
             if event.buttons() == Qt.LeftButton:
                 # Use horizontal motion to drag
-                newCenterX,_ = self.getPlotValues(event.pos().x()-8, event.pos().y())   # Fudge 8 pixels for some stupid reason
+                newCenterX,_ = self.getPlotValues(event.pos().x(), event.pos().y())
                 self.timeChanged(newCenterX)
                 if self._playwidget is not None:
                     self._playwidget.setCurrentPosition(newCenterX)
 
-    def mouseMoveEvent(self, event):
+    def localmouseMoveEvent(self, event):
         """
         The method mouseMoveEvent performs zoom and drag within the audio
         panes.
@@ -4707,12 +4713,12 @@ class MainWindow(QMainWindow):
         else:
             if event.buttons() == Qt.LeftButton:
                 # Use horizontal motion to drag
-                newCenterX,_ = self.getPlotValues(event.pos().x()-8, event.pos().y())   # Fudge 8 pixels for some stupid reason
+                newCenterX,_ = self.getPlotValues(event.pos().x(), event.pos().y())
                 self.timeChanged(newCenterX)
                 if self._playwidget is not None:
                     self._playwidget.setCurrentPosition(newCenterX)
 
-    def mouseReleaseEvent(self, event):
+    def localmouseReleaseEvent(self, event):
         """
         The method mouseReleaseEvent does nothing at this time
             member of class: MainWindow
