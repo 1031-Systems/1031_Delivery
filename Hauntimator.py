@@ -2579,18 +2579,37 @@ class Player(QWidget):
         self._setleftbutton = QPushButton()
         self._setleftbutton.setFixedHeight(24)
         self._setleftbutton.setText('Set Left')
+        self._setleftbutton.setToolTip('Zooms display range left edge to current time')
         layout.addWidget(self._setleftbutton)
 
         self._setrightbutton = QPushButton()
         self._setrightbutton.setFixedHeight(24)
         self._setrightbutton.setText('Set Right')
+        self._setrightbutton.setToolTip('Zooms display range right edge to current time')
         layout.addWidget(self._setrightbutton)
+
+        tlabel = QLabel('Speed:')
+        layout.addWidget(tlabel)
+        self._speedselect = QComboBox()
+        self.speedchoices = ['100%', '50%', '25%', '10%']
+        self.speedfactors = [1.0, 0.5, 0.25, 0.1]
+        self._speedselect.addItems(self.speedchoices)
+        layout.addWidget(self._speedselect)
+
+        self.liveCheck = QCheckBox('Live')
+        self.liveCheck.setChecked(False)
+        self.liveCheck.setEnabled(COMMLIB_ENABLED)
+        self.liveCheck.setToolTip('Enables real-time output to control animation')
+        layout.addWidget(self.liveCheck)
 
         layout.addStretch()
 
         self.setLayout(layout)
 
         self.timeChangedCallbacks = []
+
+    def livePlay(self):
+        return self.liveCheck.isChecked()
 
     def setRange(self, minTime, maxTime):
         """
@@ -2641,10 +2660,13 @@ class Player(QWidget):
         self : Player
         """
         if self.currPosition >= self._endPosition or (not self.is_media_playing() and self.wasPlaying):
+            # If we reached the end of the media, make sure everything is stopped and go to the beginning
             self.stopplaying()
+            self.rewind()
         else:
             # If player not already playing
             if self.mediaPlayer is not None:
+                self.mediaPlayer.setPlaybackRate(self.speedfactors[self._speedselect.currentIndex()])
                 if not self.is_media_playing():
                     # Check to see if it should be
                     desiredPosn = self.currPosition - self._offset
@@ -2702,7 +2724,7 @@ class Player(QWidget):
         self.playing = False
         self._playbutton.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        if self.mediaPlayer is not None: self.mediaPlayer.pause()
+        if self.mediaPlayer is not None: self.mediaPlayer.stop()
         self.timer.stop()
         self.wasPlaying = False
 
@@ -3089,6 +3111,7 @@ class MainWindow(QMainWindow):
         self._playwidget.setLeftConnect(self.cutLeftSide)
         self._playwidget.setRightConnect(self.cutRightSide)
         self._playwidget.addTimeChangedCallback(self.timeChanged)
+        self._playwidget.addTimeChangedCallback(self.livePlay)
         self._playwidget.hide()
         tlayout = QVBoxLayout(self._mainarea)
         tlayout.addWidget(self._playwidget)
@@ -3278,7 +3301,20 @@ class MainWindow(QMainWindow):
         as though the onboard button was pressed once.
         """
         if COMMLIB_ENABLED: commlib.playOnce()
-            
+
+    def livePlay(self, currTime):
+        if self._playwidget.livePlay():
+            channellist = self.getSelectedChannelNames()
+            for channel in channellist:
+                if self.animatronics.channels[channel].port >= 0:
+                    # getValueAtTime is not implemented so we get a range of values and take the first one
+                    value = self.animatronics.channels[channel].getValuesAtTimeSteps(currTime, currTime+1.0, 1.0)[0]
+                    port = self.animatronics.channels[channel].port
+                    if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                        commlib.setDigitalChannel(port, value)
+                    else:   # For now must be servo type channel
+                        commlib.setServo(port, value)
+
     def openAnimFile(self):
         """
         The method openAnimFile opens a file dialog for the user to select

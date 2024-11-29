@@ -542,14 +542,12 @@ def main():
     animList = []
     idler = None
     try:
-        animList = helpers.findAnimFiles(dir='/sd/anims')
-        if helpers.isfile('/sd/anims/zylon.bin'):
-            idler = ['/sd/anims/zylon.bin', None]
+        animList,idler= helpers.findAnimFiles(dir='/sd/anims')
     except:
         pass
 
     if len(animList) == 0:
-        animList = helpers.findAnimFiles()
+        animList,idler = helpers.findAnimFiles()
 
     do_the_thing(animList, idleanimation=idler)
 

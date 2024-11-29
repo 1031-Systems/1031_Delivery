@@ -405,6 +405,7 @@ def findAnimFiles(dir='/anims'):
     # Find animation files
     # Create empty list of csv/audio file pairs
     animList = []
+    idler = None
 
     # Look for binary or ascii files?
     if tables.PreferBinary:
@@ -424,7 +425,7 @@ def findAnimFiles(dir='/anims'):
                     # Not checking for existence yet
                     animList.append(names)
                 elif len(names) == 1:
-                    # Should be a fileroot that will be appended with .csv or .wav
+                    # Should be a fileroot that will be appended with .csv or .bin or .wav
                     tpair = []
                     if isfile(names[0] + ext):
                         tpair.append(names[0] + ext)
@@ -439,6 +440,8 @@ def findAnimFiles(dir='/anims'):
                     else:
                         tpair.append(None)
                     animList.append(tpair)
+                elif len(names) == 3 and names[2] == 'idle':
+                    idler = names[0:2]
                 line = infile.readline()
     else:
         # Check for matching filename pairs
@@ -451,12 +454,15 @@ def findAnimFiles(dir='/anims'):
                     tname = filename[:-4] + '.wav'
                     if tname in filelist:
                         tpair.append(pathjoin(dir, tname))
-                        animList.append(tpair)
+                        if tname == 'idle.wav':
+                            idler = tpair
+                        else:
+                            animList.append(tpair)
         except:
             # Ignore problems
             pass
 
-    return animList
+    return animList,idler
 
 ################################### Test Code ########################################
 def testSDCard(filename, verbosity=False):
