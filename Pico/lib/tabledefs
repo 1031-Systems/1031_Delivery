@@ -1,3 +1,7 @@
+# This software is made available for use under the GNU General Public License (GPL).
+# A copy of this license is available within the repository for this software and is
+# included herein by reference.
+
 ############## tabledefs ###############################################################
 #   This tabledefs file is for defining the available sets of Digital and PWM ports
 # that may be used in your system.  In general, ports may be defined individually or

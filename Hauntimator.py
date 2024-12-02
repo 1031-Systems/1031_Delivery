@@ -6,15 +6,18 @@
 # Created by John R. Wright
 # Created Tue Jun 13 17:35:31 PDT 2023
 #*********************************/
+'''
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+'''
 
 #/* Import block */
 import os
 import shutil
 import re
-import math
 import random
 import sys
-import subprocess
 import importlib
 import pkgutil
 
@@ -3162,7 +3165,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
                 self.audioPlot.setMaximumHeight(200)
-                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showmono_audio_action)
                 self._showmono_audio_action.setChecked(True)
@@ -3177,7 +3180,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
                 self.audioPlot.setMaximumHeight(150)
-                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showleft_audio_action)
                 self._showleft_audio_action.setChecked(True)
@@ -3191,7 +3194,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlotRight = newplot
                 self.audioPlotRight.setMaximumHeight(150)
-                if SystemPreferences['ShowTips']: self.audioPlotRight.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlotRight.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showright_audio_action)
                 self._showright_audio_action.setChecked(True)
@@ -5357,12 +5360,14 @@ class MainWindow(QMainWindow):
         self._merge_file_action = QAction("&Merge Anim File",
                 self, triggered=self.mergeAnimFile)
         #self._merge_file_action.setEnabled(False)
+        self._merge_file_action.setToolTip('Merge new channels from another animation')
         self.file_menu.addAction(self._merge_file_action)
 
         # Append action
         self._append_file_action = QAction("&Append Anim File",
                 self, triggered=self.appendAnimFile)
         #self._append_file_action.setEnabled(False)
+        self._append_file_action.setToolTip('Add to matching channels from another animation')
         self.file_menu.addAction(self._append_file_action)
 
         # Save action

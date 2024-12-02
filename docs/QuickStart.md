@@ -1,4 +1,8 @@
 <!-- john Wed Aug  2 17:01:44 PDT 2024  -->
+<!-- This software is made available for use under the GNU General Public License (GPL). -->
+<!-- A copy of this license is available within the repository for this software and is -->
+<!-- included herein by reference. -->
+
 <a name="top">
 &nbsp;
 </a>
@@ -113,4 +117,4 @@ to select a filename and path to save your work.  Conversely, use
 File->Open to open a file or use the -f filename option on the
 command line.
 
-Copyright 2024 John R. Wright, William R. Douglas
+Copyright 2024 John R. Wright, William R. Douglas - 1031_Systems

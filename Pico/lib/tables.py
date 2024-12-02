@@ -6,6 +6,11 @@
 # Created by john
 # Created Wed Jun 19 10:57:40 AM PDT 2024
 #*********************************/
+'''
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+'''
 
 #/* Import block */
 import os

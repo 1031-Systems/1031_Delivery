@@ -172,3 +172,8 @@ functions supplied in plugins/Stock.py for relatively generic functions
 that operate on channels.  Hauntimator checks all the .py files in the
 plugins directory and incorporates any that follow the protocol.  See
 the README in the plugins folder for more details.
+
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+

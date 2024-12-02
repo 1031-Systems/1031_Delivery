@@ -116,3 +116,8 @@ speech, the recognition is crappy.  One way around this problem is to
 record an appropriately sampled file of the user speaking the words to
 a song in sync with the actual music and running that through the
 plugin.
+
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+
