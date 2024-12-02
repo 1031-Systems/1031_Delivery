@@ -20,3 +20,6 @@ echo ''
 # Check on the results
 rshell repl '~ import memstats ~'
 
+# Make the link to commlib in the root directory
+ln -s commlib.py .. 
+
