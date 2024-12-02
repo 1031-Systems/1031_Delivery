@@ -13,6 +13,10 @@ The Hauntimator application is intended to be board-agnostic so
 users may develop code for different processors such as 
 Arduino or other Raspberry Pi versions.
 
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+
 ***
 
 ## Description
@@ -71,7 +75,7 @@ then you have to manually install PyQt and qwt with the  following:
 
 ~~~
 
-pip install PyQt5 # (or PyQt6, whichever will actually install)
+pip install PyQt5 # (or PyQt6.5, whichever will actually install)
 pip install PythonQwt
 pip install rshell
 pip install pocketsphinx    # To support phonemes plugin
@@ -83,7 +87,10 @@ On darwin, the only MacOS test system I have, PyQt5 does not install
 but PyQt6 does.  Meanwhile, on my Rocky 9 test system, PyQt5 installs
 just fine whilst PyQt6 does not.  You will have to install whichever
 works for you.  Hauntimator.py is written to work with either PyQt5 or
-PyQt6.
+PyQt6.  However, when I updated my Mac to PyQt6.8, everything quit
+working.  PyQt6 seems to be changing a lot with every release, especially
+in the QMediaPlayer area which is used here.  Thus, it is recommended
+that you install specifically PyQt6.5 for now.
 
 
 ***
