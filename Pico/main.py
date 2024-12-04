@@ -5,10 +5,7 @@ included herein by reference.
 '''
 
 import machine
-try:
-    import utime
-except:
-    import time as utime
+import utime
 
 import os
 import sys
@@ -31,19 +28,37 @@ verbose=False
                 # Analysis of memory usage severely affects timing data so keep that in mind
 memuse = 0      # 0 = no memory usage stats, 1 = garbage collection count, 2 = debug memuse printing
 
+# LED specifications
 # Use the on board LED for status
 led_onboard = machine.Pin(25, machine.Pin.OUT)
 # Use the off board LED for status too
 led_offboard = machine.Pin(26, machine.Pin.OUT)
 
-# Pin 24 is the onboard USR button on some Pico clones
-#button = machine.Pin(24, machine.Pin.IN, machine.Pin.PULL_UP)
-# Pin 28 is the RUN button connected to external jumper connector
-runbutton = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_UP)
+# Button specifications
+# Pin 24 is the onboard USR button on some Pico clones - Do Not Use
+# Pin 27 is the opto-isolated Trigger 2 for external stimuli
+trigger2 = machine.Pin(27, machine.Pin.IN, machine.Pin.PULL_UP)
+trigger2_laststate = True   # True indicates NOT pressed
+
+def opto_button_pressed():
+    global trigger2_laststate
+    if trigger2.value() != trigger2_laststate:
+        utime.sleep_ms(50)    # Debounce switch
+        if trigger2.value() != trigger2_laststate:
+            trigger2_laststate = trigger2.value()
+    return not trigger2_laststate
+
+# Pin 28 is the Trigger 1 button connected to external jumper connector
+trigger1 = machine.Pin(28, machine.Pin.IN, machine.Pin.PULL_UP)
+trigger1_laststate = True   # True indicates NOT pressed
 
 def button_pressed():
-    #return (not button.value()) or (not runbutton.value())
-    return not runbutton.value()
+    global trigger1_laststate
+    if trigger1.value() != trigger1_laststate:
+        utime.sleep_ms(50)    # Debounce switch
+        if trigger1.value() != trigger1_laststate:
+            trigger1_laststate = trigger1.value()
+    return not trigger1_laststate
 
 def toggle_LEDs():
     led_onboard.toggle()
@@ -68,9 +83,8 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
     if verbose: print(animList)
 
     # Swallow strange initially pressed state
-    while button_pressed():
-        utime.sleep_ms(1000)
-        button_pressed()
+    while button_pressed() or opto_button_pressed():
+        utime.sleep_ms(100)
 
     # Turn off all our status LEDs so they are always synced
     led_onboard.off()
@@ -82,19 +96,21 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
     while True:
         # Toggle LED every second until button pressed
         if not continuous and not skip:
-            while not button_pressed():
+            while not button_pressed() and not opto_button_pressed():
                 if idleanimation is not None and not firstTime:
                     play_one_anim(idleanimation[0], idleanimation[1])
                 code = 0
                 toggle_LEDs()
-                for i in range(100):
+                for i in range(1000):
                     if helpers.isThereInput():
                         code = helpers.handleInput()
                         if code == 1: break
-                    utime.sleep_ms(10)
+                    else:
+                        utime.sleep_ms(1)
                     if button_pressed():
-                        utime.sleep_ms(50)  # Debounce switch
-                        if button_pressed(): break
+                        break
+                    if opto_button_pressed():
+                        break
                 if code == 1: break
 
             # Wait up to 5 seconds for button to be released
@@ -102,8 +118,7 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
             for i in range(100):
                 utime.sleep_ms(50)
                 if not button_pressed():
-                    utime.sleep_ms(50)    # Debounce switch
-                    if not button_pressed(): break
+                    break
 
         # If button is STILL pressed, go into continuous loop mode
         if button_pressed():
@@ -112,8 +127,7 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
                 toggle_LEDs()
                 utime.sleep_ms(100)
                 if not button_pressed():
-                    utime.sleep_ms(50)    # Debounce switch
-                    if not button_pressed(): break
+                    break
             continuous = True
 
         if playIndex < len(animList):
@@ -130,16 +144,12 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
 
         # Check to see if button is pressed and quit if so
         if button_pressed():
-            utime.sleep_ms(50)    # Debounce switch
-            if button_pressed():
-                if verbose: print('Caught Stop button')
-                # Stop running continuous mode on button press also
-                continuous = False
-                # break     # If we break here we terminate everything
-                # Wait for button release
-                while button_pressed():
-                    utime.sleep_ms(50)    # Debounce switch
-                    if not button_pressed(): break
+            if verbose: print('Caught Stop button')
+            # Stop running continuous mode on button press also
+            continuous = False
+            # Wait for button release
+            while button_pressed():
+                utime.sleep_ms(100)
 
         if len(animList) > 0:
             # Go to next anim in list
@@ -149,10 +159,8 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
 
         if(verbose): print('At end of loop')
 
+    # Currently no way to get here
     if(verbose): print('At end of do_the_thing()')
-
-    # Reset the machine to clear out other thread and allow easier rshell access
-    machine.reset()
 
 class LocalSource:
     def __init__(self, filename=None, binblocksize=0, readlock=None):
@@ -194,7 +202,7 @@ class LocalSource:
             self.file = None
 
 
-def play_one_anim(csvfile, wavefile):
+def play_one_anim(csvfile, wavefile, idle=False):
     # Initially assume ascii file format
     binblocksize = 0
 
@@ -299,10 +307,6 @@ def play_one_anim(csvfile, wavefile):
     ticks3 = 0
     ticks4 = 0
     ticks5 = 0
-
-    # Get the struct unpacking format for the known range of port IDs
-    theformat = helpers.tables.getPWMstructformat()
-    if verbose: print('PWM Struct format:', theformat, 'of length:', len(theformat))
 
     if memuse > 0:
         memused = gc.mem_alloc()
@@ -429,10 +433,11 @@ def play_one_anim(csvfile, wavefile):
             # Check to see if button is pressed and quit if so
             ticks1 = utime.ticks_us()
             if button_pressed():
-                utime.sleep_ms(50)    # Debounce switch
-                if button_pressed():
-                    if verbose: print('Caught Stop button')
-                    break
+                if verbose: print('Caught Stop button')
+                break
+            if idle and opto_button_pressed():
+                if verbose: print('Caught Trigger 2 so interrupting idle animation')
+                break
             buttonTicks += utime.ticks_us() - ticks1
 
             # Toggle LED to let us know something is happening
@@ -529,10 +534,8 @@ def play_one_anim(csvfile, wavefile):
         while player.playing():
             # If button is pressed, abort playback
             if button_pressed():
-                utime.sleep_ms(50)    # Debounce switch
-                if button_pressed():
-                    if verbose: print('Caught Stop button')
-                    player.stop()
+                if verbose: print('Caught Stop button')
+                player.stop()
             # Waiting a bit to see if audio is done
             utime.sleep_ms(1)
 
