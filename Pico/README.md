@@ -29,6 +29,11 @@ standard 4MB firmware v1.21.0 available at:
 
 [https://micropython.org/download/RPI_PICO/](https://micropython.org/download/RPI_PICO/)
 
+Instructions for flashing your Pico with either firmware described above or
+others to your liking may be found all over the interweb.
+
+***
+
 The same software runs on either the Pico or the clone and can use
 the SD card if installed.  To install the embedded software on either,
 do the following:
