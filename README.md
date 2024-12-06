@@ -43,7 +43,8 @@ The currently available version is 1.0.0(b).  It is totally beta.
 Seems to work for me but I know the ins and outs.  Previous 
 versions may someday be available.
 
-In general, you will need to clone this repo to your local host.
+In general, you will need to clone this repo to your local host
+or download the associated tar file and expand it.
 Then, create a virtual environment for the code using venv and
 activate it.  Then use pip to install the required libraries in
 your virtual environment.  At this point you should be able to 
@@ -58,7 +59,6 @@ source .venv/bin/activate.shname  # Where shname is your shell name
 pip install --upgrade pip
 pip install -r ${OSTYPE}-requirements.txt
 pip install pocketsphinx    # To support phonemes plugin
-ln -s Pico/commlib.py .     # For Raspberry Pi Pico controller
 python ./Hauntimator.py
 
 ~~~

@@ -27,8 +27,8 @@ window.
 
 ## Add Control Channels
 
-Hauntimator supports any number of digital (on/off), servo (angles), and
-numeric (real numbers) channels.  As you add them, each channel will occupy
+Hauntimator supports any number of digital (on/off), servo (PWM), and
+numeric (integer) channels.  As you add them, each channel will occupy
 a pane all the way across the window and they will be stacked from top
 to bottom.  Add a channel for all the devices you wish to control and
 populate the channels with control points.
@@ -68,9 +68,9 @@ For now, do not bother with any other entries in this widget and
 click Save.  All the fields will default to reasonable values and
 all may be changed later.  Only the name remains the same.  The
 empty channel pane will appear with red lines near the top and
-bottom signifying limits, defaulting to 0 and 180 degrees if the
-servo type was specified and 0 and 4095 otherwise.  Note that 0
-and 4095 are generally NOT good limits for servos.  See the main
+bottom signifying limits, defaulting to stored values if the
+servo type was specified and 0 and 65535 otherwise.  Note that 0
+and 65535 are generally NOT good limits for servos.  See the main
 Help pane for more detail on setting and using the limits.
 
 Populate the channel with control points by holding down the Shift
@@ -90,16 +90,12 @@ For now, synchronizing playback with audio is a visual process.
 Hit Ctrl-P to start and stop playback of the audio.  As the audio is
 playing, observe the vertical green bar as it crosses all the
 channel panes.  The green bar is synced with the time and (SHOULD)
-also with the audio.  Note that the audio playback and the displayed
-bar position are totally separate processes so they often get out
-of sync when first playing.  Just stop playback and restart it and
-the sync should be good.  You can often tell how good the sync is
-by observing the bar on the audio channel while listening.
+also with the audio.
 
 As you play the audio, you can stop it at critical junctures and then
 adjust the control points to match the time.  You can also adjust the
 magnitudes of the control signals.  To edit any control point,
-simply left click on the box around the point and drag it as you like.
+simply left click within the box around the point and drag it as you like.
 
 ## Animating your Devices
 
@@ -108,10 +104,13 @@ channel numbers to all the
 channels.  Once that is done, the control file is uploaded to the
 controller via File->Export->Upload to Controller.  Finally, the
 controller is started via its start mechanism.  Stuff should happen.
+Note that you need to either Save your file as described in the next 
+paragraph or explicitly set the upload target names in the animation
+metadata prior to sending the control or audio data to the controller.
 
 ## Saving Your Work
 
-Saving your current state, with the audio filename and the control
+To save your current state, with the audio filename and the control
 channels, use File->Save or File->Save As to bring up a file browser
 to select a filename and path to save your work.  Conversely, use
 File->Open to open a file or use the -f filename option on the
