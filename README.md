@@ -32,7 +32,7 @@ control on a controller.
 Once the control channels have been created and validated to be
 synchronized with the audio, they are installed on the control
 hardware in flash memory or on an SD card.  Then the software
-on the control board runs to perfrom the animations and play 
+on the control board runs to perform the animations and play 
 the audio.
 
 ***
@@ -122,39 +122,8 @@ Hauntimator.py.
 ### Pico
 
 This installation includes files for using a Raspberry Pi Pico or
-clone for your animatronics controller.  The provided software
-runs on either a standard Raspberry Pi Pico with 4MB of flash or
-on a Pico clone with a 16MB flash memory.  The 16MB can holds
- one to five animations of about
-thirty seconds in length each.  These are expected to run when a lucky
-trick-or-treater approaches your house.  In order to use the 16MB of
-flash available in the clone, firmware must be loaded that supports
-the 16MB.  Several versions seem to be available but the only one
-that worked with our test clone was the WEACT v1.21.0 one at:
-
-[https://micropython.org/download/WEACTSTUDIO/](https://micropython.org/download/WEACTSTUDIO/)
-
-Feel free to try others with your clone.
-
-If using a regular Pico with only 4MB of flash
-or a clone, an external SD card can be used to store the audio and
-animation data.  With a big SD card, it can run multiple hours of
-animations, audio, flashing lights, etc.  Either the clone or the actual Pico can work with the
-standard 4MB firmware v1.21.0 available at:
-
-[https://micropython.org/download/RPI_PICO/](https://micropython.org/download/RPI_PICO/)
-
-The same software runs on either the Pico or the clone and can use
-the SD card if installed.  To install the embedded software on either,
-do the following:
-
-~~~
-
-cd Pico
-do_install
-cd ..
-
-~~~
+clone for your animatronics controller.  The provided software is in 
+the Pico directory.  See the README there for more details.
 
 In the Pico part of the repo there is a file named commlib.py.  This
 is the interface library for Hauntimator.py to talk to the hardware.
