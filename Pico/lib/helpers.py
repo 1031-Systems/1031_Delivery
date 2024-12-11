@@ -1,3 +1,9 @@
+'''
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+'''
+
 # Basic Imports
 
 from machine import Pin
@@ -339,7 +345,14 @@ def isThereInput():
 
 def handleInput():
     inline = sys.stdin.buffer.readline().decode('utf-8')
-    if inline[0] == 'a':
+    if len(inline) > 6 and inline[0:6] == 'status':
+        # Handle status request
+        if inline[6] == 'b':
+            # Wants block sizes
+            blockSizes = tables.getBinarysizes()
+            print(tables.PreferBinary)
+            print(blockSizes[0], blockSizes[1], blockSizes[2], blockSizes[3])
+    elif inline[0] == 'a':
         # Trigger one playback
         return 1
     elif inline[0] == 'x':

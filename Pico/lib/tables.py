@@ -6,6 +6,11 @@
 # Created by john
 # Created Wed Jun 19 10:57:40 AM PDT 2024
 #*********************************/
+'''
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+'''
 
 #/* Import block */
 import os
@@ -65,7 +70,7 @@ def dosomething(port, valuebytes):
             porttableentry['func'](porttableentry, value)
     except:
         pass
-    
+
 tickcounter = 0
 def dopca9685(porttableentry, value, push=False):
     # Handle a PWM signal via I2C and an external pca9685 board
@@ -139,8 +144,14 @@ def getBinarysizes():
     # 4 for integer time in milliseconds
     # 1 for each block of 8 digital bit ports from 0 to max
     # 4 bytes (2 bytes onval and 2 bytes offval) for each PWM port from 0 to max
-    numPWMs = max(PWMPortTable)+1
-    numDigs = max(DigitalPortTable)+1
+    if len(PWMPortTable) > 0:
+        numPWMs = max(PWMPortTable)+1
+    else:
+        numPWMs = 0
+    if len(DigitalPortTable) > 0:
+        numDigs = max(DigitalPortTable)+1
+    else:
+        numDigs = 0
     numBytes = (numDigs + 7) >> 3
     return(4 + numBytes + numPWMs*4, 4, numBytes, numPWMs*4)
 
@@ -169,7 +180,7 @@ def pushPWMs():
     for board in _PWMBoards:
         _PWMBoards[board].pushValues()
     # Don't need to push to GPIO pins??
-        
+
 def configurepca9685(firstport=0, boardid=0):
     # Configure a single external pca9685 board
     global PWMPortTable
@@ -189,7 +200,7 @@ def configurepca9685(firstport=0, boardid=0):
             id = 0
             _i2c = I2C(id=id, sda=sda, scl=scl, freq=1048576)   # Use 1MHz as that is max for pca9685
         _PWMBoards[boardid] = TableServos(i2c=_i2c, address=0x40+boardid, firstport=firstport)
-    
+
 
     global _ExpectedPWMPorts
     _ExpectedPWMPorts += 16
@@ -310,7 +321,7 @@ def fast595s(bytes, count):
     # Clock all the bits to the outputs
     clockPin.on()
     clockPin.off()
-    
+
 
 def do595(porttableentry, value):
     if verbosity: print('Doing do595 with porttableentry:', porttableentry)
@@ -466,16 +477,20 @@ def csvToBin(fname):
 
             of.close()
 
+            # Return the name of the file created or None if a problem occurred
+            return ofname
+
     except:
         if verbosity:
             print('Whoops - Trouble in csvToBin')
             print('Message:', message)
         # Just do nothing if file does not exist or other problems arise
         pass
-        
+
     # Clean up memory before going back to our regular programming
     gc.collect()
-            
+
+    return None
 
 ######################  Self Test Code  ################################################
 #/* Usage method */

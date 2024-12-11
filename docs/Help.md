@@ -1,4 +1,9 @@
 <!-- john Fri Jun 27 07:35:16 PDT 2024 -->
+<!-- This software is made available for use under the GNU General Public License (GPL). -->
+<!-- A copy of this license is available within the repository for this software and is -->
+<!-- included herein by reference. -->
+ 
+
 <a name="top">
 &nbsp;
 </a>
@@ -145,13 +150,28 @@ The File menu contains the following options:
 + New Animation - Discard current animation and start from scratch
 + Open Anim File - Open and Load an existing animation file
 + Open Audio file - Open and attach audio file to the current animation (.wav only)
-+ Merge Anim File - Open an existing animation and merge with current one
++ Merge Anim File - Open an existing animation and merge new channels into current one
++ Append Anim File - Open an existing animation and append common channels to current one
 + Save Anim File - Save the current animation to the file it was loaded from
 + Save As - Save the current animation under a new filename
 + Export - Export to an alternative file format or send to controller
 + Quit - Duh!
 
 Hauntimator tries to be careful about quitting without saving or overwriting files.
+
+The Merge and Append options are intended to support multiple people or sessions working on
+the same animation.  Merge is used to merge animation files that do not share channels, e.g.
+different figures in a multi-figure display.  An individual can work on a single figure and
+the results can be merged into a single animation for the entire display.  Channels whose names
+appear in both files will not be merged.  They are ignored and a warning will appear.
+
+The Append option is intended for animations that are split temporally rather than by
+channel.  Multiple persors can focus on different ranges of time while building the same
+channels.  These can then be appended to form a single animation for the entire display.
+Appended channels must appear in both animations and other channels will be ignored and
+a warning presented.  Note that the order of the append is irrelevant.  Prior, successor,
+or overlapping time ranges can be appended and they are inserted into the existing channel
+at their designated time.
 
 The Export option is generally used to upload the control file to the controller.
 To accomplish, the file is written as a CSV (comma-separated values) file and then
@@ -179,6 +199,15 @@ The Edit menu contains the following options:
 + Edit Metadata - Edit some numeric data for the animation
 + Edit Preferences - Edit the preferences settings for Hauntimator
 
+Undo and Redo generally behave as expected with some caveats.  As work progresses, Hauntimator
+attempts to save both the state of the animation itself as well as ancillary information such as
+which points and channels are selected and what time range is displayed.  This is to attempt to
+make it easy to undo an action and then perform an alternative to that action.  However, this
+results in sometimes saving a state that is merely a selection change rather than an actual
+edit.  Also, when using the arrow keys to shift points, each shift is a separate state save.
+This may result in many states being saved that may have to be undone.  Hopefully, this will
+not become too annoying.
+
 Hauntimator comes with a list of known servo types typically stored in a file named servos.csh.
 Each entry specifies the range of motion of that type of servo and its duty cycles.  This
 information is used to limit the control outputs appropriately.  New servo types may be
@@ -197,17 +226,16 @@ The Preferences specify general information that Hauntimator uses.  Some if this
 to the hardware being controlled, some controls display functionality, and some relates
 to files and communication.  The individual preferences are:
 
-+ MaxDigitalChannels - The maximum number of digital channels supported by the hardware.  If the user has installed some number of 74HC595N chips in their hardware, there will be 8 available digital channels per chip.  The port numbers for digital channels begin at MaxServoChannels and counts up from there.
++ MaxDigitalChannels - The maximum number of digital channels supported by the hardware.  If the user has installed some number of 74HC595N chips in their hardware, there will be 8 available digital channels per chip.  The port numbers for digital channels begin at 0 and count up.  Additional ports may be assigned to direct GPIO outputs if any are available.
 + MaxServoChannels - The maximum number of servo channels supported by the hardware.  If
- the user has installed some number of PCA9685 boards in their hardware, there will be 16 available servos per board.  The port numbers for servo channels begin at 0 and count up.
-+ ServoDefaultMinimum - If the user has installed PCA9685 boards in their hardware, they expect values in the range 0 to 4095 for servo control.  Other boards may use other values.
-+ ServoDefaultMaximum - If the user has installed PCA9685 boards in their hardware, they expect values in the range 0 to 4095 for servo control.  Other boards may use other values.
-+ Ordering - This controls the display of channels in the Hauntimator main window.  The channels may be ordered, from top to bottom, in Alphabetical order by channel name (makes them easy to find), in Numeric order by port number (nicely separates servo and digital channels), or in the order the channels were created.
+ the user has installed some number of PCA9685 boards in their hardware, there will be 16 available servos per board.  The port numbers for servo channels begin at 0 and count up.  Additional ports may be assigned to direct GPIO outputs if any are available.
++ ServoDefaultMinimum - If the user has installed PCA9685 boards in their hardware, they expect values in the range 0 to 4095 for servo control.  Other boards may use other values.  GPIO pins on a Pico assume that servos take a value between 0 and 65535.  Hauntimator treats all servos the same and assumes that the controller software will shift the values to the appropriate range.
++ ServoDefaultMaximum - If the user has installed PCA9685 boards in their hardware, they expect values in the range 0 to 4095 for servo control.  Other boards may use other values.  GPIO pins on a Pico assume that servos take a value between 0 and 65535.  Hauntimator treats all servos the same and assumes that the controller software will shift the values to the appropriate range.  Thus, the typical value here is 65535 and the controller shifts that to a range of 0-4095 prior to entering it into the PCA9685.
++ Ordering - This controls the display of channels in the Hauntimator main window.  The channels may be ordered, from top to bottom, in Alphabetical order by channel name (makes them easy to find), in Numeric order by port number, or in the order the channels were created.
 + AutoSave - Controls saving of the animation every time an edit is made.  The saved copy of the animation is stored in a file with the same name as the animation with ".autosave" appended or in a file named "unnamedfile.anim.autosave" if the animation has never been named.
-+ ShowTips - Controls the use of popup tool tips within Hauntimator.  Beginning users may find the popup tips helpful while an experienced user may find them bothersome.  Some go away automatically so hopefully they will not probe to be obnoxious.
-+ ServoDataFile - The name of the file containing known servo types and their associated information.  The user may rename this file or move it so the preference allows that.
-+ UploadCSVFile - The name of the CSV control file as it is used in the controller software.  The Pico software that accompanies the Hauntimator and is run on the Pico looks for a particular file and this must match that.
-+ UploadAudioFile - The name of the audio file as it is used in the controller software.  The Pico software that accompanies the Hauntimator and is run on the Pico looks for a particular file and this must match that.  Originally, Hauntimator was empowered to upload the audio file but this can be problematic and very time-consuming so that feature is currently disabled.  The supporting preference is still there for later use.
++ ShowTips - Controls the use of popup tool tips within Hauntimator.  Beginning users may find the popup tips helpful while an experienced user may find them bothersome.  Some go away automatically so hopefully they will not prove to be obnoxious.
++ ServoDataFile - The name of the file containing known servo types and their associated information.  The user may rename this file or move it so the preference allows that.  The values in the servo file are used to set initial limits on the channel values.  These are based on the ServoDefaultMaximum and ServoDefaultMinimum and the duty cycle of the servo from the file.  These are NOT used to distinguish servos on GPIO pins from servos on PCA9685 boards.  That is done within the controller.
++ UploadPath - The name of the directory to upload audio and control files to as it is used in the controller software.  The Pico software that accompanies the Hauntimator and is run on the Pico looks for a particular file and this must match that.  This will typically be on the SD card and look like "/sd/anims" to match expectations in the controller software.  If the controller software is edited, this can be changed to match.
 + TTYPortRoot - This is the name of the communications port to use to talk to the controller when it is plugged into the USB port on the computer that Hauntimator runs on.  Under linux, this is typically /dev/ttyACM0.  On a Mac it is more like /dev/tty00bb10.  Under Windows it is something I don't care about.
 
 <a name="view">
@@ -239,7 +267,7 @@ is designed to aid in this process.  The View menu contains the following option
 
 The View menu mostly unzooms the display.  To zoom in to a particular time range, there are
 several methods available.  The fastest, wildest, least specific method is to click and
-hold the left mouse button within the audio pane (either if stereo) and drag.  If the 
+hold the ctrl-left mouse button within the audio pane (either if stereo) and drag.  If the 
 cursor is dragged up or down, the entire display zooms in or out around where the user
 clicked.  If the cursor is dragged left or right, the entire display pans left and right.
 The user may quickly select a reasonable time range upon which to work.
@@ -249,7 +277,8 @@ and use Set Left and Set Right buttons.  The user can hit Play and at the desire
 time hit Set Left.  This will immediately set the left edge of the displayed time range
 to the playback time when Set Left was clicked.  Set Right does the same thing to the
 right edge of the displayed time range.  The user may stop playback before hitting Set
-Left or Set Right.
+Left or Set Right.  Note that the user may left click within the Aufio pane and drag the
+green bar to the desired start or end time and them click Set Left or Set Right.
 
 A third method is supported by tags within the animation.  Clicking the left mouse
 button on a tag within the tag pane while holding down the Ctrl key will zoom the
@@ -265,7 +294,7 @@ any of several sources and is closely coupled with the hardware controller and i
 software.  Generally, the controller will play an animation until both its audio tracks and
 its control file have completed playing.  If there are seven seconds of audio and ten
 seconds of animation control, it will play for ten seconds.  If there are seven seconds of
-audio and five seonds of animation control, it will play for seven seconds.  Thus, the
+audio and five seconds of animation control, it will play for seven seconds.  Thus, the
 playback duration is set by the longer of the audio or the CSV file containing the control
 values.
 
@@ -282,6 +311,22 @@ time range to the current window.  The animation metadata is accessed from the [
 
 The user may undo setting the end time via the standard ctrl-Z mechanism or, if too late for
 that, by entering a negative number for the end time and saving the metadata.
+
+Playback within Hauntimator is constrained by the time range displayed.  Playback will commence
+at the left edge of the displayed audio pane and continue to the right unless stopped by the user.
+When playback reaches the right edge of the display, it automatically rewinds to the beginning
+of the displayed range.  However, if the left edge of the display is a time prior to the start
+of the audio, playback will jump to the start of the audio and proceed from there.
+
+![Playback Controls](images/playback_controls.png)
+
+As mentioned above, the user may set the playback range by placing the green timebar at the
+desired start or end range and then click Set Left or Set Right.  The Play/Pause and Rewind buttons
+are probably obvious in function.  A Speed select is available to better assess proper alignment
+of behaviors and outputs.  To support this, the Live checkbox is available.  If the Live box is
+checked, then any Selected (green background) channels will be output directly to the controller.
+Note that this is very slow so it cannot play back motions very fast and smoothly.  It is intended
+for visual correlation.
 
 <a name="channels">
 &nbsp;
@@ -412,10 +457,11 @@ be automagically added to the Help menu.
 
 Currently Hauntimator and the Raspberry Pi Pico system support only .wav (PCM) audio, either mono or stereo.
 Hauntimator runs on your desktop or other higher-powered system so it can handle higher sample rates such as
-44,100Hz.  However, the Pico can only handle sample rates of 11,025Hz, 16-bit in stereo primarily due to
-slow read times from the SD card.  MP3 libraries for the Pico's Micropython are not yet available so the
-I/O cannot easily be reduced.  This generally requires that the user use a desktop tool such as ffmpeg
-to downsample any audio and convert it to .wav format prior to loading on the SD card for the Pico.
+44,100Hz.  The Pico can also handle sample rates of 44,100Hz, 16-bit in stereo as well.  However, the phoneme
+plugin only accepts 16,000 Hz mono audio for processing.
+This generally requires that the user use a desktop tool such as ffmpeg
+to downsample any audio and convert it to .wav format prior to running the phoneme plugin.  More discussion
+of this is available in the phoneme-specific help page.
 
 When displaying the audio tracks in Hauntimator, the display detects mono or stereo and displays all the
 tracks available.  The user may optionally hide one or both tracks.  This may be useful if the dialogue
@@ -567,17 +613,6 @@ from it.  This disrupts the communication between Hauntimator and the main softw
 running on the controller.  Again the user will need to reset the controller and
 allow the main program to start to let Hauntimator reenable communications.
 
-The Raspberry Pi Pico used for development and testing has a limited ability to
-support this functionality, primarily in the use of an SD card.  In general, the
-audio track needs to be sampled at 11025 Hz or lower in stereo 16-bit mode or
-22050 Hz in mono 16-bit mode due to the slowness of reading from the SD card.
-Higher sampling rates lead to breakups and skips in the audio playback.  Additionally,
-putting the control file on the SD card is problematic due to the audio playback
-taking all the read cycles.  Thus, generally the audio is stored on the SD card at
-a lower sample rate and the control file is stored in the limited flash memory.
-Smaller animations of a few seconds may be stored completely in flash memory and
-do not seem to suffer the same problems.  Pico clones with larger flash memory
-may also be used.
 An animation controlling 16 servos and 16 digital channels requires around 7kB per
 second of animation so a maximum of 2 to 3 minutes of animation may be stored in
 the Pico's 1 MB or so of available flash.
@@ -589,6 +624,6 @@ mileage will vary.  Hauntimator has been tested with MicroPython only.
 
 ***
 
-Copyright 2024 John R. Wright, William R. Douglas
+Copyright 2024 John R. Wright, William R. Douglas - 1031_Systems
 
 

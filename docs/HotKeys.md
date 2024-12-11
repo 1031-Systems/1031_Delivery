@@ -1,10 +1,14 @@
 <!-- john Fri Jun 27 07:35:16 PDT 2024 -->
+<!-- This software is made available for use under the GNU General Public License (GPL). -->
+<!-- A copy of this license is available within the repository for this software and is -->
+<!-- included herein by reference. -->
+
 # Hot Key Cheat Sheet
 ---
 ## Normal Keys
 - P - Toggle Playback controls display
 - T - Toggle Tag panel display
-- Del - Delete selected points in channel
+- Del - Delete selected points in channel(s)
 
 ## Control Keys
 - Ctrl-A - Select All Channels
@@ -19,6 +23,7 @@
 - Ctrl-Q - Quit
 - Ctrl-R - Restore channel display range to default
 - Ctrl-S - Save animation file
+- Ctrl-Shift-S - Save animation file with another name
 - Ctrl-T - Add Tag at green bar
 - Ctrl-V - Paste
 - Ctrl-Z - Undo
@@ -45,12 +50,13 @@
 - Shift-Left off tag - Insert tag
 - Ctrl-Left on tag - Zoom display to tag
 - Left on tag - Select to modify tag time
-- Left Drag Up and Down - Zoom time range
-- Left Drag Side to Side - Pan time range left and right
+- Left Drag Side to Side - Move selected tag left and right
 
 ### In Audio Pane
-- Left Drag Up and Down - Zoom time range
-- Left Drag Side to Side - Pan time range left and right
+- Left - Set current playback to click position
+- Left Drag - Continue setting current playback to drag position
+- Ctrl-Left Drag Up and Down - Zoom time range
+- Ctrl-Left Drag Side to Side - Pan time range left and right
 
 ---
 ## General Mouse Usage
@@ -60,12 +66,12 @@ it is used for inserting or deleting tags or control points.  With
 Control it is used to Select or Deselect a channel, adding it to or
 removing it from the set of selected channels.
 
-Outside of a channel pane, the left mouse button without shift or 
-control, zooms and pans the time range for the entire display unless
-on a tag in the Tag pane.
+Within an audio pane, the left mouse button without shift or 
+control, selects the current cursor position as the playback time.
+With Ctrl, it zooms and pans the time range for the entire display.
 
 Within a channel pane, the wheel zooms the vertical data range about
 the location of the cursor.  The right mouse button brings up the
 tools menu for the channel pane.
 
-Copyright 2024 John R. Wright, William R. Douglas
+Copyright 2024 John R. Wright, William R. Douglas - 1031_Systems

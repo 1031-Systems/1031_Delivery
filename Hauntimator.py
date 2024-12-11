@@ -6,15 +6,18 @@
 # Created by John R. Wright
 # Created Tue Jun 13 17:35:31 PDT 2023
 #*********************************/
+'''
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+'''
 
 #/* Import block */
 import os
 import shutil
 import re
-import math
 import random
 import sys
-import subprocess
 import importlib
 import pkgutil
 
@@ -131,7 +134,7 @@ class AmpingWidget(QDialog):
         self.endTime = endTime
         self.cutoff = cutoff
         self.popRate = popRate
-        
+
         self.setWindowTitle('Amplitudize Control')
         widget = QWidget()
         layout = QFormLayout()
@@ -575,7 +578,7 @@ class TextDisplayDialog(QDialog):
         instr : Path to local file
         """
         self.textView.setSource(QUrl.fromLocalFile(instr))
-        
+
 #####################################################################
 class ChecklistDialog(QDialog):
     """
@@ -836,7 +839,7 @@ class ChannelMenu(QMenu):
             # Need to trigger redraw
             self.parent.holder.redraw()
             pass
-            
+
         pass
 
     def invert_action(self):
@@ -871,7 +874,7 @@ class ChannelMenu(QMenu):
 
     def random_action(self):
         """
-        The method random_action 
+        The method random_action
             member of class: ChannelMenu
         Parameters
         ----------
@@ -1017,7 +1020,7 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         parent=None : QWidget
             The widget that contains this pane
-        inchannel=None : 
+        inchannel=None :
             The data channel to be displayed and manipulated
         mainwindow=None : MainWindow
             The MainWindow of the application
@@ -1127,13 +1130,13 @@ class ChannelPane(qwt.QwtPlot):
         self.minVal = 1.0e34
         self.maxVal = -1.0e34
         for keyval in self.channel.knots:
-            if self.channel.knots[keyval] < self.minVal: 
+            if self.channel.knots[keyval] < self.minVal:
                 self.minVal = self.channel.knots[keyval]
-            if self.channel.knots[keyval] > self.maxVal: 
+            if self.channel.knots[keyval] > self.maxVal:
                 self.maxVal = self.channel.knots[keyval]
-        if self.channel.minLimit < self.minVal and self.channel.minLimit > -1.0e33: 
+        if self.channel.minLimit < self.minVal and self.channel.minLimit > -1.0e33:
                 self.minVal = self.channel.minLimit
-        if self.channel.maxLimit > self.maxVal and self.channel.maxLimit <  1.0e33: 
+        if self.channel.maxLimit > self.maxVal and self.channel.maxLimit <  1.0e33:
                 self.maxVal = self.channel.maxLimit
         if self.minVal == self.maxVal:
             margin = 0.5
@@ -1235,7 +1238,7 @@ class ChannelPane(qwt.QwtPlot):
         if self.channel.type == Channel.DIGITAL:
             fillbrush = QBrush(Qt.gray)
             self.curve.setBrush(fillbrush)
-        
+
         self.resetDataRange()
 
         # Create green bar for audio sync
@@ -1277,7 +1280,7 @@ class ChannelPane(qwt.QwtPlot):
         self._selectedPalette.setColor(self.canvas().backgroundRole(), backcolor)
 
         pass
-    
+
     def redrawLimits(self):
         """
         The method redrawLimits computes the positions of the upper and
@@ -1375,7 +1378,7 @@ class ChannelPane(qwt.QwtPlot):
         """
         The method wheelEvent uses the mouse wheel to adjust the vertical
         scale of the pane.  Each click of the wheel expands or contracts
-        the range while trying to keep the value where the cursor is 
+        the range while trying to keep the value where the cursor is
         located stationary.
             member of class: ChannelPane
         Parameters
@@ -1512,7 +1515,7 @@ class ChannelPane(qwt.QwtPlot):
             self.popup.popup(whereat)
             pass
         pass
-    
+
     def mouseReleaseEvent(self, event):
         """
         The method mouseReleaseEvent handles the mouse button release
@@ -1611,8 +1614,6 @@ class ChannelPane(qwt.QwtPlot):
                     xdelta = xplotval - xprev
                     ydelta = yplotval - yprev
                     self.doTheMove(xdelta, ydelta)
-                        
-                    pass
             else:
                 # Mark current end of drag area to select multiple knots
                 self.selectedKeyList = []   # Clear current list of selected keys
@@ -1622,8 +1623,6 @@ class ChannelPane(qwt.QwtPlot):
                     if keyval >= min(self.dragend, self.dragstart) and keyval <= max(self.dragend, self.dragstart):
                         self.selectedKeyList.append(keyval)
                 self.redrawme()
-                
-        pass
 
     def setSlider(self, timeVal):
         """
@@ -1640,7 +1639,7 @@ class ChannelPane(qwt.QwtPlot):
         if self.timeSlider is not None:
             self.timeSlider.setData([timeVal], [70000.0])
             self.replot()
-        
+
     def redrawme(self):
         """
         The method redrawme does an extensive redraw of the pane, more
@@ -1733,7 +1732,7 @@ class ChannelMetadataWidget(QDialog):
         self.title = 'Channel MetaData Editor'
         widget = QWidget()
         layout = QFormLayout()
-        
+
         self._nameedit = QLineEdit()
         self._nameedit.setReadOnly(not editable)
         self._nameedit.setText(self._channel.name)
@@ -1914,7 +1913,7 @@ class ChannelMetadataWidget(QDialog):
         # Limit existing values to new limits
         # Note that this will do nothing if they already fit
         for keyval in self._channel.knots:
-            if self._channel.knots[keyval] < minLimit: 
+            if self._channel.knots[keyval] < minLimit:
                 self._channel.knots[keyval] = minLimit
             if self._channel.knots[keyval] > maxLimit:
                 self._channel.knots[keyval] = maxLimit
@@ -2004,7 +2003,7 @@ class MetadataWidget(QDialog):
         self.title = 'MetaData Editor'
         widget = QWidget()
         layout = QFormLayout()
-        
+
         self._startedit = QLineEdit('0.0')
         self._startedit.setReadOnly(True)
         layout.addRow(QLabel('Start Time:'), self._startedit)
@@ -2027,7 +2026,7 @@ class MetadataWidget(QDialog):
         layout.addRow(QLabel('CSV Upload File:'), self._csvuploadedit)
         self._audiouploadedit = QLineEdit(self._animatronics.audioUploadFile)
         layout.addRow(QLabel('Audio Upload File:'), self._audiouploadedit)
-        
+
         widget.setLayout(layout)
 
         self.okButton = QPushButton('Save')
@@ -2218,7 +2217,7 @@ class ServoWidget(QDialog):
         ServoWidget.writeServoData(SystemPreferences['ServoDataFile'])
 
         self.accept()
-        
+
     def onAdd(self):
         # Add a blank line at bottom of table
         self.table.insertRow(self.table.rowCount())
@@ -2283,7 +2282,7 @@ class ServoWidget(QDialog):
                     first = False
                 outfile.write('\n')
 
-    
+
 #####################################################################
 # The PreferencesWidget is used to view and edit the Preferences
 # for the overall application
@@ -2330,7 +2329,7 @@ class PreferencesWidget(QDialog):
         self.title = 'Preferences Editor'
         widget = QWidget()
         self._layout = QFormLayout()
-        
+
         self._widgets = {}
 
         for pref in SystemPreferences:
@@ -2866,7 +2865,7 @@ class MainWindow(QMainWindow):
         because it attaches to the sides of the main window and stretches
         with changes in size.
     _playwidget : Player
-        The Player object that controls playback and notifies channels of 
+        The Player object that controls playback and notifies channels of
         the current play time.
     _plotarea : QWidget
         The region of the main window containing all the data panes
@@ -3162,7 +3161,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
                 self.audioPlot.setMaximumHeight(200)
-                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showmono_audio_action)
                 self._showmono_audio_action.setChecked(True)
@@ -3177,7 +3176,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
                 self.audioPlot.setMaximumHeight(150)
-                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showleft_audio_action)
                 self._showleft_audio_action.setChecked(True)
@@ -3191,7 +3190,7 @@ class MainWindow(QMainWindow):
                 layout.addWidget(newplot)
                 self.audioPlotRight = newplot
                 self.audioPlotRight.setMaximumHeight(150)
-                if SystemPreferences['ShowTips']: self.audioPlotRight.setToolTip('Click and drag Left mouse button\nup/down to zoom and left/right to scroll')
+                if SystemPreferences['ShowTips']: self.audioPlotRight.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showright_audio_action)
                 self._showright_audio_action.setChecked(True)
@@ -3324,7 +3323,7 @@ class MainWindow(QMainWindow):
     def openAnimFile(self):
         """
         The method openAnimFile opens a file dialog for the user to select
-        an anim file to load.  It replaces all of the previous 
+        an anim file to load.  It replaces all of the previous
         Animatronics object except Undo history.
             member of class: MainWindow
         Parameters
@@ -3348,7 +3347,7 @@ class MainWindow(QMainWindow):
                     # Clear out Redo history
                     self.pendingStates = []
                     self.unsavedChanges = False
-        
+
                 except Exception as e:
                     popState()
                     sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
@@ -3357,7 +3356,6 @@ class MainWindow(QMainWindow):
 
     def redraw(self):
         self.setAnimatronics(self.animatronics)
-        
 
     def newAnimFile(self):
         """
@@ -3394,7 +3392,7 @@ class MainWindow(QMainWindow):
                 newlist.append(name)
 
         return bothlist, newlist, oldlist
-    
+
     def appendAnimFile(self):
         """
         The method appendAnimFile opens a file dialog for the user to select
@@ -3456,7 +3454,7 @@ class MainWindow(QMainWindow):
                     ret = msgBox.exec_()
                     if ret == QMessageBox.Cancel:
                         return False
-                
+
                 # Push current state for undo
                 pushState()
 
@@ -3535,7 +3533,7 @@ class MainWindow(QMainWindow):
                     ret = msgBox.exec_()
                     if ret == QMessageBox.Cancel:
                         return False
-                
+
                 # Push current state for undo
                 pushState()
 
@@ -3581,7 +3579,7 @@ class MainWindow(QMainWindow):
                 with open(self.animatronics.filename, 'w') as outfile:
                     outfile.write(self.animatronics.toXML())
                 self.unsavedChanges = False
-    
+
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % self.animatronics.filename)
                 sys.stderr.write("Message: %s\n" % e)
@@ -3622,9 +3620,9 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = False
                 if self.animatronics.filename is None:
                     self.animatronics.filename = fileName
-                    self.setWindowTitle("Animation Editor - " + 
+                    self.setWindowTitle("Animation Editor - " +
                         self.animatronics.filename)
-    
+
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
@@ -3680,11 +3678,15 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
-
         """Export the current animatronics file into a CSV format"""
         # Get the filename to write to
         self.filedialog.setDefaultSuffix('csv')
         self.filedialog.setNameFilter("CSV Files (*.csv);;All Files (*)")
+        if self.animatronics.filename is not None:
+            basename, _ = os.path.splitext(self.animatronics.filename)
+            basename = basename + '.csv'
+            self.filedialog.selectFile(basename)
+
         if self.filedialog.exec_():
             fileName = self.filedialog.selectedFiles()[0]
             """
@@ -3697,7 +3699,9 @@ class MainWindow(QMainWindow):
             """
             self.writeCSVFile(fileName)
 
-        pass
+            # Always see if commlib will write any binary files as well
+            if COMMLIB_ENABLED:
+                commlib.csvToBin(fileName)
 
     def writeCSVFile(self, fileName, integers=True):
         columns = {}
@@ -3771,9 +3775,12 @@ class MainWindow(QMainWindow):
         return progressdialog
 
     def uploadToHW(self):
-        # Write CSV temp file
-        tempfilename = 'tempdata.csv'
-        self.writeCSVFile(tempfilename)
+        if self.animatronics.filename is not None:
+            # Change the root filename extension to .csv and write to it
+            tempfilename = os.path.splitext(self.animatronics.filename)[0] + '.csv'
+        else:
+            # Write CSV temp file
+            tempfilename = 'tempdata%6d.csv' % random.randrange(100000,1000000)
 
         # Verify that destination is specified
         if self.animatronics.csvUploadFile is None:
@@ -3786,45 +3793,55 @@ class MainWindow(QMainWindow):
             ret = msgBox.exec_()
             return
 
-        # Upload with commlib
-        localprogressdialog = self.newProgressBar('Uploading Controls')
-        if COMMLIB_ENABLED: 
-            code = commlib.xferFileToController(tempfilename, dest=self.animatronics.csvUploadFile,
-                progressbar=localprogressdialog)
-        else:
-            code = 1
+        # Write the actual CSV file locally
+        self.writeCSVFile(tempfilename)
 
-        # Check return code
-        if code != 0:
-            # Cancel the progress dialog
+        # Upload with commlib
+        if COMMLIB_ENABLED:
+            localprogressdialog = self.newProgressBar('Uploading Controls')
+            code = commlib.xferCSVToController(tempfilename, dest=self.animatronics.csvUploadFile,
+                progressbar=localprogressdialog)
             localprogressdialog.cancel()
-            # Bring up message box to tell user
-            msgBox = QMessageBox(parent=self)
-            if not COMMLIB_ENABLED:
-                msgBox.setText('Unable to upload data to controller without commlib\n')
-            else:
+
+            # Check return code
+            if code < 0:
+                # Cancel the progress dialog
+                # Bring up message box to tell user
+                msgBox = QMessageBox(parent=self)
                 msgBox.setText('Failed to upload CSV file to controller.\n' +
                     'Make sure you are not running thonny or rshell elsewhere.\n' +
-                    'May need to unplug and replug board USB connector and wait 30 seconds.')
+                    'May need to reboot controller.')
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Information)
+                ret = msgBox.exec_()
+                pass
+            elif self.animatronics.filename is None:
+                # Delete data.csv
+                os.remove(tempfilename)
+            else:
+                # Keep the local .csv and .bin if created
+                pass
+
+            if code == 1:
+                starttime = self.animatronics.start
+                endtime = self.animatronics.end
+                binarytime = int((self.totalMax - self.totalMin) / 4 + len(self.plots) * 10)
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Conversion to binary format may be in progress.\n' +
+                    'Wait for status LED to resume flashing before proceeding.\n' +
+                    'Do not reset or power down hardware to avoid loss of data.\n' +
+                    'May take up to %d seconds.' % binarytime)
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Information)
+                msgBox.exec_()
+        else:
+            # no commlib.py in current directory
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Unable to upload data to controller without commlib\n')
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.setIcon(QMessageBox.Information)
             ret = msgBox.exec_()
-            pass
-        else:
-            # Delete data.csv
-            os.remove(tempfilename)
 
-        starttime = self.animatronics.start
-        endtime = self.animatronics.end
-        binarytime = int((self.totalMax - self.totalMin) / 4 + len(self.plots) * 10)
-        msgBox = QMessageBox(parent=self)
-        msgBox.setText('Conversion to binary format may be in progress.\n' + 
-            'Wait for status LED to resume flashing before proceeding.\n' +
-            'Do not reset or power down hardware to avoid loss of data.\n' +
-            'May take up to %d seconds.' % binarytime)
-        msgBox.setStandardButtons(QMessageBox.Ok)
-        msgBox.setIcon(QMessageBox.Information)
-        msgBox.exec_()
 
     def uploadAudio(self):
         # Verify that destination is specified
@@ -3966,8 +3983,6 @@ class MainWindow(QMainWindow):
         # Keep XML display pane up to date with latest
         self.XMLPane.setText(self.animatronics.toXML())
         self.tagSelectUpdate()
-            
-        pass
 
     def autoSave(self):
         if SystemPreferences['AutoSave']:
@@ -4077,8 +4092,6 @@ class MainWindow(QMainWindow):
         # Keep XML display pane up to date with latest
         self.XMLPane.setText(self.animatronics.toXML())
         self.tagSelectUpdate()
-            
-        pass
 
     def newdigital_action(self):
         """
@@ -4253,7 +4266,7 @@ class MainWindow(QMainWindow):
 
     def selectaudio_action(self):
         """
-        The method selectaudio_action opens a file dialog for the user to   
+        The method selectaudio_action opens a file dialog for the user to
         select an audio file for use with the animation.
 
             member of class: MainWindow
@@ -4274,7 +4287,7 @@ class MainWindow(QMainWindow):
             try:
                 self.animatronics.set_audio(fileName)
                 self.setAnimatronics(self.animatronics)
-    
+
             except Exception as e:
                 popState()
                 sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
@@ -4440,15 +4453,14 @@ class MainWindow(QMainWindow):
                     maxVal = max(rightdata)
                     self.audioPlotRight.setAxisScale(qwt.QwtPlot.yLeft, minVal, maxVal)
                 self.audioPlotRight.replot()
-                
+
     def redrawTags(self, minTime, maxTime):
         if self.tagPlot is not None:
             self.tagPlot.redrawTags(minTime, maxTime)
-                
 
     def scaletoaudio_action(self):
         """
-        The method scaletoaudio_action resets the visible time range to 
+        The method scaletoaudio_action resets the visible time range to
         match the length of the audio data, even of some channels contain
         data points outside that range.
 
@@ -4465,7 +4477,7 @@ class MainWindow(QMainWindow):
 
     def scaletotimerange_action(self):
         """
-        The method scaletotimerange_action resets the visible time range to 
+        The method scaletotimerange_action resets the visible time range to
         match the length of the time range data, even of some channels contain
         data points outside that range.
 
@@ -4482,7 +4494,7 @@ class MainWindow(QMainWindow):
 
     def settimerange_action(self):
         """
-        The method settimerange_action brings up a dialog box to set the visible time range to 
+        The method settimerange_action brings up a dialog box to set the visible time range to
         match that specified by the user, even of some channels contain data points outside that range.
 
             member of class: MainWindow
@@ -4764,7 +4776,7 @@ class MainWindow(QMainWindow):
 
     def setLeftEdge(self, intime):
         self.setTimeRange(intime, self.lastXmax)
-    
+
     def cutRightSide(self):
         """
         The method cutRightSide sets the right edge time value to be the
@@ -4906,7 +4918,7 @@ class MainWindow(QMainWindow):
 
     def deselectAll_action(self):
         """
-        The method deselectAll_action deselects all channels via the 
+        The method deselectAll_action deselects all channels via the
         ctrl-shift-A hot key or the corresponding menu item.
             member of class: MainWindow
         Parameters
@@ -5085,7 +5097,7 @@ class MainWindow(QMainWindow):
 
     def Amplitudize_action(self):
         """
-        The method Amplitudize_action 
+        The method Amplitudize_action
             member of class: ChannelMenu
         Parameters
         ----------
@@ -5124,7 +5136,7 @@ class MainWindow(QMainWindow):
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.setIcon(QMessageBox.Warning)
             ret = msgBox.exec_()
-        
+
         start = twidget.startTime
         if start < self.animatronics.newAudio.audiostart:
             start = self.animatronics.newAudio.audiostart
@@ -5132,7 +5144,7 @@ class MainWindow(QMainWindow):
         if end > self.animatronics.newAudio.audioend:
             end = self.animatronics.newAudio.audioend
         bincount = int((end - start) * popRate + 0.999)
-        _,signal,_ = audio.getAmplitudeData(start, 
+        _,signal,_ = audio.getAmplitudeData(start,
                     start + bincount/popRate, bincount)
 
         pushState()     # Push current state for undo
@@ -5254,8 +5266,8 @@ class MainWindow(QMainWindow):
             self.pos().x(),
             self.pos().y(),
             min((maxWidth + 18) * 7, 800),
-            min(22*len(self.animatronics.tags), 600))   
-            
+            min(22*len(self.animatronics.tags), 600))
+
         self._tagListWidget.itemSelectionChanged.connect(self.tagSelected)
         self.tagSelectDialog.show()
         pass
@@ -5278,8 +5290,8 @@ class MainWindow(QMainWindow):
             geom.x(),
             geom.y(),
             min((maxWidth + 18) * 7, 800),
-            min(22*len(self.animatronics.tags), 600))   
-            
+            min(22*len(self.animatronics.tags), 600))
+
     def findNearestTag(self, time):
         nearest = None
         for tagTime in self.animatronics.tags:
@@ -5327,7 +5339,7 @@ class MainWindow(QMainWindow):
 
     def create_menus(self):
         """
-        The method create_menus creates all the dropdown menus for the 
+        The method create_menus creates all the dropdown menus for the
         toolbar and associated actions.
 
             member of class: MainWindow
@@ -5357,12 +5369,14 @@ class MainWindow(QMainWindow):
         self._merge_file_action = QAction("&Merge Anim File",
                 self, triggered=self.mergeAnimFile)
         #self._merge_file_action.setEnabled(False)
+        self._merge_file_action.setToolTip('Merge new channels from another animation')
         self.file_menu.addAction(self._merge_file_action)
 
         # Append action
         self._append_file_action = QAction("&Append Anim File",
                 self, triggered=self.appendAnimFile)
         #self._append_file_action.setEnabled(False)
+        self._append_file_action.setToolTip('Add to matching channels from another animation')
         self.file_menu.addAction(self._append_file_action)
 
         # Save action
@@ -5377,8 +5391,10 @@ class MainWindow(QMainWindow):
 
         # Export action
         self._export_file_menu = self.file_menu.addMenu("Export")
-        self._export_csv_file_action = QAction("&Export to CSV",
+        self._export_file_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
+        self._export_csv_file_action = QAction("&Export to CSV/Binary",
                 self, triggered=self.exportCSVFile)
+        self._export_csv_file_action.setToolTip('Save controls to local CSV file and binary file if supported')
         self._export_file_menu.addAction(self._export_csv_file_action)
 
         self._export_vsa_file_action = QAction("&Export to VSA",
