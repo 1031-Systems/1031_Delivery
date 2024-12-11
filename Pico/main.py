@@ -76,10 +76,11 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
 
     # Don't bother with anything if list of animations is empty
     playIndex = 0
+    msecPerBlink = 1000    # We will flash at 0.5Hz if we have animations available and 5 Hz if not
     if len(animList) > 0:
         if randomize: playIndex = random.randint(0, len(animList)-1)
     else:
-        return
+        msecPerBlink = 100
     if verbose: print(animList)
 
     # Swallow strange initially pressed state
@@ -101,7 +102,7 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
                     play_one_anim(idleanimation[0], idleanimation[1])
                 code = 0
                 toggle_LEDs()
-                for i in range(1000):
+                for i in range(msecPerBlink):
                     if helpers.isThereInput():
                         code = helpers.handleInput()
                         if code == 1: break
