@@ -14,7 +14,15 @@ import subprocess
 import serial
 import binascii
 import time
+
+# Get path to actual commlib.py file and add path/lib to search path
+_Path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib')
+sys.path.append(_Path)
+# Now import tables from our extended path
 import tables
+# Remove path so other code can't accidentally get to it
+sys.path.remove(_Path)
+
 
 ################# Serial Comm Code #########################
 portRoot = '/dev/ttyACM'    # Set by Hauntimator prior to comms
