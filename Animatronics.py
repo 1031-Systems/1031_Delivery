@@ -952,6 +952,10 @@ class Animatronics:
             if child.tag == 'Audio':
                 self.newAudio = AudioChannel()
                 self.newAudio.parseXML(child)
+                # Make sure audio file was parsed okay
+                if self.newAudio.audio_data is None:
+                    del self.newAudio
+                    self.newAudio = None
             elif child.tag == 'Channel':
                 tchannel = Channel()
                 tchannel.parseXML(child)
