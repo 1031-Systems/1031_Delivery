@@ -14,36 +14,7 @@ import subprocess
 import serial
 import binascii
 import time
-
-################# Channel Names ############################
-# The channel names are an aid to matching the channels numbers
-# to the pins on the controller.  This is useful if servos and
-# digital on/off devices are directly wired to the board but
-# maybe not as useful when 
-
-# Servo channels come first, then digital channels
-ChannelNames = [
-    'GP17',
-    'GP19',
-    'GP18',
-    'GP20',
-    'GP22',
-    'GP21',
-    'GP27',
-    'GP26',
-    'GP0',
-    'GP1',
-    'GP2',
-    'GP3',
-    'GP4',
-    'GP6',
-    'GP8',
-    'GP12',
-    'GP13',
-    'GP14',
-    'GP15',
-    'GP16',
-    ]
+import tables
 
 ################# Serial Comm Code #########################
 portRoot = '/dev/ttyACM'    # Set by Hauntimator prior to comms
@@ -52,7 +23,7 @@ def openPort():
     # Try a whole bunch of port options
     for suffix in ['', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
         try:
-            ser = serial.Serial(portRoot + suffix, 115200, timeout=15)
+            ser = serial.Serial(portRoot + suffix, 115200, timeout=5)
             break   # Found a good one
         except:
             if suffix == '9':
@@ -71,12 +42,50 @@ def stringToPico(instring):
         bytescount = toPico(ser, instring)
         ser.close()
 
+def lineFromPico():
+    line = []
+    ser = openPort()
+    if ser is not None:
+        line = ser.readline().decode('utf-8')
+        ser.close()
+    return line
+
+#################### Status Request Functions #################
+def getBinarySizes():
+    line = ''
+    # Status requires round trip so port cannot be closed in between
+    binaryflag = False
+    ser = openPort()
+    if ser is not None:
+        toPico(ser, 'statusb\n')
+        binaryflag = ser.readline().decode('utf-8')[0:4] == 'True'
+        line = ser.readline().decode('utf-8')
+        ser.close()
+
+    values = line.split()
+    for i in range(len(values)):
+        values[i] = int(values[i])
+    return binaryflag, values
+
+# Set to True if the local copies of tables.py and tabledefs
+# exactly match those installed on the Pico.
+I_Solemnly_Swear_That_The_Tables_Are_Synced_With_The_Pico = True
+
+def binarySynced():
+    # Avoid checking board status over USB and assume we know everything
+    return I_Solemnly_Swear_That_The_Tables_Are_Synced_With_The_Pico
+    picoBinaryFlag, picoBlockSizes = getBinarySizes()
+    localBlockSizes = list(tables.getBinarysizes())
+    localBinaryFlag = tables.PreferBinary
+    return picoBinaryFlag == localBinaryFlag and picoBlockSizes == localBlockSizes
+
 #################### Library functions ########################
 ##### File Transfers
 def xferFileToController(filename, dest='', progressbar=None):
+    # Transfer any type of file to the Pico
     ser = openPort()
     if ser is None:
-        return -1
+        return True # It is True that an error has occurred
 
     if os.path.isfile(filename):
         tf = open(filename, 'rb')
@@ -98,77 +107,89 @@ def xferFileToController(filename, dest='', progressbar=None):
                         break
                 else:
                     # Don't bother progress bar if not much data
-                    progressbar.cancel()    # Never show progress bar
+                    progressbar.setVisible(False)    # Never show progress bar
         tf.close()
 
     # Give some time for receiver to get all the data before closing the port
-    time.sleep(5)
+    time.sleep(2)
     #print('Closing serial port')
     ser.close()
-    return 0
+    return False
+
+def xferCSVToController(filename, dest='', progressbar=None):
+    '''
+    This method converts CSV control files to binary form prior to shipping them
+    over to the Pico.  Since the Pico takes quite awhile to do the conversion, we
+    do it here where it is still Pico dependent but on the desktop for speed.
+    Return Codes:
+         0: Uploaded what the Pico wanted (binary or csv)
+         1: Uploaded csv because we don't know what the Pico wants or binarizing failed
+        -1: Actual upload failed for whatever reason
+    '''
+    # Add error handling!!!
+    ofname = None
+    picoBinaryFlag = binarySynced()
+    if picoBinaryFlag and tables.PreferBinary:
+        # Pico and local match and Pico wants binary
+        ofname = tables.csvToBin(filename)
+        if ofname is not None:
+            statusflag = 0
+            # Change dest extension to .bin
+            if len(dest) > 4: dest = dest[:-4] + '.bin'
+            if xferFileToController(ofname, dest=dest, progressbar=progressbar):
+                os.remove(ofname)
+                statusflag = -1
+        else:
+            # Error binarizing the CSV file so send the CSV file as is
+            statusflag = 1
+            if xferFileToController(filename, dest=dest, progressbar=progressbar):
+                statusflag = -1
+    elif picoBinaryFlag and not tables.PreferBinary:
+        # Pico and local match and Pico wants CSV
+        statusflag = 0
+        if xferFileToController(filename, dest=dest, progressbar=progressbar):
+            statusflag = -1
+    else:
+        # We don't know what Pico wants so send CSV
+        statusflag = 1
+        if xferFileToController(filename, dest=dest, progressbar=progressbar):
+            statusflag = -1
+
+    return statusflag
 
 def xferFileFromController(filename, dest=''):
-    # Use rshell to transfer file
-    command = ['rshell', 'cp', filename, dest]
-    code = subprocess.call(command, shell=True)
-    # Check return code
-    if code < 0:  # I think rshell ALWAYS returns 0, even on error
-        sys.stderr.write('Whoops - Failure to read file from Pico\n' % filename)
+    sys.stderr.write('Whoops - Accessing files is not yet implemented\n')
 
 def xferBinaryFileFromController(filename, dest='/'):
-    sys.stderr.write('Whoops - Accessing SD in not yet implemented\n')
-    pass
+    sys.stderr.write('Whoops - Accessing binary files is not yet implemented\n')
 
+def csvToBin(filename):
+    # Converts an existing CSV control file to binary format
+    if binarySynced():
+        tables.csvToBin(filename)
+    else:
+        sys.stderr.write('Whoops - Are binary formats synced for csvToBin?\n')
+
+##### Control
 def startMain():
+    # Reboots the Pico
     stringToPico('x\n')
 
 def playOnce():
+    # Simulates 1 trigger press
     stringToPico('a\n')
 
-##### Control
-def angleToDutyCycle(angle, servotype=None):
-    return 1500000  # FIXME - hardcoded to 90 deg for PG90
-    if servotype is not None and servotype in ServoTypes:
-        # Find servo type in master list
-        # Extract factors to convert with and convert
-        return 1000000 + int(1000000 * angle / 180.0)   # FIXME Hardcoded to pG90 servo
-    else:
-        return None
-
-def _setServoOnPico(channel, angle):
-    # Send the value, appropriately formatted, to hardware controller
-    # print('Sending to controller port %d value %d' % (self.port, value))
-    outstring = 's %d %d\n' % (self.port, value)
-    stringToPico(outstring)
-    return
-    pass
-
-def _releaseServoOnPico(channel):
-    pass
-
-def _setServoViaPCA9685(channel, cyclefrac):
+def setServo(channel, cyclefrac):
     outstring = 's %d %d\n' % (channel, cyclefrac)
     stringToPico(outstring)
-    return
 
-def _releaseServoViaPCA9685(channel):
-    pass
-
-def setServo(channel, cyclefrac):
-    # Call setLocalServo or setServoViaPCA9685 depending
-    _setServoViaPCA9685(channel, cyclefrac)
-    pass
-
-def releaseServo(channel, angle):
-    # Call releaseLocalServo or releaseServoViaPCA9685 depending
-    pass
+def releaseServo(channel):
+    outstring = 's %d %d\n' % (channel, 0)
+    stringToPico(outstring)
 
 def setDigitalChannel(channel, value):
-    # Call setDigitalOnPico or setDigitalVia74HC595
     outstring = 'd %d %d\n' % (channel, value)
     stringToPico(outstring)
-    return
-    pass
 
 
 #/* Define block */
