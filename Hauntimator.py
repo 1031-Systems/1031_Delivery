@@ -3035,7 +3035,7 @@ class MainWindow(QMainWindow):
         self.create_menus()
 
         # Initialize some stuff
-        self.setWindowTitle("Animation Editor")
+        self.setWindowTitle("Hauntimator")
         self.resize(500, 600)
         self.lastX = 0.0
         self.lastY = 1.0
@@ -3092,10 +3092,10 @@ class MainWindow(QMainWindow):
 
         # Add filename to window title
         if self.animatronics.filename is not None:
-            self.setWindowTitle("Animation Editor - " +
+            self.setWindowTitle("Hauntimator - " +
                 self.animatronics.filename)
         else:
-            self.setWindowTitle("Animation Editor")
+            self.setWindowTitle("Hauntimator")
 
         # Create the bottom level widget and make it the main widget
         self._mainarea = QScrollArea(self)
@@ -3620,7 +3620,7 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = False
                 if self.animatronics.filename is None:
                     self.animatronics.filename = fileName
-                    self.setWindowTitle("Animation Editor - " +
+                    self.setWindowTitle("Hauntimator - " +
                         self.animatronics.filename)
 
             except Exception as e:
