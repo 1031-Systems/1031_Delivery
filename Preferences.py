@@ -13,7 +13,7 @@ SystemPreferences = {
 'Ordering':'Numeric',           # Ordering for channels in window
 'AutoSave':True,                # Perfrom saving automatically flag
 'ShowTips':True,                # Show tool tips flag
-'ServoDataFile':'servos.csv',   # Name of file containing predefined servos
+'ServoDataFile':'servotypes',   # Name of file containing predefined servos
 'UploadPath':'/sd/anims/',      # Name of upload directory on controller
 'TTYPortRoot':'/dev/ttyACM',    # Root of tty port for usb comm
 }
