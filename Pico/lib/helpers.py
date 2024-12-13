@@ -394,6 +394,9 @@ def handleInput():
             if tables.PreferBinary:
                 # Convert the file to binary format
                 tables.csvToBin(filename)
+            # Wait 2 seconds for commlib to close connection
+            utime.sleep_ms(2000)
+            machine.reset() # Reboot to get new files into playback list?
         except:
             # sys.stderr.write('\nWhoops - Unable to write file %d\n' % filename)
             pass
