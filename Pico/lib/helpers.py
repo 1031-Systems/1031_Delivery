@@ -153,6 +153,7 @@ class WavePlayer:
         self.csvfiletime += utime.ticks_diff(utime.ticks_us(), startTicks)
 
     def bfillqueue(self):
+        startTicks = utime.ticks_us()
         while len(self.emptyqueue) > 0:
             # Pop empty buffer off of empty queue
             self.queuelock.acquire()
@@ -173,6 +174,7 @@ class WavePlayer:
             self.queuelock.acquire()
             self.fullqueue.append(buffer)
             self.queuelock.release()
+        self.csvfiletime += utime.ticks_diff(utime.ticks_us(), startTicks)
 
     def readline(self, emptybuf=None):
         # Must be called from another thread to prevent locking
@@ -271,12 +273,15 @@ class WavePlayer:
         self.controlstop = True
         # Dump statistics
         if self.verbose > 0:
-            print('Total time spent reading csv file  :', self.csvfiletime, 'usec')
-            print('Total time spent reading audio data:', self.sumreadfileticks, 'usec')
-            print('Total time spent uploading data    :', self.sumuploadticks, 'usec')
-            print('Total estimated time queue waiting :', self.suspendedusec, 'usec')
-            print('Total time                         :', utime.ticks_diff(utime.ticks_us(), self.startTicks), 'usec')
-            print('Total audio played                 :', self.blocksplayed * self.blockframes * 1000000 * AudioBlockSize / 512 / self.file.getframerate(), 'usec')
+            print('----------------------------------------------------')
+            print('    Audio Thread Statistics')
+            print('Total time spent reading control file:', self.csvfiletime, 'usec')
+            print('Total time spent reading audio data  :', self.sumreadfileticks, 'usec')
+            print('Total time spent uploading data      :', self.sumuploadticks, 'usec')
+            print('Total estimated time queue waiting   :', self.suspendedusec, 'usec')
+            print('Total time                           :', utime.ticks_diff(utime.ticks_us(), self.startTicks)/1000000, 'sec')
+            print('Total audio played                   :', self.blocksplayed * self.blockframes * AudioBlockSize / 512 / self.file.getframerate(), 'sec')
+            print('----------------------------------------------------')
         pass
 
     def rewind(self):
