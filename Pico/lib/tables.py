@@ -348,6 +348,30 @@ def setDigital(port, value, push=False):
         DigitalPortTable[port]['func'](DigitalPortTable[port], value)
     if push: outputDigital()
 
+def clearAllDigital():
+    # Set all digital pins to OFF (0)
+    # Using clear pin for speed
+    if _DataPin is None or _RclkPin is None or _ClockPin is None or _ClearPin is None: return
+    # Define the pins
+    dataPin = Pin(_DataPin, Pin.OUT)
+    clockPin = Pin(_RclkPin, Pin.OUT)
+    shiftPin = Pin(_ClockPin, Pin.OUT)
+    clearPin = Pin(_ClearPin, Pin.OUT)
+
+    # Clear all the registers
+    clearPin.on() # Make sure initially not clearing, then cycle bit
+    clearPin.off()
+    clearPin.on()
+
+    # Clock all the cleared bits to the outputs
+    clockPin.off() # Make sure initially not outputting, then cycle bit
+    clockPin.on()
+    clockPin.off()
+
+    # This quickly clears the 595 digital outputs but not GPIO digital outputs
+    # So do the whole thing again to make sure everything is zero
+    setAllDigital(0)
+
 def setAllDigital(value):
     for port in DigitalPortTable:
         setDigital(port, value)

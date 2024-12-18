@@ -71,7 +71,7 @@ def on_LEDs():
 def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False, skip=False, doOnce=False):
     global firstTime
 
-    helpers.setAllDigital(0)    # All digital channels off
+    helpers.clearAllDigital()   # All digital channels off
     helpers.releaseAllServos()  # All servos relaxed
 
     # Don't bother with anything if list of animations is empty

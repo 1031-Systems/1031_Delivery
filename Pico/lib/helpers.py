@@ -35,6 +35,9 @@ def outputDigital():
 def setAllDigital(invalue):
     tables.setAllDigital(invalue)
 
+def clearAllDigital():
+    tables.clearAllDigital()
+
 ############# Wave File Player ################################
 import wave
 from machine import I2S
