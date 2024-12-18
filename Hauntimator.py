@@ -105,7 +105,7 @@ def doAnimatronics():
             # Do not update state if we read here
             main_win.saveStateOkay = False
             try:
-                animation.parseXML(infilename)
+                animation.parseXML(infilename, uploadpath=MainWindow.SystemPreferences['UploadPath'])
 
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error reading input file %s\n" % infilename)

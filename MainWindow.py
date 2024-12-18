@@ -1795,6 +1795,9 @@ class ChannelMetadataWidget(QDialog):
                 if self._channel.minLimit > -1.0e33 or self._channel.maxLimit < 1.0e33:
                     self._minedit.setText(str(self._channel.minLimit))
                     self._maxedit.setText(str(self._channel.maxLimit))
+                else:
+                    self._minedit.setText(str(SystemPreferences['ServoDefaultMinimum']))
+                    self._maxedit.setText(str(SystemPreferences['ServoDefaultMaximum']))
             interactive = QPushButton('Interactive')
             interactive.clicked.connect(self.doInteractive)
             layout.addWidget(interactive)
@@ -3274,26 +3277,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.tagPlot)
 
         # Add panes for all the channels
-        if SystemPreferences['Ordering'] == 'Alphabetic':
-            channelList = sorted(self.animatronics.channels.keys())
-        elif SystemPreferences['Ordering'] == 'Numeric':
-            index = {}
-            minIndex = -1000
-            for channel in self.animatronics.channels:
-                if self.animatronics.channels[channel].type == Channel.DIGITAL:
-                    offset = 2000
-                else:
-                    offset = 0
-                if self.animatronics.channels[channel].port >= 0:
-                    index[self.animatronics.channels[channel].port + offset] = channel
-                else:
-                    index[minIndex + offset] = channel
-                    minIndex += 1
-            channelList = []
-            for i in sorted(index.keys()):
-                channelList.append(index[i])
-        else:
-            channelList = self.animatronics.channels
+        channelList = self.animatronics.channels
 
         for channel in channelList:
             chan = self.animatronics.channels[channel]
@@ -3383,7 +3367,7 @@ class MainWindow(QMainWindow):
 
                 newAnim = Animatronics()
                 try:
-                    newAnim.parseXML(fileName)
+                    newAnim.parseXML(fileName, uploadpath=SystemPreferences['UploadPath'])
                     self.setAnimatronics(newAnim)
                     # Clear out Redo history
                     self.pendingStates = []
@@ -3656,7 +3640,7 @@ class MainWindow(QMainWindow):
                 fileName = self.filedialog.selectedFiles()[0]
                 with open(fileName, 'w') as outfile:
                     # Set upload paths prior to writing
-                    self.animatronics.setFilename(fileName)
+                    self.animatronics.setFilename(fileName, uploadpath=SystemPreferences['UploadPath'])
                     outfile.write(self.animatronics.toXML())
                 self.unsavedChanges = False
                 if self.animatronics.filename is None:
@@ -4289,26 +4273,7 @@ class MainWindow(QMainWindow):
 
         """ Perform deletechannel action"""
         # Get list of channels in current display order
-        if SystemPreferences['Ordering'] == 'Alphabetic':
-            channelList = sorted(self.animatronics.channels.keys())
-        elif SystemPreferences['Ordering'] == 'Numeric':
-            index = {}
-            minIndex = -1000
-            for channel in self.animatronics.channels:
-                if self.animatronics.channels[channel].type == Channel.DIGITAL:
-                    offset = 2000
-                else:
-                    offset = 0
-                if self.animatronics.channels[channel].port >= 0:
-                    index[self.animatronics.channels[channel].port + offset] = channel
-                else:
-                    index[minIndex + offset] = channel
-                    minIndex += 1
-            channelList = []
-            for i in sorted(index.keys()):
-                channelList.append(index[i])
-        else:
-            channelList = self.animatronics.channels
+        channelList = self.animatronics.channels
 
         form = ChecklistDialog('Channels to Delete', channelList)
         if form.exec_() == QDialog.Accepted:
@@ -4602,26 +4567,7 @@ class MainWindow(QMainWindow):
 
         """ Perform showselector action"""
         # Get list of channels in current display order
-        if SystemPreferences['Ordering'] == 'Alphabetic':
-            channelList = sorted(self.animatronics.channels.keys())
-        elif SystemPreferences['Ordering'] == 'Numeric':
-            index = {}
-            minIndex = -1000
-            for channel in self.animatronics.channels:
-                if self.animatronics.channels[channel].type == Channel.DIGITAL:
-                    offset = 2000
-                else:
-                    offset = 0
-                if self.animatronics.channels[channel].port >= 0:
-                    index[self.animatronics.channels[channel].port + offset] = channel
-                else:
-                    index[minIndex + offset] = channel
-                    minIndex += 1
-            channelList = []
-            for i in sorted(index.keys()):
-                channelList.append(index[i])
-        else:
-            channelList = self.animatronics.channels
+        channelList = self.animatronics.channels
 
         # Pop up show/hide selector to choose visible channels
         form = ChecklistDialog('Channels to Show', channelList)

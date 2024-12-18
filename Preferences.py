@@ -10,7 +10,6 @@ SystemPreferences = {
 'MaxServoChannels':32,          # Maximum number of servo/numeric channels controller cah handle
 'ServoDefaultMinimum':0,        # Default minimum servo setting
 'ServoDefaultMaximum':65535,    # Default maximum servo setting
-'Ordering':'Numeric',           # Ordering for channels in window
 'AutoSave':True,                # Perfrom saving automatically flag
 'ShowTips':True,                # Show tool tips flag
 'ServoDataFile':'servotypes',   # Name of file containing predefined servos
@@ -22,7 +21,6 @@ SystemPreferenceTypes = {
 'MaxServoChannels':'int',
 'ServoDefaultMinimum':'int',
 'ServoDefaultMaximum':'int',
-'Ordering':['Alphabetic','Numeric','Creation'], # Alphabetic by name, Numeric by port number, or creation order
 'AutoSave':'bool',
 'ShowTips':'bool',
 'ServoDataFile':'str',
