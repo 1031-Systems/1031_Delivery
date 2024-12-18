@@ -1688,7 +1688,7 @@ class ChannelMetadataWidget(QDialog):
     The edits are either text entries or pulldown lists.
 
     This widget is used both during creation of a channel and for
-    editing a channel.  When editing, it is not alowed to change the
+    editing a channel.  When editing, it is not allowed to change the
     channel name.  When creating, it is.  Should this be changed?
     ...
     Attributes
@@ -1710,6 +1710,11 @@ class ChannelMetadataWidget(QDialog):
     __init__(self, channel=None, parent=None, editable=True)
     onAccepted(self)
     """
+
+    # List of Configured Port Numbers, either from tables or preferences
+    DigitalPorts = None
+    PWMPorts = None
+    
     def __init__(self, channel=None, parent=None, editable=True):
         """
         The method __init__
@@ -1761,7 +1766,7 @@ class ChannelMetadataWidget(QDialog):
         if self._channel.type != Channel.DIGITAL:
             usedNumericPorts = main_win.getUsedNumericPorts()
             chancount = SystemPreferences['MaxServoChannels']
-            for i in range(chancount):
+            for i in self.PWMPorts:
                 if i not in usedNumericPorts or i == self._channel.port:
                     text = 'S' + str(i)
                     self._portedit.addItem(text)
@@ -1770,7 +1775,7 @@ class ChannelMetadataWidget(QDialog):
         else:
             usedDigitalPorts = main_win.getUsedDigitalPorts()
             chancount = SystemPreferences['MaxDigitalChannels']
-            for i in range(chancount):
+            for i in self.DigitalPorts:
                 if i not in usedDigitalPorts or i == self._channel.port:
                     text = 'D' + str(i)
                     self._portedit.addItem(text)
@@ -1813,6 +1818,16 @@ class ChannelMetadataWidget(QDialog):
 
         self.okButton.clicked.connect(self.onAccepted)
         self.cancelButton.clicked.connect(self.reject)
+
+    @staticmethod
+    def setPortLists():
+        if COMMLIB_ENABLED:
+            ChannelMetadataWidget.DigitalPorts = commlib.getConfiguredDigitalPorts()
+            ChannelMetadataWidget.PWMPorts = commlib.getConfiguredPWMPorts()
+        if ChannelMetadataWidget.DigitalPorts is None:
+            ChannelMetadataWidget.DigitalPorts = [i for i in range(SystemPreferences['MaxDigitalChannels'])]
+        if ChannelMetadataWidget.PWMPorts is None:
+            ChannelMetadataWidget.PWMPorts = [i for i in range(SystemPreferences['MaxServoChannels'])]
 
     def doInteractive(self):
         port = -1
@@ -2385,9 +2400,9 @@ class PreferencesWidget(QDialog):
         for pref in self._widgets:
             if type(SystemPreferenceTypes[pref]) is list:
                 SystemPreferences[pref] = self._widgets[pref].currentText()
-            elif type(SystemPreferenceTypes[pref]) == 'int':
+            elif SystemPreferenceTypes[pref] == 'int':
                 SystemPreferences[pref] = int(self._widgets[pref].text())
-            elif type(SystemPreferenceTypes[pref]) == 'float':
+            elif SystemPreferenceTypes[pref] == 'float':
                 SystemPreferences[pref] = float(self._widgets[pref].text())
             elif SystemPreferenceTypes[pref] == 'bool':
                 SystemPreferences[pref] = self._widgets[pref].currentText() == 'True'
@@ -2427,13 +2442,17 @@ class PreferencesWidget(QDialog):
             msgBox.setIcon(QMessageBox.Warning)
             ret = msgBox.exec_()
             pass
+        PreferencesWidget.updateStuff()
 
+    @staticmethod
+    def updateStuff():
         # Update local data structures based on preferences updates
         try:
             if 'TTYPortRoot' in SystemPreferences and COMMLIB_ENABLED:
                 commlib.portRoot = SystemPreferences['TTYPortRoot']
             if 'ServoDataFile' in SystemPreferences:
                 ServoWidget.readServoData(SystemPreferences['ServoDataFile'])
+            ChannelMetadataWidget.setPortLists()
         except:
             # Unable to set preferences
             msgBox = QMessageBox(parent=self)
@@ -2443,6 +2462,7 @@ class PreferencesWidget(QDialog):
             msgBox.setIcon(QMessageBox.Warning)
             ret = msgBox.exec_()
             pass
+
 
 
     @staticmethod
@@ -2469,22 +2489,7 @@ class PreferencesWidget(QDialog):
             # Unable to read preferences file but that's okay
             # Should already be set to defaults
             pass
-
-        # Update local data structures based on preferences updates
-        try:
-            if 'TTYPortRoot' in SystemPreferences and COMMLIB_ENABLED:
-                commlib.portRoot = SystemPreferences['TTYPortRoot']
-            if 'ServoDataFile' in SystemPreferences:
-                ServoWidget.readServoData(SystemPreferences['ServoDataFile'])
-        except:
-            # Unable to set preferences
-            msgBox = QMessageBox(parent=self)
-            msgBox.setText('Unable to set preferences locally:')
-            msgBox.setInformativeText(preffile)
-            msgBox.setStandardButtons(QMessageBox.Ok)
-            msgBox.setIcon(QMessageBox.Warning)
-            ret = msgBox.exec_()
-            pass
+        PreferencesWidget.updateStuff()
 
 #####################################################################
 # The Player class is a widget with playback controls

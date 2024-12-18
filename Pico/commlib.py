@@ -87,6 +87,33 @@ def binarySynced():
     localBinaryFlag = tables.PreferBinary
     return picoBinaryFlag == localBinaryFlag and picoBlockSizes == localBlockSizes
 
+def portCounts():
+    if binarySynced():
+        return min(tables.PWMPortTable), max(tables.PWMPortTable)+1, min(tables.DigitalPortTable), max(tables.DigitalPortTable)+1
+    else:
+        return None
+
+def getConfiguredPWMPorts():
+    if binarySynced():
+        ports = []
+        for indx in range(min(tables.PWMPortTable), max(tables.PWMPortTable)+1):
+            if indx in tables.PWMPortTable:
+                ports.append(indx)
+        return ports
+    else:
+        return None
+
+def getConfiguredDigitalPorts():
+    if binarySynced():
+        ports = []
+        for indx in range(min(tables.DigitalPortTable), max(tables.DigitalPortTable)+1):
+            if indx in tables.DigitalPortTable:
+                ports.append(indx)
+        return ports
+    else:
+        return None
+
+
 #################### Library functions ########################
 ##### File Transfers
 def xferFileToController(filename, dest='', progressbar=None):
