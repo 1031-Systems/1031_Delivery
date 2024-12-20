@@ -739,6 +739,7 @@ class ChannelMenu(QMenu):
     _wrap_action : QAction
     _Rescale_action : QAction
     _Hide_action : QAction
+    _Clear_action : QAction
     _Delete_action : QAction
 
     Methods
@@ -750,6 +751,7 @@ class ChannelMenu(QMenu):
     wrap_action(self)
     Rescale_action(self)
     Hide_action(self)
+    Clear_action(self)
     Delete_action(self)
     """
 
@@ -816,6 +818,9 @@ class ChannelMenu(QMenu):
 
         # Delete menu item
         self.addSeparator()
+        self._Clear_action = QAction("Clear", self,
+            triggered=self.Clear_action)
+        self.addAction(self._Clear_action)
         self._Delete_action = QAction("Delete", self,
             triggered=self.Delete_action)
         self.addAction(self._Delete_action)
@@ -928,6 +933,26 @@ class ChannelMenu(QMenu):
         self : ChannelMenu
         """
         self.parent.hidePane()
+        pass
+
+    def Clear_action(self):
+        """
+        The method Clear_action requests that this Channel have all its knots removed
+        from the animation.
+            member of class: ChannelMenu
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
+        # self.parent.holder should be the MainWindow
+        if self.channel is not None:
+            if len(self.channel.knots) > 0:
+                pushState()
+                
+                self.channel.delete_knots()
+                if self.parent is not None:
+                    self.parent.redrawme()
+                if main_win is not None: main_win.updateXMLPane()
         pass
 
     def Delete_action(self):
@@ -1212,6 +1237,15 @@ class ChannelPane(qwt.QwtPlot):
         ----------
         self : ChannelPane
         """
+        # Clean up old data if recreating an existing pane
+        if self.curve is not None:
+            self.curve.setData([],[])
+        if self.curve2 is not None:
+            self.curve2.setData([],[])
+        if self.curve3 is not None:
+            self.curve3.setData([],[])
+        self.replot()
+
         grid = qwt.QwtPlotGrid()
         grid.enableXMin(True)
         grid.attach(self)
@@ -1613,6 +1647,9 @@ class ChannelPane(qwt.QwtPlot):
                     yprev = self.channel.knots[xprev]
                     xdelta = xplotval - xprev
                     ydelta = yplotval - yprev
+                    if self.channel.type == Channel.DIGITAL:
+                        # Only allow horizontal movement when dragging with mouse
+                        ydelta = 0
                     self.doTheMove(xdelta, ydelta)
             else:
                 # Mark current end of drag area to select multiple knots
@@ -1651,6 +1688,17 @@ class ChannelPane(qwt.QwtPlot):
         ----------
         self : ChannelPane
         """
+        channelname = self.channel.name
+        # Append the channel type indicator to the channel name
+        if self.channel.type == Channel.DIGITAL:
+            channelname += '(D'
+        else:
+            channelname += '(S'
+        # If port number is set, append it to the displayed channel name
+        if self.channel.port >= 0:
+            channelname += '%d' % self.channel.port
+        channelname += ')'
+        self.setAxisTitle(qwt.QwtPlot.yLeft, channelname)
         # Recreate the data plot
         xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 10000)
         if self.curve is not None:
@@ -3093,6 +3141,7 @@ class MainWindow(QMainWindow):
         self.totalMax = 1.0
         self._slideTime = 0.0
         self.clipboard = QGuiApplication.clipboard()
+        self.clipboard.dataChanged.connect(self.updateClipboard_action)
         # For saving drags after pasting
         self.lastDeltaX = 0.0
         self.lastDeltaY = 0.0
@@ -3142,8 +3191,7 @@ class MainWindow(QMainWindow):
             self.setWindowTitle("Hauntimator")
 
         # Create the bottom level widget and make it the main widget
-        self._mainarea = QScrollArea(self)
-        self._mainarea.setWidgetResizable(True)
+        self._mainarea = QFrame(self)
         self._mainarea.setMaximumSize(3800,1000)
         self.setCentralWidget(self._mainarea)
 
@@ -3322,7 +3370,10 @@ class MainWindow(QMainWindow):
         channellist = self.getSelectedChannelNames()
         for name in channellist:
             pane = self.plots[name]
-            pane.moveMyPoints(xdelta, ydelta)
+            if pane.channel.type == Channel.DIGITAL:
+                pane.moveMyPoints(xdelta, 0)
+            else:
+                pane.moveMyPoints(xdelta, ydelta)
             pane.redrawme()
 
     def _hardwareplay(self):
@@ -4554,6 +4605,45 @@ class MainWindow(QMainWindow):
             self.plots[i].show()
         pass
 
+    def name_sort_action(self):
+        # Get list of channels in current display order
+        channelList = list(self.animatronics.channels)
+        if len(channelList) < 2: return
+
+        tlist = sorted(channelList)
+        if tlist == channelList:
+            # Already sorted forward so reverse
+            tlist = sorted(channelList, reverse=True)
+
+        pushState()
+        newplots = {}
+        for name in tlist:
+            newplots[name] = self.animatronics.channels[name]
+        self.animatronics.channels = newplots
+        self.redraw()
+
+    def port_sort_action(self):
+        # Get list of channels in current display order
+        channelList = list(self.animatronics.channels)
+        if len(channelList) < 2: return
+
+        # Convert to a list of port numbers with associated names in tuples
+        tuples = []
+        for name in channelList:
+            tuples.append((self.animatronics.channels[name].port, name))
+        tlist = sorted(tuples)
+        if tlist == tuples:
+            # Already sorted forward so reverse
+            tlist = sorted(tuples, reverse=True)
+
+        pushState()
+        newplots = {}
+        for tuple in tlist:
+            newplots[tuple[1]] = self.animatronics.channels[tuple[1]]
+        self.animatronics.channels = newplots
+        self.redraw()
+        pass
+
     def showselector_action(self):
         """
         The method showselector_action brings up a checklist of channels for
@@ -4587,6 +4677,20 @@ class MainWindow(QMainWindow):
                     self.plots[name].hide()
         pass
 
+    def updateClipboard_action(self):
+        """
+        The method updateClipboard_action refreshes the window that displays
+        the current clipboard content with new content.  It does not bring 
+        it up though.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+        # Pop up text window containing XML to view (uneditable)
+        self.ClipboardPane.setText(self.clipboard.text())
+
     def showClipboard_action(self):
         """
         The method showClipboard_action brings up a text window that displays
@@ -4598,10 +4702,7 @@ class MainWindow(QMainWindow):
         self : MainWindow
         """
         # Pop up text window containing XML to view (uneditable)
-        self.ClipboardPane.setText(self.clipboard.text())
-        self.ClipboardPane.setWindowTitle('Clipboard')
         self.ClipboardPane.show()
-        pass
 
     def showXML_action(self):
         """
@@ -4971,6 +5072,11 @@ class MainWindow(QMainWindow):
         # Make sure there is only one channel selected
         selection = self.getSelectedChannelNames()
 
+        # Reset the last slide
+        self.lastDeltaX = 0.0
+        self.lastDeltaY = 0.0
+        self.repCount = 1
+
         if len(selection) == 0:
             # If none are selected, see if the cursor is in a ChannelPane
             channame = self.getFocusChannel()
@@ -4983,16 +5089,11 @@ class MainWindow(QMainWindow):
                     for key in pane.selectedKeyList:
                         theXML.write('  <Point time="%f">%f</Point>\n' % (key, pane.channel.knots[key]))
                     theXML.write('</Channel>\n')
-                    self.lastDeltaX = 0.0
-                    self.lastDeltaY = 0.0
-                    self.repCount = 1
                     self.clipboard.setText(theXML.getvalue())
-                    self.ClipboardPane.setText(self.clipboard.text())
                     pass
                 else:
                     # Copy all the knots
                     self.clipboard.setText(self.animatronics.channels[channame].toXML())
-                    self.ClipboardPane.setText(self.clipboard.text())
         elif len(selection) > 1:
             # Warn that they need to select only one channel to copy
             msgBox = QMessageBox(parent=self)
@@ -5006,7 +5107,6 @@ class MainWindow(QMainWindow):
             # Copy to clipboard
             name = selection[0]
             self.clipboard.setText(self.animatronics.channels[name].toXML())
-            self.ClipboardPane.setText(self.clipboard.text())
             # Deselect the copied channel to avoid pasting right back over it
             self.plots[name].deselect()
         pass
@@ -5043,12 +5143,22 @@ class MainWindow(QMainWindow):
                 pushState()
 
                 # Paste from clipboard
-                if True: #try:
+                try:
                     root = ET.fromstring(self.clipboard.text())
                     self.plots[channame].selectedKey = None
                     self.plots[channame].selectedKeyList = []
                     existingknots = list(self.animatronics.channels[channame].knots)
                     self.animatronics.channels[channame].parseXML(root)
+                    # Unset port if already used
+                    if self.animatronics.channels[channame].type != Channel.DIGITAL:
+                        usedPorts = main_win.getUsedNumericPorts()
+                        if self.animatronics.channels[channame].port in usedPorts:
+                            self.animatronics.channels[channame].port = -1
+                    else:
+                        usedPorts = main_win.getUsedDigitalPorts()
+                        if self.animatronics.channels[channame].port in usedPorts:
+                            self.animatronics.channels[channame].port = -1
+                
                     # Select new knots
                     for knot in list(self.animatronics.channels[channame].knots):
                         if knot not in existingknots:
@@ -5058,11 +5168,16 @@ class MainWindow(QMainWindow):
                             self.animatronics.channels[channame].add_knot(knottime, knotvalue)
                             self.plots[channame].selectedKeyList.append(knottime)
                     self.repCount += 1
-                    self.plots[channame].redrawme()
+                    self.plots[channame].create()
                     if main_win is not None: main_win.updateXMLPane()
-                else: #except:
-                    popState()
-                    pass
+                except:
+                    self.undo_action()
+                    msgBox = QMessageBox(parent=self)
+                    msgBox.setText('Whoops - Unable to parse from clipboard')
+                    msgBox.setStandardButtons(QMessageBox.Ok)
+                    msgBox.setIcon(QMessageBox.Warning)
+                    ret = msgBox.exec_()
+                    return
         else:
             # Push current state for undo
             pushState()
@@ -5175,6 +5290,25 @@ class MainWindow(QMainWindow):
         self : MainWindow
         """
         pass
+
+    def Clear_action(self):
+        """
+        The method Clear_action optionally clears all knots from the selected channels.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
+        """ Perform Delete action"""
+        dellist = self.getSelectedChannelNames()
+        if len(dellist) > 0:
+            pushState()     # Push current state for undo
+
+            for name in dellist:
+                self.plots[name].channel.delete_knots()
+                self.plots[name].redrawme()
+            if main_win is not None: main_win.updateXMLPane()
 
     def Delete_action(self):
         """
@@ -5500,6 +5634,16 @@ class MainWindow(QMainWindow):
             triggered=self.showselector_action)
         self.view_menu.addAction(self._showselector_action)
 
+        self._sort_menu = self.view_menu.addMenu("Sort Channels")
+        self._name_sort_action = QAction("By Name", self,
+            triggered=self.name_sort_action)
+        self._sort_menu.addAction(self._name_sort_action)
+        self._port_sort_action = QAction("By Port", self,
+            triggered=self.port_sort_action)
+        self._sort_menu.addAction(self._port_sort_action)
+
+        self.view_menu.addSeparator()
+
         self._show_audio_menu = self.view_menu.addMenu("Show Audio")
         # Make actions to be associated with menu later
         self._showmono_audio_action = QAction("Audio Mono", self,
@@ -5511,8 +5655,6 @@ class MainWindow(QMainWindow):
         self._showright_audio_action = QAction("Audio Right", self,
             checkable=True,
             triggered=self.showright_audio_action)
-
-        self.view_menu.addSeparator()
 
         self._audio_amplitude_action = QAction("Audio Amplitude", self,
             checkable=True,
@@ -5577,6 +5719,11 @@ class MainWindow(QMainWindow):
         self.channel_menu.addAction(self._Shift_action)
 
         self.channel_menu.addSeparator()
+
+        # Clear menu item
+        self._Clear_action = QAction("Clear", self,
+            triggered=self.Clear_action)
+        self.channel_menu.addAction(self._Clear_action)
 
         # Delete menu item
         self._Delete_action = QAction("Delete", self,

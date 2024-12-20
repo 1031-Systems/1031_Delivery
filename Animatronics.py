@@ -461,6 +461,10 @@ class Channel:
         if key in self.knots: self.knots.pop(key)
         if key in self.knottitles: self.knottitles.pop(key)
 
+    def delete_knots(self):
+        self.knots = {}
+        self.knottitles = {}
+
     def set_name(self, inname):
         """
         The method set_name sets the name of the channel to the input value.
