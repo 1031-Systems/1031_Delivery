@@ -837,10 +837,13 @@ class ChannelMenu(QMenu):
         self : ChannelMenu
         """
         tname = self.channel.name
-        td = ChannelMetadataWidget(channel=self.channel, parent=self, editable=False)
+        td = ChannelMetadataWidget(channel=self.channel, parent=self)
         code = td.exec_()
 
         if code == QDialog.Accepted:
+            # May have been renamed
+            if tname != self.channel.name:
+                self.parent.holder.animatronics.reIndexChannel(tname, self.channel.name)
             # Need to trigger redraw
             self.parent.holder.redraw()
             pass
@@ -948,7 +951,7 @@ class ChannelMenu(QMenu):
         if self.channel is not None:
             if len(self.channel.knots) > 0:
                 pushState()
-                
+
                 self.channel.delete_knots()
                 if self.parent is not None:
                     self.parent.redrawme()
@@ -1723,6 +1726,34 @@ class ChannelPane(qwt.QwtPlot):
         self.replot()
 
 #####################################################################
+# The ChannelNameValidator is used to check and validate channel
+# whilst the user is inputting them into a name field.
+#  Rules:
+# Channel Name may not start or end with a space
+# Channel Name must not already be used
+# Channel Name can only contain digits, upper and lower case text, and _, -, or space
+# The empty string is acceptable but only one at a time
+#####################################################################
+class ChannelNameValidator(QValidator):
+    def __init__(self, parent, namelist = []):
+        super().__init__(parent)
+        self.namelist = namelist
+
+    def validate(self, arg1, arg2):
+        if len(arg1) > 0 and arg1[0] == ' ':
+            return QValidator.Invalid, arg1, arg2
+        elif arg1 in self.namelist or len(arg1) == 0 or (len(arg1) > 0 and arg1[-1] == ' '):
+            return QValidator.Intermediate, arg1, arg2
+        else:
+            match = re.match('^[A-Za-z0-9_\- ]*$', arg1)
+            if match is not None:
+                return QValidator.Acceptable, arg1, arg2
+            else:
+                return QValidator.Invalid, arg1, arg2
+
+
+
+#####################################################################
 # The ChannelMetadataWidget is used to view and edit the metadata
 # for an individual channel
 #####################################################################
@@ -1762,7 +1793,7 @@ class ChannelMetadataWidget(QDialog):
     # List of Configured Port Numbers, either from tables or preferences
     DigitalPorts = None
     PWMPorts = None
-    
+
     def __init__(self, channel=None, parent=None, editable=True):
         """
         The method __init__
@@ -1786,8 +1817,19 @@ class ChannelMetadataWidget(QDialog):
         widget = QWidget()
         layout = QFormLayout()
 
+        self.okButton = QPushButton('Save')
+        self.okButton.setDefault(True)
+        self.cancelButton = QPushButton('Cancel')
+
         self._nameedit = QLineEdit()
         self._nameedit.setReadOnly(not editable)
+        self._nameedit.setText('Empty So Far')
+        self._nameedit.textChanged.connect(self.theTextChanged)
+        invalidChannelNames = list(main_win.plots)
+        # Remove this channel's current name from list
+        if self._channel.name in invalidChannelNames:
+            invalidChannelNames.remove(self._channel.name)
+        self._nameedit.setValidator(ChannelNameValidator(parent, invalidChannelNames))
         self._nameedit.setText(self._channel.name)
         layout.addRow(QLabel('Name:'), self._nameedit)
 
@@ -1852,10 +1894,6 @@ class ChannelMetadataWidget(QDialog):
 
         widget.setLayout(layout)
 
-        self.okButton = QPushButton('Save')
-        self.okButton.setDefault(True)
-        self.cancelButton = QPushButton('Cancel')
-
         hbox = QHBoxLayout()
         hbox.addStretch(1)
         hbox.addWidget(self.okButton)
@@ -1879,6 +1917,22 @@ class ChannelMetadataWidget(QDialog):
             ChannelMetadataWidget.DigitalPorts = [i for i in range(SystemPreferences['MaxDigitalChannels'])]
         if ChannelMetadataWidget.PWMPorts is None:
             ChannelMetadataWidget.PWMPorts = [i for i in range(SystemPreferences['MaxServoChannels'])]
+
+    def theTextChanged(self, text):
+        if self._nameedit.hasAcceptableInput():
+            self.okButton.setEnabled(True)
+            p = self._nameedit.palette()
+            p.setColor(self._nameedit.backgroundRole(), Qt.white)
+            self._nameedit.setPalette(p)
+            self._nameedit.setAutoFillBackground(False)
+            self._nameedit.setToolTip(None)
+        else:
+            self.okButton.setEnabled(False)
+            p = self._nameedit.palette()
+            p.setColor(self._nameedit.backgroundRole(), Qt.red)
+            self._nameedit.setPalette(p)
+            self._nameedit.setAutoFillBackground(True)
+            self._nameedit.setToolTip('Channel name "%s" may already be in use!' % text)
 
     def doInteractive(self):
         port = -1
@@ -1984,10 +2038,6 @@ class ChannelMetadataWidget(QDialog):
             if self._channel.knots[keyval] > maxLimit:
                 self._channel.knots[keyval] = maxLimit
 
-        tstring = self._nameedit.text()
-        if len(tstring) > 0:
-            self._channel.name = tstring
-
         if self._channel.type != Channel.DIGITAL:
             tstring = self._servoedit.currentText()
             if len(tstring) > 0:
@@ -2013,6 +2063,8 @@ class ChannelMetadataWidget(QDialog):
             else:
                 self._channel.maxLimit = 1.0e34
 
+        newname = self._nameedit.text()
+        self._channel.name = newname
         self.accept()
         if main_win is not None: main_win.updateXMLPane()
 
@@ -2911,7 +2963,7 @@ class MainWindow(QMainWindow):
         The plot data for the right stereo channel subsampled from
         the full audio data
     plots : dictionary
-        Set of ChannePane obbjects for displaying the individual channels
+        Set of ChannePane objects for displaying the individual channels
         indexed by the channel name.
     previousStates : array
         Stack of XML and more of prechange states for Undo
@@ -4202,14 +4254,7 @@ class MainWindow(QMainWindow):
             # Check to see if channel already exists
             ret = None
             text = tempChannel.name
-            if len(text) <= 0:
-                # If channel name is empty it is an error
-                msgBox = QMessageBox(parent=self)
-                msgBox.setText('A channel MUST have a name of at least one character and must be unique')
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.setIcon(QMessageBox.Warning)
-                ret = msgBox.exec_()
-            elif text in self.animatronics.channels:
+            if text in self.plots:
                 # If the channel name is already in use so prompt user
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('The channel "%s" already exists.' % text)
@@ -4221,8 +4266,14 @@ class MainWindow(QMainWindow):
                 # Push current state for undo
                 pushState()
 
-                self.animatronics.channels[text] = tempChannel
+                placename = None
+                # If any channels are selected, use first one as insertion point
+                selection = self.getSelectedChannelNames()
+                if len(selection) > 0: placename = selection[0]
+                self.animatronics.insertChannel(tempChannel, placename=placename)
                 self.setAnimatronics(self.animatronics)
+                self.selectChannels(selection)
+
         pass
 
     def newchannel_action(self):
@@ -4256,14 +4307,7 @@ class MainWindow(QMainWindow):
             # Check to see if channel already exists
             ret = None
             text = tempChannel.name
-            if len(text) <= 0:
-                # If channel name is empty it is an error
-                msgBox = QMessageBox(parent=self)
-                msgBox.setText('A channel MUST have a name of at least one character and must be unique')
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.setIcon(QMessageBox.Warning)
-                ret = msgBox.exec_()
-            elif text in self.animatronics.channels:
+            if text in self.animatronics.channels:
                 # If the channel name is already in use so prompt user
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('The channel "%s" already exists.' % text)
@@ -4275,8 +4319,14 @@ class MainWindow(QMainWindow):
                 # Push current state for undo
                 pushState()
 
-                self.animatronics.channels[text] = tempChannel
+                placename = None
+                # If any channels are selected, use first one as insertion point
+                selection = self.getSelectedChannelNames()
+                if len(selection) > 0: placename = selection[0]
+                self.animatronics.insertChannel(tempChannel, placename=placename)
                 self.setAnimatronics(self.animatronics)
+                self.selectChannels(selection)
+
         pass
 
     def deleteChannels(self, chanList):
@@ -5057,6 +5107,66 @@ class MainWindow(QMainWindow):
         if focuschannel is not None:
             self.plots[focuschannel].keyReleaseEvent(event)
 
+    def Cut_action(self):
+        """
+        The method Cut_action cuts the content of a single channel to
+        the clipboard to be pasted elsewhere.
+
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+
+        """ Perform Cut action"""
+        # Make sure there is only one channel selected
+        selection = self.getSelectedChannelNames()
+
+        # Reset the last slide
+        self.lastDeltaX = 0.0
+        self.lastDeltaY = 0.0
+        self.repCount = 1
+
+        if len(selection) == 0:
+            # If none are selected, see if the cursor is in a ChannelPane
+            channame = self.getFocusChannel()
+            if channame is not None:
+                pane = self.plots[channame]
+                if len(pane.selectedKeyList) > 0:
+                    # Copy the selected knots as XML string
+                    theXML = StringIO()
+                    theXML.write('<Channel>\n')
+                    for key in pane.selectedKeyList:
+                        theXML.write('  <Point time="%f">%f</Point>\n' % (key, pane.channel.knots[key]))
+                    theXML.write('</Channel>\n')
+                    self.clipboard.setText(theXML.getvalue())
+                    pass
+                else:
+                    pushState()
+                    # Copy all the knots
+                    self.clipboard.setText(self.animatronics.channels[channame].toXML())
+                    self.animatronics.deleteChannel(channame)
+                    self.setAnimatronics(self.animatronics)
+        elif len(selection) > 1:
+            # Warn that they need to select only one channel to cut
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Whoops - Must select one and only one channel to cut')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            return
+            pass
+        else:
+            # Copy to clipboard
+            name = selection[0]
+            self.clipboard.setText(self.animatronics.channels[name].toXML())
+            pushState()
+            # Delete the copied channel to implement Cut operation
+            self.animatronics.deleteChannel(name)
+            self.setAnimatronics(self.animatronics)
+
+        pass
+
     def Copy_action(self):
         """
         The method Copy_action copies the content of a single channel to
@@ -5108,7 +5218,8 @@ class MainWindow(QMainWindow):
             name = selection[0]
             self.clipboard.setText(self.animatronics.channels[name].toXML())
             # Deselect the copied channel to avoid pasting right back over it
-            self.plots[name].deselect()
+            # No dont as it can cause confusion as to just where we copied from
+            # self.plots[name].deselect()
         pass
 
     def Paste_action(self):
@@ -5158,7 +5269,7 @@ class MainWindow(QMainWindow):
                         usedPorts = main_win.getUsedDigitalPorts()
                         if self.animatronics.channels[channame].port in usedPorts:
                             self.animatronics.channels[channame].port = -1
-                
+
                     # Select new knots
                     for knot in list(self.animatronics.channels[channame].knots):
                         if knot not in existingknots:
@@ -5193,7 +5304,7 @@ class MainWindow(QMainWindow):
                     # Select new knots
                     for knot in self.plots[name].channel.knots:
                         if knot not in existingknots: self.plots[name].selectedKeyList.append(knot)
-                    self.plots[name].redrawme()
+                    self.plots[name].create()
                 if main_win is not None: main_win.updateXMLPane()
             except:
                 popState()
@@ -5213,6 +5324,12 @@ class MainWindow(QMainWindow):
             if self.plots[name].selected:
                 namelist.append(name)
         return namelist
+
+    def selectChannels(self, selection=[]):
+        for name in self.plots:
+            self.plots[name].deselect()
+        for name in selection:
+            self.plots[name].select()
 
     def Amplitudize_action(self):
         """
@@ -5695,6 +5812,11 @@ class MainWindow(QMainWindow):
         self.channel_menu.addSeparator()
 
         # Copy menu item
+        self._Cut_action = QAction("Cut", self,
+            shortcut=QKeySequence.Cut,
+            triggered=self.Cut_action)
+        self.channel_menu.addAction(self._Cut_action)
+
         self._Copy_action = QAction("Copy", self,
             shortcut=QKeySequence.Copy,
             triggered=self.Copy_action)
