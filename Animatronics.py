@@ -906,6 +906,32 @@ class Animatronics:
         if tchannel.name not in self.channels:
             self.channels[tchannel.name] = tchannel
 
+    def insertChannel(self, newchannel, placename=None):
+        if placename is None:
+            self.channels[newchannel.name] = newchannel
+        else:
+            # Insert new channel at location of channel named placename
+            # and push all the ones after it down
+            newchannels = {}
+            for name in self.channels:
+                if name == placename:
+                    newchannels[newchannel.name] = newchannel
+                newchannels[name] = self.channels[name]
+            self.channels = newchannels
+
+    def reIndexChannel(self, oldname, newname):
+        if oldname == newname: return
+        newchannels = {}
+        for name in self.channels:
+            if name == oldname:
+                newchannels[newname] = self.channels[name]
+            else:
+                newchannels[name] = self.channels[name]
+        self.channels = newchannels
+
+    def deleteChannel(self, name):
+        self.channels.pop(name)
+
     def parseXML(self, inXMLFilename, uploadpath=None):
         """
         The method parseXML accepts a filename of an XML file containing an
