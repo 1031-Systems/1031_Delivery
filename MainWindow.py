@@ -1037,7 +1037,12 @@ class ChannelPane(qwt.QwtPlot):
     setSlider(self, timeVal)
     redrawme(self)
     """
+    # Constants
     BoxSize = 10
+
+    NO_MODE = 0
+    CHANNEL_MODE = 1
+    KNOT_MODE = 2
 
     def __init__(self, parent=None, inchannel=None, mainwindow=None):
         """
@@ -1074,6 +1079,8 @@ class ChannelPane(qwt.QwtPlot):
         self.dragend = -1.0
         self.dragstart = -1.0
         self.selected = False
+        self.currMode = self.NO_MODE
+        self.lastMode = self.NO_MODE
         self.settimerange(0.0, 100.0)
         self.setDataRange(-1.0, 1.0)
         channelname = self.channel.name
@@ -1230,6 +1237,7 @@ class ChannelPane(qwt.QwtPlot):
         ----------
         self : ChannelPane
         """
+        self.deselect()
         self.hide()
 
     def create(self):
@@ -1498,50 +1506,75 @@ class ChannelPane(qwt.QwtPlot):
         if event.buttons() == Qt.LeftButton :
             xplotval = self.invTransform(qwt.QwtPlot.xBottom, event.pos().x() - self.xoffset)
             yplotval = self.invTransform(qwt.QwtPlot.yLeft, event.pos().y() - self.yoffset)
-            if self.channel.type == Channel.DIGITAL:
-                if yplotval >= 0.5: yplotval = 1.0
-                elif yplotval < 0.5: yplotval = 0.0
-            # Find nearest point
             modifiers = QApplication.keyboardModifiers()
-            nearkey = self.findClosestPointWithinBox(event.pos().x(), event.pos().y())
-            if modifiers == Qt.ShiftModifier:
-                # If shift key is down then we want to insert or delete a point
-                # Push current state for undo
-                pushState()
-
-                if nearkey is not None:
-                    # Delete currently selected point
-                    del self.channel.knots[nearkey]
-                    self.selectedKey = None
-                    pass
+            if xplotval < self.minTime:
+                # We are in CHANNEL mode
+                self.currMode = self.CHANNEL_MODE
+                if modifiers == Qt.ShiftModifier:
+                    if self.selected and self.holder is not None:
+                        self.holder.shiftDeselect(self.channel.name)
+                    elif self.holder is not None:
+                        self.holder.shiftSelect(self.channel.name)
+                elif modifiers == Qt.ControlModifier:
+                    # Select/deselect this channel
+                    self.invertselect()
+                    if self.holder is not None:
+                        self.holder.noteLast(self.channel.name)
                 else:
-                    # Insert a new point
-                    if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
-                        # Apply limits
-                        if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
-                        if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
-                    # Insert a new point and drag it around
-                    nearkey = xplotval
-                    self.channel.knots[nearkey] = yplotval
-                    self.selectedKey = nearkey
-                self.redrawme()
-            elif modifiers == Qt.ControlModifier:
-                # Select/deselect this channel
-                self.invertselect()
+                    # Deselect all other channels
+                    if self.holder is not None:
+                        self.holder.deselectAll_action()
+                    # and select this one
+                    self.select()
+                    if self.holder is not None:
+                        self.holder.noteLast(self.channel.name)
             else:
-                # Select a point
-                if nearkey is not None:
-                    # If close enough, select it and drag it around
-                    self.selectedKey = nearkey
-                    self.redrawme() # Redraw the knot with its fill color
+                # We are in KNOT mode
+                self.currMode = self.KNOT_MODE
+                self.holder.noteLast(None)
+                if self.channel.type == Channel.DIGITAL:
+                    if yplotval >= 0.5: yplotval = 1.0
+                    elif yplotval < 0.5: yplotval = 0.0
+                # Find nearest point
+                nearkey = self.findClosestPointWithinBox(event.pos().x(), event.pos().y())
+                if modifiers == Qt.ShiftModifier:
+                    # If shift key is down then we want to insert or delete a point
                     # Push current state for undo
                     pushState()
-                else:
-                    # Mark beginning of drag area to select multiple knots
-                    self.selectedKeyList = []   # Clear current list of selected keys
-                    self.dragstart = xplotval
+
+                    if nearkey is not None:
+                        # Delete currently selected point
+                        del self.channel.knots[nearkey]
+                        self.selectedKey = None
+                        pass
+                    else:
+                        # Insert a new point
+                        if self.channel.minLimit > -1.0e33 or self.channel.maxLimit < 1.0e33:
+                            # Apply limits
+                            if yplotval > self.channel.maxLimit: yplotval = self.channel.maxLimit
+                            if yplotval < self.channel.minLimit: yplotval = self.channel.minLimit
+                        # Insert a new point and drag it around
+                        nearkey = xplotval
+                        self.channel.knots[nearkey] = yplotval
+                        self.selectedKey = nearkey
                     self.redrawme()
-                    pushState()     # Should improve when this is done - FIXME
+                elif modifiers == Qt.ControlModifier:
+                    # Select/deselect this channel
+                    self.invertselect()
+                else:
+                    # Select a point
+                    if nearkey is not None:
+                        # If close enough, select it and drag it around
+                        self.selectedKey = nearkey
+                        self.redrawme() # Redraw the knot with its fill color
+                        # Push current state for undo
+                        pushState()
+                    else:
+                        # Mark beginning of drag area to select multiple knots
+                        self.selectedKeyList = []   # Clear current list of selected keys
+                        self.dragstart = xplotval
+                        self.redrawme()
+                        pushState()     # Should improve when this is done - FIXME
         elif event.buttons()== Qt.MiddleButton :
             # Vertical pan of pane with wheel/mouse?
             pass
@@ -1620,7 +1653,7 @@ class ChannelPane(qwt.QwtPlot):
         """
         modifiers = QApplication.keyboardModifiers()
         if modifiers == Qt.ControlModifier: return
-        if event.buttons() == Qt.LeftButton:
+        if event.buttons() == Qt.LeftButton and self.currMode == self.KNOT_MODE:
             if self.selectedKey is not None:
                 if self.selectedKey not in self.selectedKeyList:
                     self.selectedKeyList = []   # Clear current list of selected keys
@@ -3199,6 +3232,8 @@ class MainWindow(QMainWindow):
         self.lastDeltaY = 0.0
         self.repCount = 0
 
+        self.lastNoted = None
+
         # Create the TimeRangeDialog
         self.timerangedialog = self.TimeRangeDialog(parent=self)
 
@@ -3427,6 +3462,41 @@ class MainWindow(QMainWindow):
             else:
                 pane.moveMyPoints(xdelta, ydelta)
             pane.redrawme()
+
+    def noteLast(self, channelName):
+        self.lastNoted = channelName
+
+    def shiftSelect(self, channelName):
+        # Select all channels from lastNoted to this one
+        if self.lastNoted is None and channelName in self.plots:
+            self.plots[channelName].select()
+            self.plots[channelName].redrawme()
+            self.lastNoted = channelName
+        else:
+            inMode = False
+            for name in self.plots:
+                if (name == channelName or name == self.lastNoted) and self.lastNoted != channelName:
+                    inMode = not inMode
+                if inMode or name == channelName or name == self.lastNoted:
+                    self.plots[name].select()
+                    self.plots[name].redrawme()
+        pass
+
+    def shiftDeselect(self, channelName):
+        # Deselect all channels from lastNoted to this one
+        if self.lastNoted is None and channelName in self.plots:
+            self.plots[channelName].deselect()
+            self.plots[channelName].redrawme()
+            self.lastNoted = channelName
+        else:
+            inMode = False
+            for name in self.plots:
+                if (name == channelName or name == self.lastNoted) and self.lastNoted != channelName:
+                    inMode = not inMode
+                if inMode or name == channelName or name == self.lastNoted:
+                    self.plots[name].deselect()
+                    self.plots[name].redrawme()
+            pass
 
     def _hardwareplay(self):
         """
@@ -4724,7 +4794,7 @@ class MainWindow(QMainWindow):
                 if name in form.choices:
                     self.plots[name].show()
                 else:
-                    self.plots[name].hide()
+                    self.plots[name].hidePane()
         pass
 
     def updateClipboard_action(self):
