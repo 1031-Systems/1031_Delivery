@@ -13,10 +13,12 @@
 ## Control Keys
 - Ctrl-A - Select All Channels
 - Ctrl-Shift-A - Deselect All Channels
-- Ctrl-C - Copy selected channel
-- Ctrl-D - Insert a new Digital channel
+- Ctrl-C - Copy selected channel(s)
+- Ctrl-D - Insert a New Digital channel
+- Ctrl-E - Insert a New PWM channel
 - Ctrl-F - Fit all data to display
-- Ctrl-N - Insert a New servo channel
+- Ctrl-I - Insert at
+- Ctrl-N - New animation
 - Ctrl-O - Open animation file
 - Ctrl-P - Play/Pause Playback
 - Ctrl-Shift-P - Play on Hardware
@@ -25,7 +27,8 @@
 - Ctrl-S - Save animation file
 - Ctrl-Shift-S - Save animation file with another name
 - Ctrl-T - Add Tag at green bar
-- Ctrl-V - Paste
+- Ctrl-V - Paste (Overwrite or Insert)
+- Ctrl-X - Cut selected channel(s)
 - Ctrl-Z - Undo
 - Ctrl-Shift-Z - Redo
 
