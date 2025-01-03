@@ -5324,7 +5324,7 @@ class MainWindow(QMainWindow):
             pushState()
 
             # Paste the clipboard into all selected channels
-            try:
+            if True: #try:
                 root = ET.fromstring(self.clipboard.text())
                 if root.tag == 'Channel':
                     if 'name' not in root.attrib:
@@ -5336,8 +5336,15 @@ class MainWindow(QMainWindow):
                             self.animatronics.channels[name].parseXML(root)
                             # Select new knots
                             for knot in self.plots[name].channel.knots:
-                                if knot not in existingknots: self.plots[name].selectedKeyList.append(knot)
+                                if knot not in existingknots:
+                                    knottime = knot + self.lastDeltaX * self.repCount
+                                    knotvalue = self.animatronics.channels[name].knots[knot] + self.lastDeltaY * self.repCount
+                                    while knottime in existingknots: knottime += 0.001
+                                    existingknots[knottime] = knotvalue
+                                    self.plots[name].selectedKeyList.append(knottime)
+                            self.animatronics.channels[name].knots = existingknots
                             self.plots[name].create()
+                        self.repCount += 1
                     else:
                         # Clipboard is a full, named channel to overwrite all selected or be inserted at first selected
                         # See if any of the selected channels contain knots already that might be overwritten
@@ -5371,7 +5378,7 @@ class MainWindow(QMainWindow):
                             if self.animatronics.channels[name].port in usedNumericPorts or self.animatronics.channels[name].port in usedDigitalPorts:
                                 self.animatronics.channels[name].port = -1
                             self.animatronics.channels[name].name = name
-                        self.plots[name].create()
+                            self.plots[name].create()
                         pass
                 elif root.tag == 'Block':
                     # Clipboard is a set of full channels to be inserted at first selected
@@ -5384,7 +5391,7 @@ class MainWindow(QMainWindow):
                         self.selectChannels(explicitselection)
                     pass
                 self.updateXMLPane()
-            except:
+            else: #except:
                 self.undo_action()
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('Whoops - Unable to parse from clipboard')
@@ -5442,7 +5449,13 @@ class MainWindow(QMainWindow):
                         self.animatronics.channels[name].parseXML(root)
                         # Select new knots
                         for knot in self.plots[name].channel.knots:
-                            if knot not in existingknots: self.plots[name].selectedKeyList.append(knot)
+                            if knot not in existingknots:
+                                knottime = knot + self.lastDeltaX * self.repCount
+                                knotvalue = self.animatronics.channels[name].knots[knot] + self.lastDeltaY * self.repCount
+                                while knottime in existingknots: knottime += 0.001
+                                existingknots[knottime] = knotvalue
+                                self.plots[name].selectedKeyList.append(knottime)
+                        self.animatronics.channels[name].knots = existingknots
                         self.plots[name].create()
                 else:
                     # Clipboard is a full, named channel to be inserted at first selected
@@ -5598,6 +5611,8 @@ class MainWindow(QMainWindow):
             pushState()     # Push current state for undo
 
             for name in dellist:
+                self.plots[name].selectedKey = None
+                self.plots[name].selectedKeyList = []
                 self.plots[name].channel.delete_knots()
                 self.plots[name].redrawme()
             if main_win is not None: main_win.updateXMLPane()
@@ -5866,19 +5881,29 @@ class MainWindow(QMainWindow):
 
         self.edit_menu.addSeparator()
 
-        self._newchannel_action = QAction("New Numeric Channel", self,
-            shortcut="Ctrl+E",
-            triggered=self.newchannel_action)
-        self.edit_menu.addAction(self._newchannel_action)
+        # Cut menu item
+        self._Cut_action = QAction("Cut", self,
+            shortcut=QKeySequence.Cut,
+            triggered=self.Cut_action)
+        self.edit_menu.addAction(self._Cut_action)
 
-        self._newdigital_action = QAction("New Digital Channel", self,
-            shortcut="Ctrl+D",
-            triggered=self.newdigital_action)
-        self.edit_menu.addAction(self._newdigital_action)
+        # Copy menu item
+        self._Copy_action = QAction("Copy", self,
+            shortcut=QKeySequence.Copy,
+            triggered=self.Copy_action)
+        self.edit_menu.addAction(self._Copy_action)
 
-        self._deletechannel_action = QAction("Delete Channels", self,
-            triggered=self.deletechannel_action)
-        self.edit_menu.addAction(self._deletechannel_action)
+        # Paste menu item
+        self._Paste_action = QAction("Paste", self,
+            shortcut=QKeySequence.Paste,
+            triggered=self.Paste_action)
+        self.edit_menu.addAction(self._Paste_action)
+
+        # Insert menu item
+        self._Insert_action = QAction("Insert", self,
+            shortcut=QKeySequence.Italic,
+            triggered=self.Insert_action)
+        self.edit_menu.addAction(self._Insert_action)
 
         self.edit_menu.addSeparator()
 
@@ -5988,28 +6013,19 @@ class MainWindow(QMainWindow):
 
         self.channel_menu.addSeparator()
 
-        # Copy menu item
-        self._Cut_action = QAction("Cut", self,
-            shortcut=QKeySequence.Cut,
-            triggered=self.Cut_action)
-        self.channel_menu.addAction(self._Cut_action)
+        self._newchannel_action = QAction("New Numeric Channel", self,
+            shortcut="Ctrl+E",
+            triggered=self.newchannel_action)
+        self.channel_menu.addAction(self._newchannel_action)
 
-        self._Copy_action = QAction("Copy", self,
-            shortcut=QKeySequence.Copy,
-            triggered=self.Copy_action)
-        self.channel_menu.addAction(self._Copy_action)
+        self._newdigital_action = QAction("New Digital Channel", self,
+            shortcut="Ctrl+D",
+            triggered=self.newdigital_action)
+        self.channel_menu.addAction(self._newdigital_action)
 
-        # Paste menu item
-        self._Paste_action = QAction("Paste", self,
-            shortcut=QKeySequence.Paste,
-            triggered=self.Paste_action)
-        self.channel_menu.addAction(self._Paste_action)
-
-        # Insert menu item
-        self._Insert_action = QAction("Insert", self,
-            shortcut=QKeySequence.Italic,
-            triggered=self.Insert_action)
-        self.channel_menu.addAction(self._Insert_action)
+        self._deletechannel_action = QAction("Delete Channels", self,
+            triggered=self.deletechannel_action)
+        self.channel_menu.addAction(self._deletechannel_action)
 
         self.channel_menu.addSeparator()
 
@@ -6034,6 +6050,7 @@ class MainWindow(QMainWindow):
 
         # Delete menu item
         self._Delete_action = QAction("Delete", self,
+            shortcut=QKeySequence.Delete,
             triggered=self.Delete_action)
         self.channel_menu.addAction(self._Delete_action)
 
