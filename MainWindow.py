@@ -5324,7 +5324,7 @@ class MainWindow(QMainWindow):
             pushState()
 
             # Paste the clipboard into all selected channels
-            if True: #try:
+            try:
                 root = ET.fromstring(self.clipboard.text())
                 if root.tag == 'Channel':
                     if 'name' not in root.attrib:
@@ -5391,7 +5391,7 @@ class MainWindow(QMainWindow):
                         self.selectChannels(explicitselection)
                     pass
                 self.updateXMLPane()
-            else: #except:
+            except:
                 self.undo_action()
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('Whoops - Unable to parse from clipboard')
