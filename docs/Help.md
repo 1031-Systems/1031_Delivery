@@ -634,8 +634,7 @@ Hauntimator and then save it as the desired file if work is lost.
 ### Audio Files (.wav)
 
 Audio files used in Hauntimator must be PCM (Wave) files.  These generally have the extension .wav and
-may be mono or stereo at most sample rates.  The I2S interface currently working also requires Wave files
-on the controller board.  Hauntimator will default to naming them after the main animation file when
+may be mono or stereo at most sample rates.  Hauntimator will default to naming them after the main animation file when
 installing them to the board.
 
 If the phoneme tools are installed, they have special requirements for the audio files for sampling and
@@ -653,34 +652,12 @@ Control files installed on the controller board in binary format are specialy fo
 for every port defined in the tabledefs file.  Thus, they may be much larger than a simple CSV file.
 However, on playback they are slammed out to the hardware without reformatting so they perform much faster.
 
-### Animation List Files (animlist)
-
-The animlist file contains a list of animations for the controller to have in its playlist.  The file must
-be named animlist and be present where the controller code looks for it, typically in /sd/anims.  This file
-contains a list of pairs of filenames in a space-separated value format.  The first value is the control file
-and the second value is the audio file.  An optional third column may be included containing the
-single word "idle".  If this is present, this particular animation is considered the idle animation that is
-played when not playing one of the other animations.  If more than one is labeled idle, only the last one
-counts.  Note that the filenames in animlist need to have full paths for the controller to be able to find
-and play them.
-
-A non-idle entry in animlist may contain a single string.  In this case, it is considered to be a fileroot
-and .wav and either .bin or .csv are appended to it to make the pair of files required for an animation.
-
-At startup, the controller looks in /sd/anims for a file named animlist.  If it is found, it is parsed and
-the list of animations to be played is created.  If it is not found, then the /sd/anims directory is scanned
-to find matched pairs of control and audio files.  In this mode, only control files of the preferred type 
-are accepted.  Specifically, the tabledefs file contains a line specifying whether binary files are preferred
-or not.  If preferred, only files with the .bin extension are accepted.  If not preferred, only files with
-the .csv extension are allowed.  These must be paired with audio files by name with the .wav extension.  Any
-files that do not have both a control file of the preferred type and a .wav file are not put in the playback list.
-In this mode, any matched pair of files with the rootname "idle" will be considered the idle animation.
-
 When exporting control and audio files from Hauntimator, it defaults to naming them the same as the animation
 file, with different extensions, in order to simplify matching them in the controller.  Hauntimator attempts
 to write both CSV and binary control files when saving them locally.  This allows them to easily be written
 directly to an SD card mounted on the desktop machine to be transferred later to the controller.  Then the
-controller will always have the preferred type of control file available.
+controller will always have the preferred type of control file available.  Note that commlib.py must be
+available to Hauntimator to support the conversion to binary.
 
 ### Other types of file
 
