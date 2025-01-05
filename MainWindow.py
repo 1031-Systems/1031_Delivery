@@ -3813,6 +3813,7 @@ class MainWindow(QMainWindow):
                     # Set upload paths prior to writing
                     self.animatronics.setFilename(fileName, uploadpath=SystemPreferences['UploadPath'])
                     outfile.write(self.animatronics.toXML())
+                self.updateXMLPane()    # Refreshes XML and saves to new autosave file
                 self.unsavedChanges = False
                 if self.animatronics.filename is None:
                     self.animatronics.filename = fileName
