@@ -1599,7 +1599,6 @@ class ChannelPane(qwt.QwtPlot):
                         self.selectedKeyList = []   # Clear current list of selected keys
                         self.dragstart = xplotval
                         self.redrawme()
-                        pushState()     # Should improve when this is done - FIXME
         elif event.buttons()== Qt.MiddleButton :
             # Vertical pan of pane with wheel/mouse?
             pass
