@@ -3534,7 +3534,7 @@ class MainWindow(QMainWindow):
             for channel in channellist:
                 if self.animatronics.channels[channel].port >= 0:
                     # getValueAtTime is not implemented so we get a range of values and take the first one
-                    value = self.animatronics.channels[channel].getValuesAtTimeSteps(currTime, currTime+1.0, 1.0)[0]
+                    value = self.animatronics.channels[channel].getValuesAtTimeSteps(currTime, currTime+1.0, 0.5)[0]
                     port = self.animatronics.channels[channel].port
                     if self.animatronics.channels[channel].type == Channel.DIGITAL:
                         commlib.setDigitalChannel(port, value)
