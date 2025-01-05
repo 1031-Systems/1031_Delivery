@@ -3238,8 +3238,6 @@ class MainWindow(QMainWindow):
         # Create the TimeRangeDialog
         self.timerangedialog = self.TimeRangeDialog(parent=self)
 
-        # Initialize with an empty animatronics object
-        self.setAnimatronics(Animatronics())
 
     def setAnimatronics(self, inanim):
         """
