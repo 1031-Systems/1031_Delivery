@@ -88,13 +88,13 @@ def binarySynced():
     return picoBinaryFlag == localBinaryFlag and picoBlockSizes == localBlockSizes
 
 def portCounts():
-    if binarySynced():
+    if binarySynced() and len(tables.PWMPortTable) > 0 and len(tables.DigitalPortTable) > 0:
         return min(tables.PWMPortTable), max(tables.PWMPortTable)+1, min(tables.DigitalPortTable), max(tables.DigitalPortTable)+1
     else:
         return None
 
 def getConfiguredPWMPorts():
-    if binarySynced():
+    if binarySynced() and len(tables.PWMPortTable) > 0:
         ports = []
         for indx in range(min(tables.PWMPortTable), max(tables.PWMPortTable)+1):
             if indx in tables.PWMPortTable:
@@ -104,7 +104,7 @@ def getConfiguredPWMPorts():
         return None
 
 def getConfiguredDigitalPorts():
-    if binarySynced():
+    if binarySynced() and len(tables.DigitalPortTable) > 0:
         ports = []
         for indx in range(min(tables.DigitalPortTable), max(tables.DigitalPortTable)+1):
             if indx in tables.DigitalPortTable:
