@@ -73,7 +73,7 @@ package.  It is mostly obviated by a derived class in tables.py that directly pu
 binary data to the pca9685 bypassing this class.  However, when setting single servos,
 it does go through this class.
 
-### tabledefs
+### tabledefs (derived from tabledefs_template)
 
 The tabledefs file contains the configuration information for which logical ports for
 both PWM and digital outputs are attached to which pins and interfaces on the Pico
@@ -88,6 +88,26 @@ In general, changing the tabledefs file makes existing binary files incompatible
 the new configuration (there are exceptions but you have to understand what's going on).
 Thus, it is best to define the configuration with room to grow and then build animations
 that utilize a subset of the existing configuration.
+
+The tabledefs file is manually produced by editing the tabledefs_template file to match
+the user's hardware system and saving it as tabledefs.  Within tabledefs, the assignment
+of servo port numbers to PCA9685 boards and GPIO pins and the assignment of digital
+port numbers to 595 bits and GPIO pins is made.  Hauntimator associates ports with
+channels and the embedded software, via tabledefs, associates ports with pins.  Thus,
+channel values referenced by port number are properly routed to the correct pin.
+
+The tabledefs file also has a flag to prefer binary control files over ASCII CSV files
+when set to True.  If this flag is True, the embedded software will automagically convert
+CSV files to binary when sent of the USB connection.  CSV files will generally work
+okay when there are fewer than about 5 channels of control data.  For more than that,
+it is best to use binary files to maintain the desired cycle time of under 20msec.
+
+The tabledefs file is typically installed on the controller from the user's system and
+is thus typically the same file on both the embedded system and the desktop system
+running Hauntimator.  Hauntimator uses commlib.py which uses tables.py which uses
+tabledefs to allow Hauntimator to write binary files on the desktop.  This only works
+properly when the embedded and desktop tabledefs are in sync.  Users are required to
+attest to this in commlib.py to enable this feature.
 
 ### tables.py
 

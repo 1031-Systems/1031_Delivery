@@ -4,7 +4,6 @@ A copy of this license is available within the repository for this software and 
 included herein by reference.
 '''
 
-from Preferences import *
 # Utilize XML to read/write animatronics files
 import xml.etree.ElementTree as ET
 import sys
@@ -357,10 +356,8 @@ class Channel:
         if intype == self.DIGITAL:
             self.minLimit = 0.0
             self.maxLimit = 1.0
-        elif intype == self.LINEAR or intype == self.SPLINE:
-            self.minLimit = SystemPreferences['ServoDefaultMinimum']
-            self.maxLimit = SystemPreferences['ServoDefaultMaximum']
         else:
+            # Default values for not ever set
             self.maxLimit = 1.0e34
             self.minLimit = -1.0e34
         self.port = -1
@@ -463,6 +460,10 @@ class Channel:
         """
         if key in self.knots: self.knots.pop(key)
         if key in self.knottitles: self.knottitles.pop(key)
+
+    def delete_knots(self):
+        self.knots = {}
+        self.knottitles = {}
 
     def set_name(self, inname):
         """
@@ -870,14 +871,15 @@ class Animatronics:
         self.csvUploadFile = None
         self.audioUploadFile = None
 
-    def setFilename(self, inXMLFilename):
+    def setFilename(self, inXMLFilename, uploadpath=None):
         self.filename = inXMLFilename
-        # Use filename as root for CSV and audio uploads
-        rootname = os.path.splitext(os.path.basename(inXMLFilename))[0]
-        if self.csvUploadFile is None:
-            self.csvUploadFile = os.path.join(SystemPreferences['UploadPath'], rootname + '.csv')
-        if self.audioUploadFile is None:
-            self.audioUploadFile = os.path.join(SystemPreferences['UploadPath'], rootname + '.wav')
+        if uploadpath is not None:
+            # Use filename as root for CSV and audio uploads
+            rootname = os.path.splitext(os.path.basename(inXMLFilename))[0]
+            if self.csvUploadFile is None:
+                self.csvUploadFile = os.path.join(uploadpath, rootname + '.csv')
+            if self.audioUploadFile is None:
+                self.audioUploadFile = os.path.join(uploadpath, rootname + '.wav')
 
     def clearTags(self, starttime=0.0, endtime=-1.0):
         if endtime <= starttime:
@@ -904,7 +906,33 @@ class Animatronics:
         if tchannel.name not in self.channels:
             self.channels[tchannel.name] = tchannel
 
-    def parseXML(self, inXMLFilename):
+    def insertChannel(self, newchannel, placename=None):
+        if placename is None:
+            self.channels[newchannel.name] = newchannel
+        else:
+            # Insert new channel at location of channel named placename
+            # and push all the ones after it down
+            newchannels = {}
+            for name in self.channels:
+                if name == placename:
+                    newchannels[newchannel.name] = newchannel
+                newchannels[name] = self.channels[name]
+            self.channels = newchannels
+
+    def reIndexChannel(self, oldname, newname):
+        if oldname == newname: return
+        newchannels = {}
+        for name in self.channels:
+            if name == oldname:
+                newchannels[newname] = self.channels[name]
+            else:
+                newchannels[name] = self.channels[name]
+        self.channels = newchannels
+
+    def deleteChannel(self, name):
+        self.channels.pop(name)
+
+    def parseXML(self, inXMLFilename, uploadpath=None):
         """
         The method parseXML accepts a filename of an XML file containing an
         Animatronics specification and parses it, preserving the filename
@@ -919,7 +947,7 @@ class Animatronics:
         with open(inXMLFilename, 'r') as infile:
             testtext = infile.read()
             self.fromXML(testtext)
-            self.setFilename(inXMLFilename)
+            self.setFilename(inXMLFilename, uploadpath)
 
     def fromXML(self, testtext):
         """
@@ -943,10 +971,6 @@ class Animatronics:
         # Get the attributes from the XML
         if 'endtime' in root.attrib:
             self.end = float(root.attrib['endtime'])
-        if 'csvUploadFile' in root.attrib:
-            self.csvUploadFile = root.attrib['csvUploadFile']
-        if 'audioUploadFile' in root.attrib:
-            self.audioUploadFile = root.attrib['audioUploadFile']
 
         for child in root:
             if child.tag == 'Audio':

@@ -348,6 +348,30 @@ def setDigital(port, value, push=False):
         DigitalPortTable[port]['func'](DigitalPortTable[port], value)
     if push: outputDigital()
 
+def clearAllDigital():
+    # Set all digital pins to OFF (0)
+    # Using clear pin for speed
+    if _DataPin is None or _RclkPin is None or _ClockPin is None or _ClearPin is None: return
+    # Define the pins
+    dataPin = Pin(_DataPin, Pin.OUT)
+    clockPin = Pin(_RclkPin, Pin.OUT)
+    shiftPin = Pin(_ClockPin, Pin.OUT)
+    clearPin = Pin(_ClearPin, Pin.OUT)
+
+    # Clear all the registers
+    clearPin.on() # Make sure initially not clearing, then cycle bit
+    clearPin.off()
+    clearPin.on()
+
+    # Clock all the cleared bits to the outputs
+    clockPin.off() # Make sure initially not outputting, then cycle bit
+    clockPin.on()
+    clockPin.off()
+
+    # This quickly clears the 595 digital outputs but not GPIO digital outputs
+    # So do the whole thing again to make sure everything is zero
+    setAllDigital(0)
+
 def setAllDigital(value):
     for port in DigitalPortTable:
         setDigital(port, value)
@@ -400,9 +424,12 @@ def parsefile():
 
     if len(DigitalPortTable) == 0 and len(PWMPortTable) == 0:
         print('Whoops - Unable to find and process tabledefs file\n\n')
+        return(True)
+
+    return(False)
 
 # Check for and read file automagically upon import
-parsefile()
+_parseStatus = parsefile()
 
 ########################################################################################
 def csvToBin(fname):
@@ -536,6 +563,9 @@ def self_test():
 
         i += 1
 
+    # Initialize the check flag to False meaning everything is okay so far
+    checkflag = False
+
     ### Check the Digital Port Table
     lastfunc = None
     currfunc = None
@@ -544,9 +574,11 @@ def self_test():
     d5ports = 0
     if regular and min(DigitalPortTable) != 0:
         print('  Alert >>> Regularity test fails due to not starting with Digital port 0')
+        checkflag = True
     for port in sorted(DigitalPortTable):
         if 'func' not in DigitalPortTable[port]:
             print('Whoops - Digital port %d is not configured correctly' % port)
+            checkflag = True
         elif DigitalPortTable[port]['func'] == do595:
             d5ports += 1
             if verbosity:
@@ -555,6 +587,7 @@ def self_test():
             if regular:
                 if lastport is not None and port != lastport+1:
                     print('  Alert >>> Regularity test fails for noncontiguous ports %d and %d' % (lastport, port))
+                    checkflag = True
                     if verbosity:
                         for i in range(lastport+1, port):
                             print('    Missing digital port %2d' % i)
@@ -566,6 +599,7 @@ def self_test():
             if regular:
                 if lastport is not None and port != lastport+1:
                     print('Alert >>> Regularity test fails for noncontiguous ports %d and %d' % (lastport, port))
+                    checkflag = True
                     if verbosity:
                         for i in range(lastport+1, port):
                             print('    Missing digital port %2d' % i)
@@ -579,6 +613,7 @@ def self_test():
         print('  WARNING - Length of DigitalPortTable is %d and not the expected %d' % 
             (len(DigitalPortTable),_ExpectedDigitalPorts))
         print('    Likely overwriting of ports\n')
+        checkflag = True
 
     ### Check the PWM Port Table
     lastport = None
@@ -586,17 +621,19 @@ def self_test():
     d5ports = 0
     if regular and min(PWMPortTable) != 0:
         print('Alert >>> Regularity test fails due to not starting with PWM port 0')
+        checkflag = True
     for port in sorted(PWMPortTable):
         if 'func' not in PWMPortTable[port]:
             print('Whoops - PWM port %d is not configured correctly' % port)
         elif PWMPortTable[port]['func'] == dopca9685:
             d5ports += 1
             if verbosity:
-                print('PWM Port %2d via pca9685 board %2d output %d' %
+                print('PWM Port %2d via pca9685 board %2d output %2d' %
                     (port, PWMPortTable[port]['board'], PWMPortTable[port]['pwmout']))
             if regular:
                 if lastport is not None and port != lastport+1:
                     print('  Alert >>> Regularity test fails for noncontiguous ports %d and %d' % (lastport, port))
+                    checkflag = True
                     if verbosity:
                         for i in range(lastport+1, port):
                             print('    Missing PWM port %2d' % i)
@@ -608,11 +645,13 @@ def self_test():
             if regular:
                 if lastport is not None and port != lastport+1:
                     print('  Alert >>> Regularity test fails for noncontiguous ports %d and %d' % (lastport, port))
+                    checkflag = True
                     if verbosity:
                         for i in range(lastport+1, port):
                             print('    Missing PWM port %2d' % i)
         else:
             print('Whoops - PWM port %d is not configured correctly' % port)
+            checkflag = True
         lastport = port
     print('\nConfiguration has %d pca9685 ports and %d GPIO ports configured for PWM signals\n' % (d5ports, dgports))
 
@@ -620,9 +659,10 @@ def self_test():
     if _ExpectedPWMPorts != len(PWMPortTable):
         print('  WARNING - Length of PWMPortTable is %d and not the expected %d' % (len(PWMPortTable),_ExpectedPWMPorts))
         print('    Likely overwriting of ports\n')
+        checkflag = True
 
     # Run bad pin tests
-    goodpins = [2,3,4,5,6,7,8,12,13,14,15,20,21,22]
+    goodpins = [6,7,8,12,13,14,15,20,21,22]
     status = False
     for port in DigitalPortTable:
         if 'pin' in DigitalPortTable[port] and DigitalPortTable[port]['pin'] not in goodpins:
@@ -639,6 +679,12 @@ def self_test():
     if infilename is not None:
         csvToBin(infilename)
 
+    return status or checkflag
+
 
 if __name__ == "__main__":
-    self_test()
+    if not _parseStatus:
+        flag = self_test()
+        if not flag:
+            exit(0)
+    exit(1)

@@ -1,6 +1,16 @@
 #!/bin/csh -f
 #set echo
 
+# Check to make sure tabledefs has been created
+python lib/tables.py -r >& /dev/null
+if($status) then
+    echo
+    echo Whoops - problems with tabledefs file - aborting
+    echo Results of check are:
+    python lib/tables.py -r -v
+    exit
+endif
+
 rshell mkdir /pyboard/lib
 rshell cp lib/servo.py \
           lib/wave.py \

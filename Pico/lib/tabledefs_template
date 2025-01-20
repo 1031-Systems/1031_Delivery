@@ -8,9 +8,9 @@
 # in blocks via convenience functions.  Ports may be assigned to GPIO pins from the
 # Pico or to PCA9685 boards for PWM or to 74HC595 boards for digital signals.
 #
-#   There are 14 GPIO pins available for either PWM or digital signals.  However, if
-# a set of 595 boards/chips are used, four of those pins need to be used for control
-# of the 595 boards leaving ten for general control.
+#   There are 10 GPIO pins available for either PWM or digital signals.  Eight are
+# buffered with line drivers (GPIO_6, GPIO_7, GPIO_8, GPIO_12, GPIO_13, GPIO_14, GPIO_15,
+# and GPIO_20) and two (GPIO_21 and GPIO_22) are not.
 #
 #   Each PCA9685 boards supports up to 16 PWM outputs.  These can control servos or
 # be used to control the brightness of individual LEDs.  If using one or more of these,
@@ -39,20 +39,21 @@
 ############## Define your configuration here ##########################################
 
 # PWM Port Definitions
-# Configure two pca9685 boards at addresses 0 and 1 on ports 0-31
-configurepca9685(firstport=0, boardid=0)
-configurepca9685(firstport=16, boardid=1)
+# Example - Configure two pca9685 boards at addresses 0 and 1 on ports 0-31
+# configurepca9685(firstport=0, boardid=0)
+# configurepca9685(firstport=16, boardid=1)
 
-# Manually enter a single Digital using a Pico GPIO
-addPWMPortTableEntry(32, {'func':dogpio , 'pin':20})
+# Example - Manually enter a single Digital using a Pico GPIO
+# addPWMPortTableEntry(32, {'func':dogpio , 'pin':20})
 
 # Digital Port Definitions
-# Manually enter entries like this for each Digital port on a Pico GPIO
-addDigitalPortTableEntry(24, {'func':dogpiodigital , 'pin':22})
+# Example - Manually enter entries like this for each Digital port on a Pico GPIO
+# addDigitalPortTableEntry(24, {'func':dogpiodigital , 'pin':22})
 
-# Configure a contiguous block of 24 Digital ports on 3x595 chips
-configure595s(firstport=0, portcount=24, datapin=5, clockpin=2, rclkpin=3, clearpin=4)
+# Example - Configure a contiguous block of 16 Digital ports on 2x595 chips
+# Note that this example is not commented out as it matches the standard board design
+configure595s(firstport=0, portcount=16, datapin=2, clockpin=4, rclkpin=3, clearpin=5)
 
-setPreferBinary(True)      # Set to True for larger applications
+setPreferBinary(False)      # Set to True for larger applications
 
 
