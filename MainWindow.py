@@ -1569,6 +1569,8 @@ class ChannelPane(qwt.QwtPlot):
                     if nearkey is not None:
                         # Delete currently selected point
                         del self.channel.knots[nearkey]
+                        if nearkey in self.selectedKeyList:
+                            self.selectedKeyList.remove(nearkey)
                         self.selectedKey = None
                         pass
                     else:
