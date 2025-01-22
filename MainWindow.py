@@ -921,7 +921,31 @@ class ChannelMenu(QMenu):
 
         # Do the randomize process
         pushState()     # Push current state for undo
-        self.channel.randomize(twidget.startTime, twidget.endTime, popRate=twidget.popRate)
+        maxRate = (self.channel.maxLimit - self.channel.minLimit)
+        minTime = twidget.startTime
+        maxTime = twidget.endTime
+        popRate = twidget.popRate
+
+        # Remove all knots within randomization range
+        delknots = []
+        for knot in self.channel.knots:
+            if knot >= minTime and knot <= maxTime:
+                delknots.append(knot)
+        for knot in delknots:
+            self.channel.delete_knot(knot)
+
+        currTime = minTime
+        currValue = (self.channel.maxLimit + self.channel.minLimit) / 2.0
+        while currTime <= maxTime:
+            if self.channel.type == self.channel.DIGITAL:
+                currValue = float(random.randrange(2))
+            else:
+                currValue += random.uniform(-1.0, 1.0) * maxRate
+            if currValue > self.channel.maxLimit: currValue = self.channel.maxLimit
+            if currValue < self.channel.minLimit: currValue = self.channel.minLimit
+            self.channel.add_knot(currTime, currValue)
+            currTime += 1.0/popRate
+
         self.parent.redrawme()
         if main_win is not None: main_win.updateXMLPane()
         pass
@@ -1455,6 +1479,9 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         event : type
         """
+        # Do not allow resizing on digital channels
+        if self.channel.type == Channel.DIGITAL: return
+
         numDegrees = event.angleDelta() / 8
         vertDegrees = numDegrees.y()
 

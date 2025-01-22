@@ -364,30 +364,6 @@ class Channel:
         self.rateLimit = -1.0
         self.servoType = None
 
-    def randomize(self, minTime, maxTime, maxRate=0.0, popRate=1.0):
-        if maxRate == 0.0:
-            maxRate = (self.maxLimit - self.minLimit)
-
-        # Remove all knots within randomization range
-        delknots = []
-        for knot in self.knots:
-            if knot >= minTime and knot <= maxTime:
-                delknots.append(knot)
-        for knot in delknots:
-            self.delete_knot(knot)
-
-        currTime = minTime
-        currValue = (self.maxLimit + self.minLimit) / 2.0
-        while currTime <= maxTime:
-            if self.type == self.DIGITAL:
-                currValue = float(random.randrange(2))
-            else:
-                currValue += random.uniform(-1.0, 1.0) * maxRate
-            if currValue > self.maxLimit: currValue = self.maxLimit
-            if currValue < self.minLimit: currValue = self.minLimit
-            self.add_knot(currTime, currValue)
-            currTime += 1.0/popRate
-
     def amplitudize(self, minTime, maxTime, signal, maxRate=0.0, cutoff=0.0, popRate=0.0):
         # If maxRate not specified, compute it
         if maxRate == 0.0:
