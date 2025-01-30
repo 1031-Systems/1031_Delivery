@@ -34,6 +34,33 @@ others to your liking may be found all over the interweb.
 
 ***
 
+Prior to installing the Pico python code on the processor, the user needs to customize the
+tables defining the digital and PWM I/O ports.  The customized tables are used to assign
+port numbers to the different kinds of control outputs.  To perform this step, copy
+Pico/lib/tabledefs_template to Pico/lib/tabledefs and edit Pico/lib/tabledefs according
+to the system design.
+
+The default file Pico/lib/tabledefs_template defines 16 digital I/O ports corresponding to
+the 16 channels supported by the onboard 74HC595 chips.  It defines no PWM ports as there
+are none built into the board.
+
+Read the Pico/lib/tabledefs_template file for more details on how to attach ports to the
+various types of output devices and to the GPIO pins from the Pico that are accessible.
+Support functions are available to rapidly define digital ports for 74HC595 boards
+attached to the system and for rapidly defining PWM ports that utilize PCA9685 boards.
+Utilizing the GPIO pins requires a specific method for each port individually.  GPIO
+pins may be used for either Digital or PWM control ports.  However, usage of the GPIO
+pins will slow down the control cycle of the animatronics.
+
+In addition to the port definitions, tabledefs contains a flag to prefer binary or
+ASCII CSV files.  Binary files are preferred for larger system with more than five
+PWM controls attached to PCA9685 board(s).  For smaller systems, the flag should be
+False to prefer CSV files.  CSV files are generally forward-compatible as more ports
+are utilized while binary files are not.  However, binary files run much, much faster
+so are necessary for the bigger systems.
+
+***
+
 The same software runs on either the Pico or the clone and can use
 the SD card if installed.  To install the embedded software on either,
 do the following:
