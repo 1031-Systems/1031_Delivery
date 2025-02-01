@@ -6,9 +6,9 @@
 # Hot Key Cheat Sheet
 ---
 ## Normal Keys
-- P - Toggle Playback controls display
+- Space - Play/Pause Playback
 - T - Toggle Tag panel display
-- Del - Delete selected points in channel(s)
+- Del - Delete selected point(s) or channel(s)
 
 ## Control Keys
 - Ctrl-A - Select All Channels
@@ -20,8 +20,8 @@
 - Ctrl-I - Insert at
 - Ctrl-N - New animation
 - Ctrl-O - Open animation file
-- Ctrl-P - Play/Pause Playback
-- Ctrl-Shift-P - Play on Hardware
+- Ctrl-P - Toggle Playback controls display
+- Ctrl-Shift-P - Send play command to Hardware
 - Ctrl-Q - Quit
 - Ctrl-R - Restore channel display range to default
 - Ctrl-S - Save animation file

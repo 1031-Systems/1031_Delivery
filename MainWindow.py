@@ -537,7 +537,7 @@ class TagPane(qwt.QwtPlot):
                     self.addTag(self.selectedtag, text)
                 else:
                     # Forget that we were trying to put in a tag
-                    self.undo_action()
+                    self.mainwindow.undo_action()
             self.mainwindow.updateXMLPane()
             self.mainwindow.tagSelectUpdate()
 
@@ -3335,7 +3335,7 @@ class MainWindow(QMainWindow):
 
         # Set up the playback widget
         self._playwidget = Player(audio=self.animatronics.newAudio)
-        shortcut = QShortcut(QKeySequence("Ctrl+P"), self._mainarea)
+        shortcut = QShortcut(QKeySequence(" "), self._mainarea)
         shortcut.activated.connect(self._playwidget.play)
         self._playwidget.setLeftConnect(self.cutLeftSide)
         self._playwidget.setRightConnect(self.cutRightSide)
@@ -5989,9 +5989,11 @@ class MainWindow(QMainWindow):
         self.view_menu.addAction(self._scaletoaudio_action)
 
         # scaletotimerange menu item
+        ''' I don't know what this is supposed to be doing and it doesn't do much so it is gone
         self._scaletotimerange_action = QAction("Fit to Time Range", self,
             triggered=self.scaletotimerange_action)
         self.view_menu.addAction(self._scaletotimerange_action)
+        '''
 
         # settimerange menu item
         self._settimerange_action = QAction("Set Time Range", self,
@@ -6041,7 +6043,7 @@ class MainWindow(QMainWindow):
 
         # playbackcontrols menu item
         self._playbackcontrols_action = QAction("Toggle Playback Controls", self,
-            shortcut="P",
+            shortcut=QKeySequence.Print,
             triggered=self.playbackcontrols_action)
         self.view_menu.addAction(self._playbackcontrols_action)
 
@@ -6058,7 +6060,7 @@ class MainWindow(QMainWindow):
 
         # deselectAll menu item
         self._deselectAll_action = QAction("Deselect All", self,
-            shortcut=QKeySequence.Deselect,
+            shortcut=QKeySequence("Ctrl+Shift+A"),
             triggered=self.deselectAll_action)
         self.channel_menu.addAction(self._deselectAll_action)
 

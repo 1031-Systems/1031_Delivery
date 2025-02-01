@@ -59,6 +59,7 @@ The Hauntimator GUI consists of, from top to bottom, a menubar, audio channel di
 and control channel displays called panes.  When the user loads an audio file into Hauntimator
 it is displayed using one pane for mono or two panes for left and right stereo.  It is not
 necessary for there to be an audio file in use and none will be displayed in that case.
+However, without an audio file playback will not function.
 
 ![Image of User Interface](images/image1.png)
 
@@ -303,7 +304,7 @@ to files and communication.  The individual preferences are:
 + ShowTips - Controls the use of popup tool tips within Hauntimator.  Beginning users may find the popup tips helpful while an experienced user may find them bothersome.  Some go away automatically so hopefully they will not prove to be obnoxious.
 + ServoDataFile - The name of the file containing known servo types and their associated information.  The user may rename this file or move it so the preference allows that.  The values in the servo file are used to set initial limits on the channel values.  These are based on the ServoDefaultMaximum and ServoDefaultMinimum and the duty cycle of the servo from the file.  These are NOT used to distinguish servos on GPIO pins from servos on PCA9685 boards.  That is done within the controller.
 + UploadPath - The name of the directory to upload audio and control files to as it is used in the controller software.  The Pico software that accompanies the Hauntimator and is run on the Pico looks for a particular file and this must match that.  This will typically be on the SD card and look like "/sd/anims" to match expectations in the controller software.  If the controller software is edited, this can be changed to match.  Note that this is irrelevant if writing files locally to an SD card to be transferred later to the controller.
-+ TTYPortRoot - This is the name of the communications port to use to talk to the controller when it is plugged into the USB port on the computer that Hauntimator runs on.  Under linux, this is typically /dev/ttyACM0.  On a Mac it is more like /dev/tty00bb10.  Under Windows it is something I don't care about.  Note that this is irrelevant if writing files locally to an SD card to be transferred later to the controller and otherwise not using Hauntimator to talk directly to the controller.
++ TTYPortRoot - This is most of the name of the communications port to use to talk to the controller when it is plugged into the USB port on the computer that Hauntimator runs on.  Under linux, this is typically /dev/ttyACM0 but may also be /dev/ttyACM1, 2, ... so the TTYPortRoot is set to /dev/ttyACM.  On a Mac it is more like /dev/tty00bb10 so the TTYPortRoot is set to /dev/tty00bb1.  Under Windows it is something I don't care about.  Note that this is irrelevant if writing files locally to an SD card to be transferred later to the controller and otherwise not using Hauntimator to talk directly to the controller.
 
 <a name="view">
 &nbsp;
@@ -352,6 +353,9 @@ A third method is supported by tags within the animation.  Clicking the left mou
 button on a tag within the tag pane while holding down the Ctrl key will zoom the
 display to the duration of the tag.  See the [Tag Menu](#tags) for more details
 on the use of tags.
+
+A fourth method is to select View->Set Time Range and enter specific values for the
+desired time range to be displayed.
 
 <a name="timeranges">
 &nbsp;
@@ -456,7 +460,7 @@ the animation and some helpful uses for them.  The Tags menu contains the follow
 
 + Insert Tag - Insert a tag at the current playback time (designated by the green bar)
 + Tag Selector - Brings up a widget for selecting a tag
-+ Import Script - Reads a script file and create tags
++ Import Script - Reads a script file and creates tags
 + Toggle Tag Pane - Toggle visibility of the Tags pane
 + Clear All Tags - Delete all tags and clear the Tags pane
 
@@ -466,7 +470,7 @@ at any time by clicking the left mouse button while holding down the shift key a
 pane.  Again a popup prompts for the text for the tag unless the selected time exactly matches that of
 another tag.
 
-If the cursor is on the bar designating a tag in the Tags pane, the ctrl-T hot key will select that tag
+If the cursor is on the bar designating a tag in the Tags pane, the ctrl-left click will select that tag
 and zoom the display to the time range of that tag to the next tag rather than inserting an additional
 tag.
 
