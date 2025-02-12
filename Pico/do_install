@@ -32,5 +32,6 @@ rshell repl '~ import memstats ~'
 
 # Make the link to commlib in the root directory
 cd ..
+rm -f commlib.py
 ln -s Pico/commlib.py . 
 
