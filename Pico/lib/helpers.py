@@ -410,7 +410,30 @@ def handleInput():
             pass
     return 0
 
-################################### Animation File Finder ############################
+################################### File Utilities ############################
+def filecrc16(fname):
+    # Computes and returns a 16-bit Cyclic Redundancy Checksum of the specified file
+    PRESET = 0xFFFF
+    POLYNOMIAL = 0xA001 # bit reverse of 0x8005
+
+    try:
+        crc = PRESET
+        file = open(fname, 'rb')
+        data = file.read(256)
+        while len(data) > 0:
+            for c in data:
+                crc = crc ^ c
+                for j in range(8):
+                    if crc & 0x01:
+                        crc = (crc >> 1) ^ POLYNOMIAL
+                    else:
+                        crc = crc >> 1
+            data = file.read(256)
+        return crc
+    except:
+        return -1
+
+
 def isfile(testfile):
     try:
         size = os.stat(testfile)[6]
