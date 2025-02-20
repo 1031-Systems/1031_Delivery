@@ -1,7 +1,29 @@
 #!/bin/csh -f
 #set echo
 
+# Set initial/default values
+set out=/dev/null
+
+# Parse arguments
+set i = 1
+while($i <= $#argv)
+    if("-" == "$argv[$i]" || "-h" == "$argv[$i]" || "-help" == "$argv[$i]") then
+        goto usage
+    else if("$argv[$i]" == "-v" || "-verbose" == "$argv[$i]") then
+        set out=/dev/stdout
+    else
+        echo
+        echo "Whoops - Unrecognized argument:$argv[$i]"
+        goto usage
+    endif
+
+    @ i++
+end
+
+# Do the right thing
+
 # Check to make sure tabledefs has been created
+echo Validating local tabledefs
 python lib/tables.py -r >& /dev/null
 if($status) then
     echo
@@ -11,7 +33,8 @@ if($status) then
     exit
 endif
 
-rshell mkdir /pyboard/lib
+echo Installing libraries
+rshell mkdir /pyboard/lib >& $out
 rshell cp lib/servo.py \
           lib/wave.py \
           lib/pca9685.py \
@@ -20,18 +43,48 @@ rshell cp lib/servo.py \
           lib/tables.py \
           lib/tabledefs \
           lib/helpers.py \
-          /pyboard/lib
-rshell cp boot.py main.py /pyboard
-rshell mkdir /pyboard/anims
+          /pyboard/lib >& $out
+echo Installing boot.py and main.py
+rshell cp boot.py main.py /pyboard >& $out
+rshell mkdir /pyboard/anims >& $out
 
-echo ''
 echo ''
 
 # Check on the results
-rshell repl '~ import memstats ~'
+rshell repl '~ import memstats ~' >& $out
 
 # Make the link to commlib in the root directory
-cd ..
+set pushdsilent=1
+pushd ..
 rm -f commlib.py
 ln -s Pico/commlib.py . 
+
+# Reboot the Pico
+echo Resetting Pico
+rshell repl '~ import machine ~ machine.reset() ~' >& $out
+
+# Wait a couple of seconds for Pico to restart running main
+sleep 2
+
+# Verify installation
+echo
+echo Verifying installation
+echo
+popd
+./verifyload.py
+
+if ! $status then
+    echo All files validate
+endif
+
+exit
+
+usage:
+
+echo
+echo 'Usage:'$0' [-/-h/-help] [-v/-verbose]'
+echo '    This tool installs all the code on the Pico.'
+echo '-/-h/-help          :Print this helpful info'
+echo '-v/-verbose         :Run more verbosely'
+echo
 

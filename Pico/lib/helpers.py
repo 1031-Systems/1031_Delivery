@@ -408,6 +408,14 @@ def handleInput():
         except:
             # sys.stderr.write('\nWhoops - Unable to write file %d\n' % filename)
             pass
+    elif inline[0] == 'c':
+        try:
+            vals = inline.split()
+            filename = vals[1]
+            checksum = filecrc16(filename)
+            print(checksum)
+        except:
+            print -1
     return 0
 
 ################################### File Utilities ############################
@@ -429,6 +437,7 @@ def filecrc16(fname):
                     else:
                         crc = crc >> 1
             data = file.read(256)
+        file.close()
         return crc
     except:
         return -1
