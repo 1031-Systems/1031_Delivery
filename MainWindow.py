@@ -5899,10 +5899,12 @@ class MainWindow(QMainWindow):
         self._export_csv_file_action.setToolTip('Save controls to local CSV file and binary file if supported')
         self._export_file_menu.addAction(self._export_csv_file_action)
 
+        '''
         self._export_vsa_file_action = QAction("&Export to VSA",
                 self, triggered=self.exportVSAFile)
         self._export_vsa_file_action.setEnabled(False)
         self._export_file_menu.addAction(self._export_vsa_file_action)
+        '''
 
         self._export_hw_action = QAction("&Upload to Controller",
                 self, triggered=self.uploadToHW)
