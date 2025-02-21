@@ -37,8 +37,14 @@ endif
 set port=`rshell -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
 echo Using port: $port >& $out
 
+echo Prepping Pico filesystem
+rshell --quiet rm /pyboard/boot.py >& $out
+rshell --quiet repl '~ import machine ~ machine.reset() ~' >& $out
+sleep 2
+
 echo Installing libraries
-rshell mkdir /pyboard/lib >& $out
+rshell --quiet mkdir /pyboard/lib >& $out
+rshell --quiet mkdir /pyboard/anims >& $out
 rshell --quiet cp lib/servo.py \
           lib/wave.py \
           lib/pca9685.py \
@@ -48,14 +54,17 @@ rshell --quiet cp lib/servo.py \
           lib/tabledefs \
           lib/helpers.py \
           /pyboard/lib
-echo Installing boot.py and main.py
-rshell --quiet cp boot.py main.py /pyboard
-rshell mkdir /pyboard/anims >& $out
+echo Installing main.py
+rshell --quiet cp main.py /pyboard
 
 echo ''
 
 # Check on the results
-rshell repl '~ import memstats ~' >& $out
+rshell --quiet repl '~ import memstats ~' >& $out
+
+# Install boot.py last as rshell runs really slowly once it's there
+echo Installing boot.py
+rshell --quiet cp boot.py /pyboard
 
 # Make the link to commlib in the root directory
 set pushdsilent=1
@@ -65,7 +74,7 @@ ln -s Pico/commlib.py .
 
 # Reboot the Pico
 echo Resetting Pico
-rshell repl '~ import machine ~ machine.reset() ~' >& $out
+rshell --quiet repl '~ import machine ~ machine.reset() ~' >& $out
 
 # Wait a couple of seconds for Pico to restart running main
 sleep 2
@@ -75,7 +84,7 @@ echo
 echo Verifying installation
 echo
 popd
-./verifyload.py -p $port
+python3 ./verifyload.py -p $port
 
 if ! $status then
     echo All files validate
