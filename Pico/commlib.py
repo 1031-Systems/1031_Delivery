@@ -20,6 +20,7 @@ _Path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib')
 sys.path.append(_Path)
 # Now import tables from our extended path
 import tables
+from helpers import filecrc16
 # Remove path so other code can't accidentally get to it
 sys.path.remove(_Path)
 
@@ -74,6 +75,22 @@ def getBinarySizes():
     for i in range(len(values)):
         values[i] = int(values[i])
     return binaryflag, values
+
+def getFileChecksum(filename):
+    line = ''
+    # Status requires round trip so port cannot be closed in between
+    ser = openPort()
+    if ser is not None:
+        toPico(ser, 'c %s\n' % filename)
+        line = ser.readline().decode('utf-8')
+        ser.close()
+
+    checksum = line.strip()
+    if len(checksum) > 0:
+        checksum = int(checksum)
+    else:
+        checksum = -1
+    return checksum
 
 # Set to True if the local copies of tables.py and tabledefs
 # exactly match those installed on the Pico.

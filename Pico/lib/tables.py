@@ -572,7 +572,7 @@ def self_test():
     lastport = None
     dgports = 0
     d5ports = 0
-    if regular and min(DigitalPortTable) != 0:
+    if regular and len(DigitalPortTable) > 0 and min(DigitalPortTable) != 0:
         print('  Alert >>> Regularity test fails due to not starting with Digital port 0')
         checkflag = True
     for port in sorted(DigitalPortTable):
@@ -619,7 +619,7 @@ def self_test():
     lastport = None
     dgports = 0
     d5ports = 0
-    if regular and min(PWMPortTable) != 0:
+    if regular and len(PWMPortTable) > 0 and min(PWMPortTable) != 0:
         print('Alert >>> Regularity test fails due to not starting with PWM port 0')
         checkflag = True
     for port in sorted(PWMPortTable):

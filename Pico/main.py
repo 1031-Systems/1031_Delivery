@@ -560,7 +560,10 @@ def main():
         pass
 
     if len(animList) == 0:
-        animList,idler = helpers.findAnimFiles()
+        try:
+            animList,idler = helpers.findAnimFiles()
+        except:
+            pass
 
     do_the_thing(animList, idleanimation=idler)
 

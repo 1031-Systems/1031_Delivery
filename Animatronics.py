@@ -441,6 +441,13 @@ class Channel:
         self.knots = {}
         self.knottitles = {}
 
+    def delete_knot_range(self, minTime, maxTime):
+        keys = list(self.knots.keys())
+        for key in keys:
+            if key >= minTime and key <= maxTime:
+                self.knots.pop(key)
+                if key in self.knottitles: self.knottitles.pop(key)
+
     def set_name(self, inname):
         """
         The method set_name sets the name of the channel to the input value.

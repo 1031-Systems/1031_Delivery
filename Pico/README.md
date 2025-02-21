@@ -34,6 +34,40 @@ others to your liking may be found all over the interweb.
 
 ***
 
+## Important Note
+
+Prior to installing the Pico python code on the processor, the user needs to customize the
+tables defining the digital and PWM I/O ports.  The customized tables are used to assign
+port numbers to the different kinds of control outputs.  To perform this step, copy
+Pico/lib/tabledefs_template to Pico/lib/tabledefs and edit Pico/lib/tabledefs according
+to the system design.
+
+The default file Pico/lib/tabledefs_template defines 16 digital I/O ports corresponding to
+the 16 channels supported by the onboard 74HC595 chips.  It defines no PWM ports as there
+are none built into the board.
+
+Read the Pico/lib/tabledefs_template file for more details on how to attach ports to the
+various types of output devices and to the GPIO pins from the Pico that are accessible.
+Support functions are available to rapidly define digital ports for 74HC595 boards
+attached to the system and for rapidly defining PWM ports that utilize PCA9685 boards.
+Utilizing the GPIO pins requires a specific method for each port individually.  GPIO
+pins may be used for either Digital or PWM control ports.  However, usage of the GPIO
+pins may slow down the control cycle of the animatronics.
+
+In addition to the port definitions, tabledefs contains a flag to prefer binary or
+ASCII CSV files.  Binary files are preferred for larger system with more than five
+PWM controls attached to PCA9685 board(s).  For smaller systems, the flag should be
+False to prefer CSV files.  CSV files are generally forward-compatible as more ports
+are utilized while binary files are not.  However, binary files run much, much faster
+so are necessary for the bigger systems.
+
+Once the tabledefs file has been set, the do_install run described next will validate
+tabledefs and then install it, along with everything else, on the Pico.  Once everything
+is installed, it is only necessary to run installtable to validate tabledefs, copy
+it to the Pico, and validate the installation if further changes are made.
+
+***
+
 The same software runs on either the Pico or the clone and can use
 the SD card if installed.  To install the embedded software on either,
 do the following:
@@ -86,6 +120,12 @@ with the Pico.  To allow Hauntimator to make use of it, a symbolic link
 to the specific commlib.py package should be included in the Hauntimator
 executable directory.
 
+### do_install
+
+do_install is a shell script that installs all the Micropython code on
+the Pico as well as the tabledefs file defining the hardware setup.  It
+also validates the install.
+
 ### dumpBinary.py
 
 dumpBinary.py is a small program to dump out the contents of a binary
@@ -94,9 +134,20 @@ input to a spreadsheet tool).  It uses the table definitions from the
 library to interpret the bits and bytes appropriately.  See the lib
 README for more details on how the tables are defined and used.
 
-This software is made available for use under the GNU General Public License (GPL).
-A copy of this license is available within the repository for this software and is
-included herein by reference.
+### installtable
+
+installtable is a shell script that validates the tabledefs file, installs it
+on the Pico, and validates the installation.  Run it whenever the tabledefs
+file is modified but only after do_install has installed the rest of the
+system.
+
+### verifyload.py
+
+verifyload.py is a tool that validates the installation of files on the Pico.
+It utilizes a 16-bit CRC checksum to verify that the files on the Pico are
+identical to those on the development system.  With no arguments it validates
+all files in its internal list, which should be all the files in the system.
+Users may specify a specific file to validate with the -f option.
 
 ## Files
 
@@ -148,3 +199,7 @@ directly to an SD card mounted on the desktop machine to be transferred later to
 controller will always have the preferred type of control file available.
 
 
+
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
