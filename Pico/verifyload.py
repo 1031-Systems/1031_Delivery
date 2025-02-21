@@ -71,6 +71,11 @@ def main():
             i += 1
             if i < len(sys.argv):
                 filename = sys.argv[i]
+        elif sys.argv[i] == '-p' or sys.argv[i] == '-port':
+            i += 1
+            if i < len(sys.argv):
+                port = sys.argv[i]
+                commlib.portRoot = port
         else:
             sys.stderr.write("\nWhoops - Unrecognized argument: %s\n" % sys.argv[i]);
             print_usage(sys.argv[0]);
