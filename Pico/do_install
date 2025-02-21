@@ -40,7 +40,7 @@ echo Using port: $port >& $out
 echo Prepping Pico filesystem
 rshell --quiet rm /pyboard/boot.py >& $out
 rshell --quiet repl '~ import machine ~ machine.reset() ~' >& $out
-sleep 2
+sleep 5
 
 echo Installing libraries
 rshell --quiet mkdir /pyboard/lib >& $out
@@ -77,7 +77,7 @@ echo Resetting Pico
 rshell --quiet repl '~ import machine ~ machine.reset() ~' >& $out
 
 # Wait a couple of seconds for Pico to restart running main
-sleep 2
+sleep 5
 
 # Verify installation
 echo
