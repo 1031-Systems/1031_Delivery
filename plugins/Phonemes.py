@@ -160,12 +160,13 @@ def runSphinxWords(audiofile, dict=None, lm=None, starttime=0, endtime=0):
     # Output list of words with start and end times
     words = []
     print('Phonemes: Processing words from audio')
-    for s in decoder.seg():
-        if verbosity: print(s.start_frame, s.end_frame, s.word)
-        theword = s.word
-        # Remove silences that are contained in <> pairs
-        if '<' not in theword and '>' not in theword:
-            words.append((theword, float(s.start_frame) / 100.0, float(s.end_frame) / 100.0))
+    if decoder.seg() is not None:
+        for s in decoder.seg():
+            if verbosity: print(s.start_frame, s.end_frame, s.word)
+            theword = s.word
+            # Remove silences that are contained in <> pairs
+            if '<' not in theword and '>' not in theword:
+                words.append((theword, float(s.start_frame) / 100.0 + starttime, float(s.end_frame) / 100.0 + starttime))
 
     print('Phonemes: Done processing')
     return words
@@ -223,7 +224,7 @@ def runSphinx(audiofile, dict=None, lm=None, starttime=0, endtime=0):
         phones = []
         for s in decoder.seg():
             if verbosity: print(s.start_frame, s.end_frame, s.word)
-            phones.append((s.word, float(s.start_frame + s.end_frame) / 200.0))
+            phones.append((s.word, float(s.start_frame + s.end_frame) / 200.0) + starttime)
     else:
         # Because the above seems to be not so good, we try something else with a dictionary
         # First get the words and timing
@@ -371,17 +372,19 @@ def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
             if phone[0] in channelpositions[type]:
                 phonevalue = float(channelpositions[type][phone[0]]) / 100.0
                 value = (maxval - minval) * phonevalue + minval
-                channel.add_knot(phone[1] + starttime, value)
-                if verbosity: print('Adding knot value:', value, 'at time:', phone[1] + starttime, 'to channel:', channel.name, 'for phone:', phone[0])
+                channel.add_knot(phone[1], value)
+                if verbosity: print('Adding knot value:', value, 'at time:', phone[1], 'to channel:', channel.name, 'for phone:', phone[0])
 
     if widget.getTagFlag() == 'Words' and words is None:
         # Rerun sphinx just looking for word timing
         words = runSphinxWords(widget.getAudioFile(), dict=dictfile, lm=lmfile, starttime=starttime, endtime=endtime)
 
     if widget.getTagFlag() != 'None':
-        theanim.clearTags()
+        theanim.clearTags(starttime=starttime, endtime=endtime)
         for word in words:
-            if word[0][0] != '[': theanim.addTag(word[0], word[1])
+            if word[0][0] != '[':
+                print('Adding:', word[0], 'at:', word[1])
+                theanim.addTag(word[0], word[1])
 
     return True
 
@@ -509,6 +512,18 @@ if __name__ == "__main__":
                 for word in words:
                     sys.stdout.write(word[0] + ' ')
                 sys.stdout.write('\n')
+
+                prev_end = 0.0
+                index = 0
+                for index in range(len(phones) - 1):
+                    phone = phones[index]
+                    print("file '%s.ppm'" % phone[0])
+                    if index == 0:
+                        duration = phone[1] + (phones[index+1][1] + phone[1]) / 2.0
+                    else:
+                        duration = (phones[index+1][1] + phone[1]) / 2.0 - prev_end
+                    prev_end += duration
+                    print("duration %f" % duration)
 
     else:
         pass
