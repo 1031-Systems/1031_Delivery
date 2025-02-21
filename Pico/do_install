@@ -33,9 +33,13 @@ if($status) then
     exit
 endif
 
+# Get the port used by rshell (we assume it is first in the list)
+set port=`rshell -l |& sed -e 's/^[^@]*@//' -e 's/ .*//'`
+echo Using port: $port >& $out
+
 echo Installing libraries
 rshell mkdir /pyboard/lib >& $out
-rshell cp lib/servo.py \
+rshell --quiet cp lib/servo.py \
           lib/wave.py \
           lib/pca9685.py \
           lib/sdcard.py \
@@ -43,9 +47,9 @@ rshell cp lib/servo.py \
           lib/tables.py \
           lib/tabledefs \
           lib/helpers.py \
-          /pyboard/lib >& $out
+          /pyboard/lib
 echo Installing boot.py and main.py
-rshell cp boot.py main.py /pyboard >& $out
+rshell --quiet cp boot.py main.py /pyboard
 rshell mkdir /pyboard/anims >& $out
 
 echo ''
@@ -71,7 +75,7 @@ echo
 echo Verifying installation
 echo
 popd
-./verifyload.py
+./verifyload.py -p $port
 
 if ! $status then
     echo All files validate
