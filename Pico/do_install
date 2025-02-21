@@ -34,7 +34,7 @@ if($status) then
 endif
 
 # Get the port used by rshell (we assume it is first in the list)
-set port=`rshell -l |& sed -e 's/^[^@]*@//' -e 's/ .*//'`
+set port=`rshell -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//'`
 echo Using port: $port >& $out
 
 echo Installing libraries
