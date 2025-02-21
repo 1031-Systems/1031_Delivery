@@ -40,15 +40,19 @@ if($status) then
     exit
 endif
 
+# Get the port used by rshell (we assume it is first in the list)
+set port=`rshell -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
+echo Using port: $port >& $out
+
 echo Installing $file on Pico
-rshell cp $file /pyboard/$file >& $out
+rshell --quiet cp $file /pyboard/$file >& $out
 
 echo Resetting Pico
-rshell repl '~ import machine ~ machine.reset() ~' >& $out
-sleep 1
+rshell --quiet repl '~ import machine ~ machine.reset() ~' >& $out
+sleep 2
 
 echo Validating install
-verifyload.py -f $file
+python3 ./verifyload.py -p $port -f $file
 if(! $status) echo Install successful
 
 exit
