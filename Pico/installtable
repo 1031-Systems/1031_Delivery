@@ -49,7 +49,7 @@ rshell --quiet cp $file /pyboard/$file >& $out
 
 echo Resetting Pico
 rshell --quiet repl '~ import machine ~ machine.reset() ~' >& $out
-sleep 2
+sleep 5
 
 echo Validating install
 python3 ./verifyload.py -p $port -f $file
