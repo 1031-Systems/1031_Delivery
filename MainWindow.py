@@ -935,15 +935,19 @@ class ChannelMenu(QMenu):
             self.channel.delete_knot(knot)
 
         currTime = minTime
-        currValue = (self.channel.maxLimit + self.channel.minLimit) / 2.0
+        lastValue = None
         while currTime <= maxTime:
             if self.channel.type == self.channel.DIGITAL:
                 currValue = float(random.randrange(2))
+                if lastValue is None or lastValue != currValue:
+                    self.channel.add_knot(currTime, float(currValue))
+                    lastValue = currValue
+                    
             else:
-                currValue += random.uniform(-1.0, 1.0) * maxRate
-            if currValue > self.channel.maxLimit: currValue = self.channel.maxLimit
-            if currValue < self.channel.minLimit: currValue = self.channel.minLimit
-            self.channel.add_knot(currTime, currValue)
+                currValue = random.uniform(0.0, 1.0) * maxRate + self.channel.minLimit
+                if currValue > self.channel.maxLimit: currValue = self.channel.maxLimit
+                if currValue < self.channel.minLimit: currValue = self.channel.minLimit
+                self.channel.add_knot(currTime, currValue)
             currTime += 1.0/popRate
 
         self.parent.redrawme()
