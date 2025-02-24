@@ -6082,7 +6082,7 @@ class MainWindow(QMainWindow):
             triggered=self.newdigital_action)
         self.channel_menu.addAction(self._newdigital_action)
 
-        self._deletechannel_action = QAction("Delete Channels", self,
+        self._deletechannel_action = QAction("Delete Dialog", self,
             triggered=self.deletechannel_action)
         self.channel_menu.addAction(self._deletechannel_action)
 
@@ -6108,7 +6108,7 @@ class MainWindow(QMainWindow):
         self.channel_menu.addAction(self._Clear_action)
 
         # Delete menu item
-        self._Delete_action = QAction("Delete", self,
+        self._Delete_action = QAction("Delete Selected", self,
             shortcut=QKeySequence.Delete,
             triggered=self.Delete_action)
         self.channel_menu.addAction(self._Delete_action)

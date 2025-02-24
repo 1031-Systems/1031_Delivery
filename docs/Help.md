@@ -600,6 +600,13 @@ follow straight lines from one control point to the next.  Spline causes the con
 smoothly interpolated.  Step causes the control value to step up or down instantly to the new value.
 Note that Step may not be usable for servos.
 
+Besides the requirement to be unique, the names of channels can only be made up of upper-case letters,
+lower-case letters, digits, hyphens, underscores, and spaces.  Note that spaces cannot be the first or
+last character in the name.  If the name contains an invalid character, a space in the first or last
+position, or matches an existing channel name, the name field will be red and the Save button will be
+disabled.  The user may cancel but may not create a new channel or rename an existing channel with an
+invalid name.
+
 The limits on a servo channel are initialized to what the type of servo, if specified, can handle.  If the
 user clicks on the Servo selector, a list of known servo types will appear.  If the user selects one, the
 upper and lower limits are set to the maximum limits for that type of servo.  Note that the Preferences
