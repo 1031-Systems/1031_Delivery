@@ -13,4 +13,6 @@ A GUI for building controls for animatronics and lighting displays.
 
 Copyright 2024 John R. Wright, William R. Douglas - 1031_Systems
 
+![Logo](images/1031-logo.png)
+
 
