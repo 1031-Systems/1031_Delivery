@@ -913,7 +913,7 @@ class ChannelMenu(QMenu):
         self : ChannelMenu
         """
         # Open randomize widget to get values from user
-        twidget = AmpingWidget(startTime=self.parent.minTime, endTime=self.parent.maxTime,
+        twidget = AmpingWidget(parent=main_win, startTime=self.parent.minTime, endTime=self.parent.maxTime,
                     popRate=1.0)
         twidget.setWindowTitle('Randomizer Control')
         code = twidget.exec_()
@@ -4499,7 +4499,7 @@ class MainWindow(QMainWindow):
         # Get list of channels in current display order
         channelList = self.animatronics.channels
 
-        form = ChecklistDialog('Channels to Delete', channelList)
+        form = ChecklistDialog('Channels to Delete', channelList, parent=main_win)
         if form.exec_() == QDialog.Accepted:
             if len(form.choices) <= 0:
                 # Laugh at user
@@ -4833,7 +4833,7 @@ class MainWindow(QMainWindow):
         channelList = self.animatronics.channels
 
         # Pop up show/hide selector to choose visible channels
-        form = ChecklistDialog('Channels to Show', channelList)
+        form = ChecklistDialog('Channels to Show', channelList, parent=main_win)
         checklist = []
         for name in channelList:
             if self.plots[name].isHidden():
@@ -5593,7 +5593,7 @@ class MainWindow(QMainWindow):
             return
 
         # Pop up widget to get sampling parameters
-        twidget = AmpingWidget(startTime=self.lastXmin, endTime=self.lastXmax,
+        twidget = AmpingWidget(parent=main_win, startTime=self.lastXmin, endTime=self.lastXmax,
                     popRate=10.0)
         code = twidget.exec_()
         if code != QDialog.Accepted: return # Cancel the operation
