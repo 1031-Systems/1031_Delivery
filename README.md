@@ -92,6 +92,13 @@ working.  PyQt6 seems to be changing a lot with every release, especially
 in the QMediaPlayer area which is used here.  Thus, it is recommended
 that you install specifically PyQt6.5 for now.
 
+Once Hauntimator is running in your virtual environment, the linktobin
+script will add scripts to your bin directory to run Hauntimator and
+other tools from any directory without the need to be in the virtual
+environment.  This allows the user to set up their animation development
+directories any way they wish.  Note that linktobin creates scripts
+without the .py extension.
+
 
 ***
 
