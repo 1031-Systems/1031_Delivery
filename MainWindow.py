@@ -1538,6 +1538,13 @@ class ChannelPane(qwt.QwtPlot):
             self.resetDataRange()
         self.redrawme()
 
+    def getPlotValues(self, widgetX, widgetY):
+        self.setOffsets()
+        xplotval = self.invTransform(qwt.QwtPlot.xBottom, widgetX - self.xoffset)
+        yplotval = self.invTransform(qwt.QwtPlot.yLeft, widgetY - self.yoffset)
+
+        return xplotval, yplotval
+
     def mousePressEvent(self, event):
         """
         The method mousePressEvent handles the mouse press events.  They
@@ -4754,6 +4761,65 @@ class MainWindow(QMainWindow):
         self.timerangedialog.show()
         pass
 
+    def zoomin_action(self):
+        cursorpos = QCursor.pos()
+        if self.audioPlot is not None:
+            widgetpos = self.audioPlot.mapFromGlobal(cursorpos)
+            centerX,_ = self.getPlotValues(widgetpos.x(), widgetpos.y())
+        elif len(self.plots) > 0:
+            for name in self.plots:
+                if self.plots[name].isHidden(): continue
+                widgetpos = self.plots[name].mapFromGlobal(cursorpos)
+                centerX,_ = self.plots[name].getPlotValues(widgetpos.x(), widgetpos.y())
+                break
+        elif self.tagPlot is not None:
+            self.tagPlot.show()
+            widgetpos = self.tagPlot.mapFromGlobal(cursorpos)
+            centerX,_ = self.getPlotValues(widgetpos.x(), widgetpos.y())
+        else:
+            return
+
+        # Zoom in to cursor and center it if off window
+        currLeft = self.lastXmin
+        currRight = self.lastXmax
+        if centerX > currLeft and centerX < currRight:
+            newLeft = centerX - (centerX - currLeft) / 2.0
+            newRight = centerX + (currRight - centerX) / 2.0
+        else:
+            newLeft = centerX - (currRight - currLeft) / 4.0
+            newRight = centerX + (currRight - currLeft) / 4.0
+        self.setTimeRange(newLeft, newRight)
+
+    def zoomout_action(self):
+        cursorpos = QCursor.pos()
+        if self.audioPlot is not None:
+            widgetpos = self.audioPlot.mapFromGlobal(cursorpos)
+            centerX,_ = self.getPlotValues(widgetpos.x(), widgetpos.y())
+        elif len(self.plots) > 0:
+            for name in self.plots:
+                if self.plots[name].isHidden(): continue
+                widgetpos = self.plots[name].mapFromGlobal(cursorpos)
+                centerX,_ = self.plots[name].getPlotValues(widgetpos.x(), widgetpos.y())
+                break
+        elif self.tagPlot is not None:
+            self.tagPlot.show()
+            widgetpos = self.tagPlot.mapFromGlobal(cursorpos)
+            centerX,_ = self.getPlotValues(widgetpos.x(), widgetpos.y())
+        else:
+            return
+
+        # Zoom in to cursor and center it if off window
+        currLeft = self.lastXmin
+        currRight = self.lastXmax
+        if centerX > currLeft and centerX < currRight:
+            newLeft = centerX - (centerX - currLeft) * 2.0
+            newRight = centerX + (currRight - centerX) * 2.0
+        else:
+            newLeft = centerX - (currRight - currLeft)
+            newRight = centerX + (currRight - currLeft)
+        self.setTimeRange(newLeft, newRight)
+        
+
     def showall_action(self):
         """
         The method showall_action causes all audio and data channels to be
@@ -6005,6 +6071,18 @@ class MainWindow(QMainWindow):
         self._settimerange_action = QAction("Set Time Range", self,
             triggered=self.settimerange_action)
         self.view_menu.addAction(self._settimerange_action)
+
+        # Zoom In Action
+        self._zoomin_action = QAction("Zoom In", self,
+            shortcut=QKeySequence.ZoomIn,
+            triggered=self.zoomin_action)
+        self.addAction(self._zoomin_action)
+
+        # Zoom Out Action
+        self._zoomout_action = QAction("Zoom Out", self,
+            shortcut=QKeySequence.ZoomOut,
+            triggered=self.zoomout_action)
+        self.addAction(self._zoomout_action)
 
         self.view_menu.addSeparator()
 

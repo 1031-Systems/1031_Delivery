@@ -11,6 +11,8 @@
 - Del - Delete selected point(s) or channel(s)
 
 ## Control Keys
+- Ctrl-+ - Zoom In around Cursor
+- Ctrl-- - Zoom Out around Cursor
 - Ctrl-A - Select All Channels
 - Ctrl-Shift-A - Deselect All Channels
 - Ctrl-C - Copy selected channel(s)

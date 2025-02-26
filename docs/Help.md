@@ -105,7 +105,8 @@ to distinguish the synchronization of the knots with the audio.  Thus, the user 
 want to zoom in to a smaller subrange of the overall duration to construct, visualize,
 and modify the control channels.  Users may do this manually by clicking and dragging
 within an audio pane, by setting limits by current playback position within the audio,
-or by selecting a range from a markdown entry.  [See here for zoom details.](#zooming)
+by using the Zoom In (Ctrl-+) or Zoom Out (Ctrl--) hot keys, or by selecting a range1s
+ from a markdown entry.  [See here for zoom details.](#zooming)
 
 Once the user has completed some or all of the channels, they may output the control
 information to a hardware controller.  This may be done by exporting a CSV file that
@@ -340,6 +341,9 @@ hold the ctrl-left mouse button within the audio pane (either if stereo) and dra
 cursor is dragged up or down, the entire display zooms in or out around where the user
 clicked.  If the cursor is dragged left or right, the entire display pans left and right.
 The user may quickly select a reasonable time range upon which to work.
+
+Hot keys are also provided for zooming the display either in or out around the current
+position of the cursor.  Ctrl-+ zooms in by 50% while Ctrl-- zooms out by 100%.
 
 A second method for selecting a smaller time range is to reveal the playback controls
 and use Set Left and Set Right buttons.  The user can hit Play and at the desired start
