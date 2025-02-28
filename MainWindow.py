@@ -306,6 +306,8 @@ class LimitWidget(QDialog):
 
         # Initialize to midway between min and max
         initValue = int((maximum+minimum)/2)
+        # per Bill, initialize unspecified servos to 1.5msec pulse width in 20 msec cycle
+        if initValue > 4915 and minimum < 4915 and maximum > 4915: initValue = 4915
         self.slider.setValue(initValue)
         self.display.setText('%d' % initValue)
 
