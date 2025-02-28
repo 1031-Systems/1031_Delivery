@@ -4,7 +4,7 @@
 This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
 board designs created by Bill Douglas and available for
-download at here in this repo at [Pico/Hardware](https://github.com/steelheadj/Animatronics/Pico/Hardware).
+download at here in this repo at [Pico/Hardware](https://steelheadj/github.com/Animatronics/Pico/Hardware/).
 
 This codebase contains an application, Hauntimator, for creating control
 channel data for directing the animatronics and code for
