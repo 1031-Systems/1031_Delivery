@@ -78,7 +78,7 @@ or LED brightness controls.  These may also be cascaded to support the desired n
 PWM devices.  To the top is a sample I2S-compatible sound card to play
 the audio portion of the animatronics.  To the bottom are the buttons that control the
 playback of animations including reset of the Pico, start/stop trigger, and an opto-isolated
-trigger to interface with various of trigger devices.
+trigger to interface with various types of trigger devices.
 
 ## The Ten ports on the board 
 
@@ -131,10 +131,10 @@ although the system should run successfully at any voltage between 9 and 24 volt
 from 74AHCT595s at 50Hz. 
 
 - In the directory .../Animatronics/Pico/lib is a file called tabledefs. This file must be 
-edited to match the configuration on your animatronic system. Do not leave spaces in 
+edited to match the configuration of your animatronic system. Do not leave spaces in 
 front of the first character of the configure595s or the addDigitalPortTableEntry or the 
 addPWMPortTableEntry lines.  The tabledefs file can be loaded by running either
-do_install or installtabe command in the /Pico  directory.  Run the Python program 
+do_install or installtable command in the /Pico  directory.  Run the Python program 
 tables.py to verify the tabledefs file is correct. table.py -v will print the 
 configuration from the tabledefs file to the screen.
 
@@ -147,8 +147,8 @@ the animations and audio to the onboard flash memory to run just a few short ani
 
 A simple 595 expander board was designed and fabricated to allow for the addition of 
 longer cascades of digital outputs. The output design is identical to the ouputs on the 
-Animator board and are numbered D0 to D15, when added to the tabledefs file the digital 
-outputs would be D16 to D31. The board is available through OSH Park,  
+Animator board and are numbered D0 to D15.  When added to the tabledefs file the digital 
+outputs would be D16 to D31. The board is available through OSH Park 
 https://oshpark.com/shared_projects, search for 1031_Systems. The board is 4 by 1.5 
 inches on each side, the center of the mounting holes are 0.25 inches from edge of the 
 board and 3.2mm in diameter.
