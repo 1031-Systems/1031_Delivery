@@ -96,7 +96,7 @@ they would.
 10. The USB connector on the Raspberry Pi Pico.
 
 JP1, JP2, JP3 and JP4 are post type (pin header) connectors for connecting Dupont 
-connectors. J1, J2, and J3 are square receptacles for receiving 10 pin IDC ribbon cable connectors, 
+connectors.  J1, J2, and J3 are square receptacles for receiving 10 pin IDC ribbon cable connectors, 
 although post type connectors may be used here if preferred. 
 X1 has 10 signals on a 0.1-inch (2.54mm) screw terminal. 
 
