@@ -3332,7 +3332,7 @@ class MainWindow(QMainWindow):
         self._show_audio_menu.setEnabled(False)
 
         # Set all the left axes to align
-        LeftAlignLayout.setMaxScaleWidth(70.0)
+        LeftAlignLayout.setMaxScaleWidth(75.0)
 
         # Add filename to window title
         if self.animatronics.filename is not None:
