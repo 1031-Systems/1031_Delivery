@@ -98,7 +98,7 @@ they would.
 JP1, JP2, JP3 and JP4 are post type (pin header) connectors for connecting Dupont 
 connectors.  J1, J2, and J3 are square receptacles for receiving 10 pin IDC ribbon cable connectors, 
 although post type connectors may be used here if preferred. 
-X1 has 10 signals on a 0.1-inch (2.54mm) screw terminal. 
+X1 has 10 signals on a 0.1-inch (2.54mm) pitch screw terminal. 
 
 ## Available Documents
 
