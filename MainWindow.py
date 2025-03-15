@@ -576,10 +576,52 @@ class TextDisplayDialog(QDialog):
         self.textView.setPlainText(text)
         self.textView.setReadOnly(True)
         self.resize(500, 600)
+        taction = QAction('', self, shortcut="Ctrl+F",
+            triggered=self.showFinder)
+        self.addAction(taction)
 
         layout = QFormLayout()
         self.setLayout(layout)
         layout.addRow(self.textView)
+
+        # Text find tool for searches within window
+        tlayout = QHBoxLayout()
+        self.findWidget = QWidget()
+        self.findWidget.hide()
+        layout.addRow(self.findWidget)
+
+        self.searchTextWidget = QLineEdit()
+        tlayout.addWidget(self.searchTextWidget)
+        tbutt = QPushButton('^')
+        tbutt.clicked.connect(self.findBackwards)
+        tlayout.addWidget(tbutt)
+        tbutt = QPushButton('V')
+        tbutt.clicked.connect(self.findForwards)
+        tlayout.addWidget(tbutt)
+        self.findWidget.setLayout(tlayout)
+        
+    def showFinder(self):
+        self.findWidget.setVisible(not self.findWidget.isVisible())
+        self.searchTextWidget.setFocus()
+
+    def findBackwards(self):
+        txt = self.searchTextWidget.text()
+        if len(txt) > 0:
+            flag = self.textView.find(txt, QTextDocument.FindBackward)
+            if not flag:
+                # Go to end and try again
+                self.textView.moveCursor(QTextCursor.End)
+                flag = self.textView.find(txt, QTextDocument.FindBackward)
+
+    def findForwards(self):
+        txt = self.searchTextWidget.text()
+        if len(txt) > 0:
+            flag = self.textView.find(txt)
+            if not flag:
+                # Go to beginning and try again
+                self.textView.moveCursor(QTextCursor.Start)
+                flag = self.textView.find(txt)
+
 
     def setText(self, text):
         """
