@@ -480,7 +480,11 @@ class Channel:
         self : Channel
         inTime : type
         """
-        pass
+        value = self.getValuesAtTimeSteps(inTime, inTime+0.001, 1)
+        if len(value) > 0:
+            return value[0]
+        else:
+            return None
 
     def getKnotData(self, minTime, maxTime, maxCount):
         """
