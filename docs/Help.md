@@ -625,6 +625,11 @@ servo interactively if the Live toggle is set.  The user may click the Page Up a
 buttons to jump or the Up and Down Arrow keys to single step up and down to set the servo to a desired
 limit and then the Max or Min button can be clicked to set that limit to the current servo value.
 
+As an additional level of safeguard, the "Live" checkbox must be checked before the slider values are
+actually sent to the servo.  This allows the user to verify that the initial slider position is a
+safe value if known.  As the digital outputs tend to just turn things on and off, a similar safeguard
+is not present.
+
 <a name="file-extensions">
 &nbsp;
 </a>
