@@ -34,6 +34,10 @@
 - Ctrl-Z - Undo
 - Ctrl-Shift-Z - Redo
 
+In Help widgets, a couple of the hot keys are remapped as follows:
+- Ctrl-F - Open/Close the finder tool within the Help widget
+- Ctrl-W - Close the Help widget
+
 ## Arrow Keys
 - Left Arrow - Shift selected knots in channel 0.1 secs to left
 - Right Arrow - Shift selected knots in channel 0.1 secs to right
