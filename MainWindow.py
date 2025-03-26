@@ -54,7 +54,12 @@ import xml.etree.ElementTree as ET
 # Import commlib for my board
 try:
     import commlib
-    COMMLIB_ENABLED = True
+    ser = commlib.openPort()
+    if ser is not None:
+        COMMLIB_ENABLED = True
+        ser.close()
+    else:
+        COMMLIB_ENABLED = False
 except:
     COMMLIB_ENABLED = False
 
