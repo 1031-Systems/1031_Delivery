@@ -365,7 +365,7 @@ class JSWrapper:
 #/* Usage method */
 def print_usage(name):
     """ Simple method to output usage when needed """
-    sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose] -a/-animfile animfilename [-t tablefilename] [-s/-start starttime] [-e/-end endtime] [-r/-rate samplerate]\n" % name)
+    sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose] [-a/-animfile animfilename] [-t tablefilename] [-s/-start starttime] [-e/-end endtime] [-r/-rate samplerate]\n" % name)
     sys.stderr.write("\n");
     sys.stderr.write("    This tool supports the use of a joystick for populating channels in an\n");
     sys.stderr.write("animatronics file.  Channels to be populated must already be defined in the\n");

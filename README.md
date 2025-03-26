@@ -13,6 +13,9 @@ The Hauntimator application is intended to be board-agnostic so
 users may develop code for different processors such as 
 Arduino or other Raspberry Pi versions.
 
+It also contains a utility application, joysticking.py, for recording
+joystick actions into Hauntimator channels.
+
 This software is made available for use under the GNU General Public License (GPL).
 A copy of this license is available within the repository for this software and is
 included herein by reference.
@@ -71,12 +74,13 @@ In addition, you may have to find the appropriate requirements file
 for your system.  If the OSTYPE environment is set then you can use
 the command above.  If not, you will have to replace it with the
 appropriate OS type for your system.  If your system is not available,
-then you have to manually install PyQt and qwt with the  following:
+then you have to manually install needed modules with the  following:
 
 ~~~
 
 pip install PyQt5 # (or PyQt6.5, whichever will actually install)
 pip install PythonQwt
+pip install pygame
 pip install rshell
 pip install pocketsphinx    # To support phonemes plugin
 pip freeze -l > ${OSTYPE}-requirements.txt # To save your own config
@@ -125,6 +129,15 @@ Channel data may be exported to a CSV file to be transferred to an
 external hardware controller.  In addition, a pipe may be used to
 directly signal the controller from the system while it runs
 Hauntimator.py.
+
+### joysticking.py
+
+joysticking.py is a GUI application for recording joystick actions into
+Hauntimator channels.  It reads an animation file created by Hauntimator
+and provides an interface for mapping joystick axes and buttons to
+channels in the animation.  Then it enables recording of the joystick
+actions into those channels, playback of the channels, and saving of
+the animation file for Hauntimator to read.
 
 ### Pico
 
