@@ -952,12 +952,18 @@ class Animatronics:
         self.channels = {}
         self.clearTags()
         self.sample_rate = 50.0
+        self.csvUploadFile = None
+        self.audioUploadFile = None
 
         # Scan the XML text
         root = ET.fromstring(testtext)
         # Get the attributes from the XML
         if 'endtime' in root.attrib:
             self.end = float(root.attrib['endtime'])
+        if 'csvUploadFile' in root.attrib:
+            self.csvUploadFile = root.attrib['csvUploadFile']
+        if 'audioUploadFile' in root.attrib:
+            self.audioUploadFile = root.attrib['audioUploadFile']
 
         for child in root:
             if child.tag == 'Audio':
