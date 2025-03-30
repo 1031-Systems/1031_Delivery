@@ -152,6 +152,9 @@ https://oshpark.com/shared_projects, search for 1031_Systems. The board is 4 by 
 inches on each side, the center of the mounting holes are 0.25 inches from edge of the 
 board and 3.2mm in diameter.
 
+Note: There is an error on the silkscreen of this board:  
+IC1 is labeled 74HC125N and should be labeled 74AHCT125N.
+
 The Bill of Materials for the board is in the 595_Extender_BOM.xls spreadsheet.
 
 A copy of the schematic, the top silkscreen and the Gerber files is included.
