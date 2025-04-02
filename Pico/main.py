@@ -99,7 +99,7 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
         if not continuous and not skip:
             while not button_pressed() and not opto_button_pressed():
                 if idleanimation is not None and not firstTime:
-                    play_one_anim(idleanimation[0], idleanimation[1])
+                    play_one_anim(idleanimation[0], idleanimation[1], idle=True)
                 code = 0
                 toggle_LEDs()
                 for i in range(msecPerBlink):
@@ -151,6 +151,10 @@ def do_the_thing(animList, idleanimation=None, randomize=False, continuous=False
             # Wait for button release
             while button_pressed():
                 utime.sleep_ms(100)
+
+        # Pause here to let opto button be released so it doesn't get caught again
+        while opto_button_pressed():
+            utime.sleep_ms(10)
 
         if len(animList) > 0:
             # Go to next anim in list
@@ -537,7 +541,7 @@ def play_one_anim(csvfile, wavefile, idle=False):
     if player is not None:
         while player.playing():
             # If button is pressed, abort playback
-            if button_pressed():
+            if button_pressed() or (idle and opto_button_pressed()):
                 if verbose: print('Caught Stop button')
                 player.stop()
             # Waiting a bit to see if audio is done
