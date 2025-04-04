@@ -3690,7 +3690,9 @@ class MainWindow(QMainWindow):
                     return
 
     def redraw(self):
+        self.save_visual_state()
         self.setAnimatronics(self.animatronics)
+        self.restore_visual_state()
 
     def newAnimFile(self):
         """
@@ -4264,6 +4266,17 @@ class MainWindow(QMainWindow):
         # Just closing here puts the onus on eventClose to handle cleanup
         self.close()
 
+    def save_visual_state(self):
+        # Get the display states of all channels
+        self.chanStates = {}
+        for plot in self.plots:
+            self.chanStates[plot] = self.plots[plot].getState()
+
+    def restore_visual_state(self):
+        for plot in self.plots:
+            if plot in self.chanStates:
+                self.plots[plot].setState(self.chanStates[plot])
+
     def undo_action(self):
         """
         The method undo_action undoes the last action performed by the user.
@@ -4476,7 +4489,9 @@ class MainWindow(QMainWindow):
                 selection = self.getSelectedChannelNames()
                 if len(selection) > 0: placename = selection[0]
                 self.animatronics.insertChannel(tempChannel, placename=placename)
+                self.save_visual_state()
                 self.setAnimatronics(self.animatronics)
+                self.restore_visual_state()
                 self.selectChannels(selection)
 
         pass
@@ -4529,7 +4544,9 @@ class MainWindow(QMainWindow):
                 selection = self.getSelectedChannelNames()
                 if len(selection) > 0: placename = selection[0]
                 self.animatronics.insertChannel(tempChannel, placename=placename)
+                self.save_visual_state()
                 self.setAnimatronics(self.animatronics)
+                self.restore_visual_state()
                 self.selectChannels(selection)
 
         pass
@@ -4563,7 +4580,9 @@ class MainWindow(QMainWindow):
 
             for name in chanList:
                 del self.animatronics.channels[name]
+            self.save_visual_state()
             self.setAnimatronics(self.animatronics)
+            self.restore_visual_state()
 
     def deletechannel_action(self):
         """
@@ -4615,7 +4634,9 @@ class MainWindow(QMainWindow):
 
             try:
                 self.animatronics.set_audio(fileName)
+                self.save_visual_state()
                 self.setAnimatronics(self.animatronics)
+                self.restore_visual_state()
 
             except Exception as e:
                 self.undo_action()
@@ -5410,7 +5431,9 @@ class MainWindow(QMainWindow):
                     # Copy all the knots
                     self.clipboard.setText(self.animatronics.channels[channame].toXML())
                     self.animatronics.deleteChannel(channame)
+                    self.save_visual_state()
                     self.setAnimatronics(self.animatronics)
+                    self.restore_visual_state()
         elif len(selection) > 1:
             pushState()     # Save state for Undo
             # Copy all channels into an XML block
@@ -5422,7 +5445,9 @@ class MainWindow(QMainWindow):
                 self.animatronics.deleteChannel(name)
             xmlText += '\n</Block>\n'
             self.clipboard.setText(xmlText)
+            self.save_visual_state()
             self.setAnimatronics(self.animatronics)
+            self.restore_visual_state()
         else:
             # Copy to clipboard
             name = selection[0]
@@ -5430,7 +5455,9 @@ class MainWindow(QMainWindow):
             pushState()     # Save state for Undo
             # Delete the copied channel to implement Cut operation
             self.animatronics.deleteChannel(name)
+            self.save_visual_state()
             self.setAnimatronics(self.animatronics)
+            self.restore_visual_state()
 
         pass
 
@@ -5560,7 +5587,9 @@ class MainWindow(QMainWindow):
                             if msgBox.clickedButton() == insertButton:
                                 placename = selection[0]
                                 self.insertChannel(root, placename=placename)
+                                self.save_visual_state()
                                 self.setAnimatronics(self.animatronics)
+                                self.restore_visual_state()
                                 self.selectChannels(explicitselection)
                                 return
                             elif ret == QMessageBox.Cancel:
@@ -5583,7 +5612,9 @@ class MainWindow(QMainWindow):
                         for child in root:
                             if child.tag == 'Channel':
                                 self.insertChannel(child, placename=placename)
+                        self.save_visual_state()
                         self.setAnimatronics(self.animatronics)
+                        self.restore_visual_state()
                         self.selectChannels(explicitselection)
                     pass
                 self.updateXMLPane()
@@ -5657,7 +5688,9 @@ class MainWindow(QMainWindow):
                     # Clipboard is a full, named channel to be inserted at first selected
                     placename = selection[0]
                     self.insertChannel(root, placename=placename)
+                    self.save_visual_state()
                     self.setAnimatronics(self.animatronics)
+                    self.restore_visual_state()
                     self.selectChannels(explicitselection)
             elif root.tag == 'Block':
                 # Clipboard is a set of full channels to be inserted at first selected
@@ -5666,7 +5699,9 @@ class MainWindow(QMainWindow):
                     for child in root:
                         if child.tag == 'Channel':
                             self.insertChannel(child, placename=placename)
+                    self.save_visual_state()
                     self.setAnimatronics(self.animatronics)
+                    self.restore_visual_state()
                     self.selectChannels(explicitselection)
                 pass
             self.updateXMLPane()
