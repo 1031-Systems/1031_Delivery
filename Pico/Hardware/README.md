@@ -73,7 +73,8 @@ digital output blocks.  With the 16 digital outputs on the main controller board
 gives a total of 32 digital outputs.  Additional expander boards may be cascaded to
 support as many digital ports as needed.
 
-To the right of the main board is a COTS PCA9685 board providing PWM control of up to 16 servos
+To the right of the main board is a commercially available PCA9685 board
+providing PWM control of up to 16 servos
 or LED brightness controls.  These may also be cascaded to support the desired number of
 PWM devices.  To the top is a sample I2S-compatible sound card to play
 the audio portion of the animatronics.  To the bottom are the buttons that control the

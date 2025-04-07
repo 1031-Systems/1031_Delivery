@@ -56,7 +56,8 @@ imported by the regular controller software.
 
 ### pca9685.py
 
-pca9685.py contains an implementation of a PCA9685 class.  The pca9685 is a COTS package
+pca9685.py contains an implementation of a PCA9685 class.  The pca9685 is a commercially
+available package
 that supports up to 16 PWM outputs per package via an I2C interface.  The class provides
 the interface to the pca9685.  It is based on a fairly simple package by Kevin McAleer
 with extensions to feed binary data in much faster that the previous methods.
