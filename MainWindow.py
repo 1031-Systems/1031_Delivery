@@ -31,6 +31,7 @@ SystemPreferences = {
 'ServoDefaultMaximum':65535,    # Default maximum servo setting
 'AutoSave':True,                # Perfrom saving automatically flag
 'ShowTips':True,                # Show tool tips flag
+'Scrollable':True,              # Use scrollable area with fixed pane heights
 'ServoDataFile':'servotypes',   # Name of file containing predefined servos
 'UploadPath':'/sd/anims/',      # Name of upload directory on controller
 'TTYPortRoot':'/dev/ttyACM',    # Root of tty port for usb comm
@@ -42,6 +43,7 @@ SystemPreferenceTypes = {
 'ServoDefaultMaximum':'int',
 'AutoSave':'bool',
 'ShowTips':'bool',
+'Scrollable':'bool',
 'ServoDataFile':'str',
 'UploadPath':'str',
 'TTYPortRoot':'str',
@@ -1447,6 +1449,10 @@ class ChannelPane(qwt.QwtPlot):
         # Set up palettes for selected and not selected
         self._unselectedPalette = self.palette()
         backcolor = QColor()
+        backcolor.setRgb(150, 200, 250)
+        self._unselectedPalette.setColor(self.backgroundRole(), backcolor)
+        self.setPalette(self._unselectedPalette)
+        backcolor = QColor()
         backcolor.setRgb(100, 200, 100)
         self._selectedPalette = QPalette()
         self._selectedPalette.setColor(self.canvas().backgroundRole(), backcolor)
@@ -1560,6 +1566,12 @@ class ChannelPane(qwt.QwtPlot):
         """
         # Do not allow resizing on digital channels
         if self.channel.type == Channel.DIGITAL: return
+
+        # Do not allow resizing when in scrollbar mode
+        if self.holder is None:
+            if SystemPreferences['Scrollable']: return
+        else:
+            if not self.holder.paneScrollable: return
 
         numDegrees = event.angleDelta() / 8
         vertDegrees = numDegrees.y()
@@ -3370,6 +3382,7 @@ class MainWindow(QMainWindow):
         self.lastDeltaX = 0.0
         self.lastDeltaY = 0.0
         self.repCount = 0
+        self.paneScrollable = False
 
         self.lastNoted = None
 
@@ -3429,6 +3442,8 @@ class MainWindow(QMainWindow):
         self._playwidget.addTimeChangedCallback(self.livePlay)
         self._playwidget.hide()
         tlayout = QVBoxLayout(self._mainarea)
+        #tlayout.setSpacing(1)
+        #tlayout.setContentsMargins(1, 1, 1, 1)
         tlayout.addWidget(self._playwidget)
 
         # Create shortcut to play animation on controller
@@ -3447,15 +3462,9 @@ class MainWindow(QMainWindow):
             if SystemPreferences['ShowTips']: self._plotarea.setToolTip(
                 'Ctrl-N to add a new servo channel or\nCtrl-D to add a new digital channel')
 
-        # Set the background color
-        p = self._plotarea.palette()
-        backcolor = QColor()
-        backcolor.setRgb(150, 200, 250)
-        p.setColor(self.backgroundRole(), backcolor)
-        self._plotarea.setPalette(p)
-
         # Create layout to hold all the channels
         layout = QVBoxLayout(self._plotarea)
+        layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Remove all existing plot channels
@@ -3468,6 +3477,13 @@ class MainWindow(QMainWindow):
             xdata, leftdata, rightdata = self.animatronics.newAudio.getPlotData(self.audioMin,self.audioMax,4000)
             if rightdata is None:
                 newplot = qwt.QwtPlot('Audio Mono')
+                # Set the background color
+                p = newplot.palette()
+                backcolor = QColor()
+                backcolor.setRgb(150, 200, 250)
+                p.setColor(self.backgroundRole(), backcolor)
+                newplot.setPalette(p)
+
                 newplot.setPlotLayout(LeftAlignLayout())
                 newplot.mousePressEvent = self.localmousePressEvent
                 newplot.mouseMoveEvent = self.localmouseMoveEvent
@@ -3476,13 +3492,20 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
-                self.audioPlot.setMaximumHeight(200)
+                self.audioPlot.setFixedHeight(120)
                 if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showmono_audio_action)
                 self._showmono_audio_action.setChecked(True)
             else:
                 newplot = qwt.QwtPlot('Audio Left')
+                # Set the background color
+                p = newplot.palette()
+                backcolor = QColor()
+                backcolor.setRgb(150, 200, 250)
+                p.setColor(self.backgroundRole(), backcolor)
+                newplot.setPalette(p)
+
                 newplot.setPlotLayout(LeftAlignLayout())
                 newplot.mousePressEvent = self.localmousePressEvent
                 newplot.mouseMoveEvent = self.localmouseMoveEvent
@@ -3491,12 +3514,19 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlot = newplot
-                self.audioPlot.setMaximumHeight(150)
+                self.audioPlot.setFixedHeight(120)
                 if SystemPreferences['ShowTips']: self.audioPlot.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showleft_audio_action)
                 self._showleft_audio_action.setChecked(True)
                 newplot = qwt.QwtPlot('Audio Right')
+                # Set the background color
+                p = newplot.palette()
+                backcolor = QColor()
+                backcolor.setRgb(150, 200, 250)
+                p.setColor(self.backgroundRole(), backcolor)
+                newplot.setPalette(p)
+
                 newplot.setPlotLayout(LeftAlignLayout())
                 newplot.mousePressEvent = self.localmousePressEvent
                 newplot.mouseMoveEvent = self.localmouseMoveEvent
@@ -3505,7 +3535,7 @@ class MainWindow(QMainWindow):
                     )
                 layout.addWidget(newplot)
                 self.audioPlotRight = newplot
-                self.audioPlotRight.setMaximumHeight(150)
+                self.audioPlotRight.setFixedHeight(120)
                 if SystemPreferences['ShowTips']: self.audioPlotRight.setToolTip('Click and drag Ctrl-Left mouse button\nup/down to zoom and left/right to scroll')
                 # Add visibility checkbox to menu as visible initially
                 self._show_audio_menu.addAction(self._showright_audio_action)
@@ -3544,16 +3574,46 @@ class MainWindow(QMainWindow):
 
         # Add the tags pane here
         self.tagPlot = TagPane(self, self.animatronics.tags, self)
+        self.tagPlot.setFixedHeight(60)
+        # Set the background color
+        p = self.tagPlot.palette()
+        backcolor = QColor()
+        backcolor.setRgb(150, 200, 250)
+        p.setColor(self.backgroundRole(), backcolor)
+        self.tagPlot.setPalette(p)
+
         self.tagPlot.setPlotLayout(LeftAlignLayout())
         self.tagPlot.redrawTags(self.lastXmin, self.lastXmax)
         layout.addWidget(self.tagPlot)
+
+        if SystemPreferences['Scrollable']:
+            tscroll = QScrollArea()
+            self.scrollArea = tscroll
+            self.viewportCallback = tscroll.viewportEvent
+            tscroll.setLineWidth(0)
+            tscroll.setFrameShape(QFrame.NoFrame)
+            tscroll.viewportEvent = self.viewportEvent
+            layout.addWidget(tscroll)
+            tframe = QFrame()
+            tscroll.setWidget(tframe)
+            tscroll.setWidgetResizable(True)
+            layout = QVBoxLayout(tframe)
+            layout.setSpacing(5)
+            layout.setContentsMargins(0, 5, 0, 5)
+        else:
+            tframe = self._plotarea
+            self.scrollArea = None
 
         # Add panes for all the channels
         channelList = self.animatronics.channels
 
         for channel in channelList:
             chan = self.animatronics.channels[channel]
-            newplot = ChannelPane(self._plotarea, chan, mainwindow=self)
+            newplot = ChannelPane(tframe, chan, mainwindow=self)
+            if chan.type == Channel.DIGITAL:
+                newplot.setFixedHeight(75)
+            else:
+                newplot.setFixedHeight(200)
             newplot.setPlotLayout(LeftAlignLayout())
             newplot.settimerange(self.lastXmin, self.lastXmax)
             if len(chan.knots) == 0:
@@ -3566,6 +3626,24 @@ class MainWindow(QMainWindow):
 
         self._playwidget.setRange(self.lastXmin, self.lastXmax)
         self.setSlider(self.lastXmin)
+
+    def viewportEvent(self, event):
+        # Do all the underlying stuff
+        self.viewportCallback(event)
+
+        # Resize upper panes to match viewport width
+        if self.scrollArea is None: return
+        if event.type() == QEvent.Resize:
+            vp = self.scrollArea.viewport()
+            width = vp.size().width()
+            self.tagPlot.setFixedWidth(width)
+            self.audioPlot.setFixedWidth(width)
+            if self.audioPlotRight is not None:
+                self.audioPlotRight.setFixedWidth(width)
+            # Enable wheel in channel pane iff no scrollbar is present
+            sb = self.scrollArea.verticalScrollBar()
+            self.paneScrollable = not sb.isVisible()
+        return True
 
     def getUsedNumericPorts(self):
         usedPorts = []
