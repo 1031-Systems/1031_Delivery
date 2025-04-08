@@ -3637,7 +3637,8 @@ class MainWindow(QMainWindow):
             vp = self.scrollArea.viewport()
             width = vp.size().width()
             self.tagPlot.setFixedWidth(width)
-            self.audioPlot.setFixedWidth(width)
+            if self.audioPlot is not None:
+                self.audioPlot.setFixedWidth(width)
             if self.audioPlotRight is not None:
                 self.audioPlotRight.setFixedWidth(width)
             # Enable wheel in channel pane iff no scrollbar is present
