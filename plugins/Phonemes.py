@@ -11,6 +11,7 @@
 import os
 import sys
 import string
+import difflib
 
 # Allow test code to find Animatronics module
 if __name__ == "__main__": sys.path.append('..')
@@ -116,7 +117,13 @@ class UserPrompt(QDialog):
         if fileName:
             self._nameedit.setText(fileName)
 
-def runSphinxWords(audiofile, dict=None, lm=None, starttime=0, endtime=0):
+class Segment:
+    def __init__(self, word, start, end):
+        self.word = word
+        self.start_frame = start
+        self.end_frame = end
+
+def runSphinxWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, endtime=0):
     # Create a decoder with certain model
     config = Config()
     if lm is not None:
@@ -157,11 +164,99 @@ def runSphinxWords(audiofile, dict=None, lm=None, starttime=0, endtime=0):
     print('Phonemes: Processing audio data from file')
     decoder.end_utt()
 
+    # Compare to transcript and correct mistranslations
+    segments = decoder.seg()
+    if decoder.seg() is not None and transcript is not None:
+        words = []
+        segments = []
+        # Get list of all words in transcript without punctuation
+        with open(transcript, 'r') as f:
+            text = f.read()
+            # Remove all the bad characters and replace them with spaces
+            outtext = ''
+            for i in range(len(text)):
+                val = ord(text[i])
+                if i > 0 and i < len(text)-1 and text[i] == "'":
+                    pass    # All 's are just removed
+                elif val < 32 or val > 127 or chr(val) in string.punctuation:
+                    outtext += ' '
+                else:
+                    outtext += text[i]
+            # Convert entirely to upper case
+            text = outtext.upper()
+            # Split into a list
+            tlist = text.split()
+        # Get list of words found by sphinx
+        for s in decoder.seg():
+            # Remove any trailing things in parens although they will be kept for phoneme lookup
+            tword = s.word
+            indx = tword.find('(')
+            if indx >= 0:
+                tword = tword[0:indx]
+            words.append(tword)
+            segments.append(s)
+
+        # Diff the lists
+        differ = difflib.Differ()
+        diff = differ.compare(tlist, words)
+
+        # Replace mistranslated words with correct words
+        goodwords = []
+        badstart = 0
+        badend = 0
+        sphinxindx = 0
+        outsegments = []
+        for line in diff:
+            if len(line) > 0:
+                if line[0] == ' ':
+                    # Output any saved replacements
+                    if len(goodwords) > 0:
+                        # Guess at word duration from word length
+                        totlen = 0
+                        for word in goodwords:
+                            totlen += len(word)
+                        durstep = (badend - badstart) / totlen
+                        for word in goodwords:
+                            worddur = len(word) * durstep
+                            outsegments.append(Segment(word, badstart, badstart+worddur))
+                            badstart += worddur
+                        badstart = 0
+                        goodwords = []
+                    #  Output good sphinx match
+                    outsegments.append(segments[sphinxindx])
+                    # Update indices
+                    sphinxindx += 1
+                elif line[0] == '-':
+                    # Save this good word from the transcript
+                    goodwords.append(line[2:])
+                elif line[0] == '+':
+                    # Word found by sphinx that does not match transcript so accumulate its duration
+                    if badstart == 0:
+                        badstart = segments[sphinxindx].start_frame
+                    badend = segments[sphinxindx].end_frame
+                    sphinxindx += 1
+                else:
+                    # Skip ? sign indicating misspelling
+                    pass
+        # Output any last saved replacements
+        if len(goodwords) > 0:
+            # Guess at word duration from word length
+            totlen = 0
+            for word in goodwords:
+                totlen += len(word)
+            durstep = (badend - badstart) / totlen
+            for word in goodwords:
+                worddur = len(word) * durstep
+                outsegments.append(Segment(word, badstart, badstart+worddur))
+                badstart += worddur
+        segments = outsegments
+
+
     # Output list of words with start and end times
     words = []
     print('Phonemes: Processing words from audio')
-    if decoder.seg() is not None:
-        for s in decoder.seg():
+    if segments is not None:
+        for s in segments:
             if verbosity: print(s.start_frame, s.end_frame, s.word)
             theword = s.word
             # Remove silences that are contained in <> pairs
@@ -171,7 +266,7 @@ def runSphinxWords(audiofile, dict=None, lm=None, starttime=0, endtime=0):
     print('Phonemes: Done processing')
     return words
 
-def runSphinx(audiofile, dict=None, lm=None, starttime=0, endtime=0):
+def runSphinx(audiofile, dict=None, lm=None, transcript=None, starttime=0, endtime=0):
     # If we don't have a dictionary, this is as good as we can do
     words = None
     if dict is None:
@@ -228,7 +323,7 @@ def runSphinx(audiofile, dict=None, lm=None, starttime=0, endtime=0):
     else:
         # Because the above seems to be not so good, we try something else with a dictionary
         # First get the words and timing
-        words = runSphinxWords(audiofile, dict=dict, lm=lm, starttime=starttime, endtime=endtime)
+        words = runSphinxWords(audiofile, dict=dict, lm=lm, transcript=transcript, starttime=starttime, endtime=endtime)
         # Now distribute phonemes in word evenly over the duration of the word
         phones = []
         dict = readLocalDictionary(dict)
@@ -292,12 +387,14 @@ def checkForSupplementalFiles(audiofile):
     if not os.path.isfile(lmfilename): lmfilename = None
     dictfilename = os.path.splitext(audiofile)[0] +'.dict'
     if not os.path.isfile(dictfilename): dictfilename = None
-    if dictfilename is None:
-        # Check for a transcript
-        txtfilename = os.path.splitext(audiofile)[0] + '.txt'
-        if not os.path.isfile(txtfilename):
+    # Check for a transcript
+    txtfilename = os.path.splitext(audiofile)[0] + '.txt'
+    if not os.path.isfile(txtfilename):
+        txtfilename = None
+    else:
+        if dictfilename is None:
             dictfilename = createLocalDictionary(txtfilename)
-    return lmfilename,dictfilename
+    return lmfilename,dictfilename,txtfilename
 
 def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
     global lastAudioFile
@@ -343,25 +440,11 @@ def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
     if not os.path.isfile(audiofile): return False
 
     # Check for matching transcript, dictionary, and/or language model for audio file
-    dictfile = None
-    lmfile = None
-
-    # Check for existing dictionary file
-    tfilename = audiofile[:-3] + 'dict'
-    if os.path.isfile(tfilename):
-        dictfile = tfilename
-    else:
-        transcript = audiofile[:-3] + 'txt'
-        if os.path.isfile(transcript):
-            dictfile = createLocalDictionary(transcript)
-
-    # Check for existing language model file
-    tfilename = audiofile[:-3] + 'lm'
-    if os.path.isfile(tfilename):
-        lmfile = tfilename
+    lmfilename,dictfilename,transcriptfilename = checkForSupplementalFiles(audiofile)
 
     # Run through sphinx
-    phones, words = runSphinx(widget.getAudioFile(), dict=dictfile, lm=lmfile, starttime=starttime, endtime=endtime)
+    phones, words = runSphinx(widget.getAudioFile(), dict=dictfilename, lm=lmfilename,
+                        transcript=transcriptfilename, starttime=starttime, endtime=endtime)
 
     # Convert phonemes to positions and insert in channel(s)
     type = widget.getType()
@@ -497,22 +580,24 @@ if __name__ == "__main__":
                 print('\n>>> Specified audio file meets phoneme requirements!\n')
 
                 # Check for supplemental files
-                lmfilename,dictfilename = checkForSupplementalFiles(audiofile)
+                lmfilename,dictfilename,transcriptfilename = checkForSupplementalFiles(audiofile)
                 if lmfilename is not None:
                     print('Found associated language model file:', lmfilename)
+                if transcriptfilename is not None:
+                    print('Found transcript file:', transcriptfilename)
                 if dictfilename is not None:
                     print('Found, or generated from transcript, dictionary file:', dictfilename)
 
-                phones, words = runSphinx(audiofile, dict=dictfilename, lm=lmfilename)
+                phones, words = runSphinx(audiofile, dict=dictfilename, lm=lmfilename, transcript=transcriptfilename)
                 if verbosity:
                     print(phones)
                 if words is None:
-                    words = runSphinxWords(audiofile, dict=dictfilename, lm=lmfilename)
+                    words = runSphinxWords(audiofile, dict=dictfilename, lm=lmfilename, transcript=transcriptfilename)
                 print('Sphinx adjusted speech recognition results:')
                 for word in words:
                     sys.stdout.write(word[0] + ' ')
                 sys.stdout.write('\n')
-
+                exit(0)
                 prev_end = 0.0
                 index = 0
                 for index in range(len(phones) - 1):
