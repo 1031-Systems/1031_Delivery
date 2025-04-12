@@ -263,7 +263,7 @@ class TagFindWidget(QDialog):
             for tagTime in sorted(self.mainwindow.animatronics.tags, reverse=True):
                 if self.mainwindow.lastXmin > tagTime:
                     if re.search(findText, self.mainwindow.animatronics.tags[tagTime], re.IGNORECASE):
-                        self.mainwindow.tagPlot.tagZoom(tagTime)
+                        self.tagZoom(tagTime)
                         return
             # Start search from beginning
             for tagTime in sorted(self.mainwindow.animatronics.tags, reverse=True):
@@ -271,7 +271,7 @@ class TagFindWidget(QDialog):
                     # Looped all the way around so just quit
                     return
                 elif re.search(findText, self.mainwindow.animatronics.tags[tagTime], re.IGNORECASE):
-                    self.mainwindow.tagPlot.tagZoom(tagTime)
+                    self.tagZoom(tagTime)
                     return
 
 
@@ -281,7 +281,7 @@ class TagFindWidget(QDialog):
             for tagTime in sorted(self.mainwindow.animatronics.tags):
                 if self.mainwindow.lastXmin < tagTime:
                     if re.search(findText, self.mainwindow.animatronics.tags[tagTime], re.IGNORECASE):
-                        self.mainwindow.tagPlot.tagZoom(tagTime)
+                        self.tagZoom(tagTime)
                         return
             # Start search from beginning
             for tagTime in sorted(self.mainwindow.animatronics.tags):
@@ -289,8 +289,19 @@ class TagFindWidget(QDialog):
                     # Looped all the way around so just quit
                     return
                 elif re.search(findText, self.mainwindow.animatronics.tags[tagTime], re.IGNORECASE):
-                    self.mainwindow.tagPlot.tagZoom(tagTime)
+                    self.tagZoom(tagTime)
                     return
+
+    def tagZoom(self, time):
+        indx = 0
+        for tagTime in sorted(self.mainwindow.animatronics.tags):
+            if tagTime == time:
+                if self.mainwindow.tagSelectDialog is not None:
+                    self.mainwindow._tagListWidget.setCurrentRow(indx)
+                else:
+                    self.mainwindow.tagPlot.tagZoom(tagTime)
+                break
+            indx += 1
 
 #####################################################################
 class SetDigitalWidget(QDialog):
