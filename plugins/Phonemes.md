@@ -20,7 +20,7 @@ string that resembles the vocal track.
 Using the Phonemes plugin requires some work outside of Hauntimator
 prior to generating the control channels within Hauntimator.  The
 underlying pocketsphinx process requires the audio file to be
-abalyzed to be voice-only (no music, single speaker) and be recorded
+analyzed to be voice-only (no music, single speaker) and be recorded
 at 16kHz, 16 bits per sample, in mono.  Preparing this file must be
 done outside of Hauntimator prior to running the plugin.
 
@@ -105,10 +105,55 @@ for each type of channel.  For example, when saying "mama", the first
 jaw fairly wide open at 100%.  Then the jaw closes back to 0% at the
 next "m" and back to 100% for the last "a".  The conversion file must
 include the percentages for all possible phonemes that pocketsphinx
-can identify.  Fortunately, this iis only 40, including silence, so it is
+can identify.  Fortunately, this is only 40, including silence, so it is
 not too hard to populate the table.
 
 ### File Format
+
+Example file
+```
+Phoneme,Example,Translation,Jaw
+AA,odd,"AA D",100
+AE,at,"AE T",80
+AH,hut,"HH AH T",50
+AO,ought,"AO T",60
+AW,cow,"K AW",30
+AY,hide,"HH AY D",80
+B,be,"B IY",0
+CH,cheese,"CH IY Z",0
+D,dee,"D IY",10
+DH,thee,"DH IY",15
+EH,Ed,"EH D",55
+ER,hurt,"HH ER T",10
+EY,ate,"EY T",55
+F,fee,"F IY",0
+G,green,"G R IY N",30
+HH,he,"HH IY",20
+IH,it,"IH T",25
+IY,eat,"IY T",20
+JH,gee,"JH IY",0
+K,key,"K IY",15
+L,lee,"L IY",15
+M,me,"M IY",0
+N,knee,"N IY",25
+NG,ping,"P IH NG",0
+OW,oat,"OW T",10
+OY,toy,"T OY",20
+P,pee,"P IY",0
+R,read,"R IY D",10
+S,sea,"S IY",10
+SH,she,"SH IY",10
+T,tea,"T IY",15
+TH,theta,"TH EY T AH",45
+UH,hood,"HH UH D",30
+UW,two,"T UW",20
+V,vee,"V IY",0
+W,we,"W IY",10
+Y,yield,"Y IY L D",20
+Z,zee,"Z IY",0
+ZH,seizure,"S IY ZH ER",0
+SIL,silence,"",40
+```
 
 The conversion file format is fairly straightforward.  It contains three
 mandatory columns and one mandatory row.  The first row contains the
@@ -183,6 +228,29 @@ adjustments to the channel(s) where the recognized words are incorrect.
 
 Once the selections have been made, select Run and the selected channels will be
 populated.  Install the control file on the controller and see if it works.
+
+To improve the speech recognition results, the user can provide a dictionary,
+language model, and transcript of the speech to be processed.  This is not
+100% effective so the plugin runs a diff on the recognized text and the
+transcript and replaces incorrect words.  This can throw off the timing a
+bit but guarantees the correct phonemes are in about the correct place.  The
+implementation of this requires that the transcript be exactly what is trying
+to be recognized.  Thus, if a subwindow of the speech is being processed, the
+transcript must be edited to contain only the expected text.  Since this can
+be time-consuming, it is generally easier to run the plugin on the entire
+audio.
+
+Transcripts can often be found online for various songs and speeches.  The
+[Sphinx website](http://www.speech.cs.cmu.edu/tools/lmtool-new.html)
+has tools for generating language models and dictionaries
+from a transcript.  Dictionaries may even be generated automatically for a 
+transcript without the language model or using the website.
+
+The Sphinx website has more details on using pocketsphinx.  Other, perhaps AI-based,
+tools are out there for converting speech to text and may be applied here
+but pocketsphinx provides timing data that is needed.  If users find this useful
+and want more information, I can probably update this with additional stuff.
+I know I had more notes on how I did all this but can't find it now, dang it!
 
 ***
 
