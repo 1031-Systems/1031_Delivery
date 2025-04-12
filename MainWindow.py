@@ -232,6 +232,67 @@ class AmpingWidget(QDialog):
 
 
 #####################################################################
+class TagFindWidget(QDialog):
+
+    def __init__(self, parent=None, mainwindow=None):
+        super().__init__(parent)
+        self.setWindowTitle('Tag Finder')
+        self.mainwindow = mainwindow
+
+        vbox = QVBoxLayout(self)
+        self.editbox = QLineEdit()
+        vbox.addWidget(self.editbox)
+
+        # Add search left and right buttons
+        tlayout = QHBoxLayout()
+        tbutt = QPushButton()
+        tbutt.setIcon(self.style().standardIcon(QStyle.SP_ArrowLeft))  #ArrowLeft))
+        tbutt.clicked.connect(self.findBackwards)
+        tlayout.addWidget(tbutt)
+        tbutt = QPushButton()
+        tbutt.setIcon(self.style().standardIcon(QStyle.SP_ArrowRight))  #ArrowRight))
+        tbutt.clicked.connect(self.findForwards)
+        tbutt.setDefault(True)
+        tlayout.addWidget(tbutt)
+
+        vbox.addLayout(tlayout)
+
+    def findBackwards(self):
+        findText = self.editbox.text()
+        if len(findText) > 0:
+            for tagTime in sorted(self.mainwindow.animatronics.tags, reverse=True):
+                if self.mainwindow.lastXmin > tagTime:
+                    if re.search(findText, self.mainwindow.animatronics.tags[tagTime], re.IGNORECASE):
+                        self.mainwindow.tagPlot.tagZoom(tagTime)
+                        return
+            # Start search from beginning
+            for tagTime in sorted(self.mainwindow.animatronics.tags, reverse=True):
+                if self.mainwindow.lastXmin > tagTime:
+                    # Looped all the way around so just quit
+                    return
+                elif re.search(findText, self.mainwindow.animatronics.tags[tagTime], re.IGNORECASE):
+                    self.mainwindow.tagPlot.tagZoom(tagTime)
+                    return
+
+
+    def findForwards(self):
+        findText = self.editbox.text()
+        if len(findText) > 0:
+            for tagTime in sorted(self.mainwindow.animatronics.tags):
+                if self.mainwindow.lastXmin < tagTime:
+                    if re.search(findText, self.mainwindow.animatronics.tags[tagTime], re.IGNORECASE):
+                        self.mainwindow.tagPlot.tagZoom(tagTime)
+                        return
+            # Start search from beginning
+            for tagTime in sorted(self.mainwindow.animatronics.tags):
+                if self.mainwindow.lastXmin < tagTime:
+                    # Looped all the way around so just quit
+                    return
+                elif re.search(findText, self.mainwindow.animatronics.tags[tagTime], re.IGNORECASE):
+                    self.mainwindow.tagPlot.tagZoom(tagTime)
+                    return
+
+#####################################################################
 class SetDigitalWidget(QDialog):
 
     def __init__(self, parent=None, port=-1):
@@ -6004,6 +6065,11 @@ class MainWindow(QMainWindow):
 
         pass
 
+    def tagSearch_action(self):
+        # Build and pop up tag Search widget
+        finder = TagFindWidget(parent=self, mainwindow=self)
+        finder.show()
+
     def tagSelector_action(self):
         # Build and pop up tag selector widget
         self.tagSelectDialog = QDialog(parent=self)
@@ -6395,6 +6461,11 @@ class MainWindow(QMainWindow):
         self._tagSelector_action = QAction("Tag Selector", self,
             triggered=self.tagSelector_action)
         self.tag_menu.addAction(self._tagSelector_action)
+
+        # tagSearch menu item
+        self._tagSearch_action = QAction("Tag Search", self,
+            triggered=self.tagSearch_action)
+        self.tag_menu.addAction(self._tagSearch_action)
 
         # importScript menu item
         self._importScript_action = QAction("Import Script", self,

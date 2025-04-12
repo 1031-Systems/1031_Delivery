@@ -465,6 +465,7 @@ the animation and some helpful uses for them.  The Tags menu contains the follow
 
 + Insert Tag - Insert a tag at the current playback time (designated by the green bar)
 + Tag Selector - Brings up a widget for selecting a tag
++ Tag Search - Brings up a widget to search tags for a string
 + Import Script - Reads a script file and creates tags
 + Toggle Tag Pane - Toggle visibility of the Tags pane
 + Clear All Tags - Delete all tags and clear the Tags pane
@@ -481,6 +482,9 @@ tag.
 
 The Tag selector popup provides a scrollable list of all the tags in the animation with their times.
 Clicking on any tag zooms to that tag.
+
+The Tag Search popup provides a widget to enter text to search for and left and right search buttons.
+If a matching tag is found, the display will zoom to that tag.
 
 Tags may be deleted by left-clicking on the bar designating the tag in the Tags pane while holding down
 the shift key.  This is cumbersome if you want to delete many but is the only method available now.
