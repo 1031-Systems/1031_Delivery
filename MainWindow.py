@@ -1018,7 +1018,7 @@ class ChannelMenu(QMenu):
             if tname != self.channel.name:
                 self.parent.holder.animatronics.reIndexChannel(tname, self.channel.name)
             # Need to trigger redraw
-            self.parent.holder.redraw()
+            self.parent.redrawme()
             pass
 
         pass
@@ -1157,7 +1157,6 @@ class ChannelMenu(QMenu):
                 if self.parent is not None:
                     self.parent.redrawme()
                 if main_win is not None: main_win.updateXMLPane()
-        pass
 
     def Delete_action(self):
         """
@@ -1285,6 +1284,7 @@ class ChannelPane(qwt.QwtPlot):
         self.settimerange(0.0, 100.0)
         self.setDataRange(-1.0, 1.0)
         channelname = self.channel.name
+        '''
         # Append the channel type indicator to the channel name
         if self.channel.type == Channel.DIGITAL:
             channelname += '(D'
@@ -1294,6 +1294,7 @@ class ChannelPane(qwt.QwtPlot):
         if self.channel.port >= 0:
             channelname += '%d' % self.channel.port
         channelname += ')'
+        '''
         self.setAxisTitle(qwt.QwtPlot.yLeft, channelname)
 
         if self.channel.type == Channel.DIGITAL:
@@ -1948,6 +1949,7 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         """
         channelname = self.channel.name
+        '''
         # Append the channel type indicator to the channel name
         if self.channel.type == Channel.DIGITAL:
             channelname += '(D'
@@ -1957,6 +1959,7 @@ class ChannelPane(qwt.QwtPlot):
         if self.channel.port >= 0:
             channelname += '%d' % self.channel.port
         channelname += ')'
+        '''
         self.setAxisTitle(qwt.QwtPlot.yLeft, channelname)
         # Recreate the data plot
         xdata,ydata = self.channel.getPlotData(self.minTime, self.maxTime, 10000)
@@ -3660,6 +3663,22 @@ class MainWindow(QMainWindow):
 
         if SystemPreferences['Scrollable']:
             tscroll = QScrollArea()
+            # Customize the scrollbar color so we can see it
+            sb = tscroll.verticalScrollBar()
+            sb.setStyleSheet("QScrollBar"
+                             "{"
+                             "background : white;"
+                             "}"
+                             "QScrollBar::handle"
+                             "{"
+                             "background : gray;"
+                             "}"
+                             "QScrollBar::handle::pressed"
+                             "{"
+                             "background : gray;"
+                             "}"
+                             )
+
             self.scrollArea = tscroll
             self.viewportCallback = tscroll.viewportEvent
             tscroll.setLineWidth(0)
@@ -5978,6 +5997,55 @@ class MainWindow(QMainWindow):
         """
         pass
 
+    def Clear_inside_action(self):
+        """
+        The method Clear_inside_action requests that this Channel have all its visible knots removed
+        from the animation.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
+
+        """ Perform Delete action"""
+        dellist = self.getSelectedChannelNames()
+        if len(dellist) > 0:
+            starttime = self.lastXmin
+            endtime = self.lastXmax
+            pushState()     # Push current state for undo
+
+            for name in dellist:
+                self.plots[name].selectedKey = None
+                self.plots[name].selectedKeyList = []
+                self.plots[name].channel.delete_knot_range(starttime, endtime)
+                self.plots[name].redrawme()
+            if main_win is not None: main_win.updateXMLPane()
+
+    def Clear_outside_action(self):
+        """
+        The method Clear_outside_action requests that this Channel have all its nonvisible knots removed
+        from the animation.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : ChannelMenu
+        """
+
+        """ Perform Delete action"""
+        dellist = self.getSelectedChannelNames()
+        if len(dellist) > 0:
+            starttime = self.lastXmin
+            endtime = self.lastXmax
+            pushState()     # Push current state for undo
+
+            for name in dellist:
+                self.plots[name].selectedKey = None
+                self.plots[name].selectedKeyList = []
+                self.plots[name].channel.delete_knot_range(-6.02e23, starttime)
+                self.plots[name].channel.delete_knot_range(endtime, 6.02e23)
+                self.plots[name].redrawme()
+            if main_win is not None: main_win.updateXMLPane()
+
     def Clear_action(self):
         """
         The method Clear_action optionally clears all knots from the selected channels.
@@ -6446,16 +6514,30 @@ class MainWindow(QMainWindow):
 
         self.channel_menu.addSeparator()
 
+        # Clear inside menu item
+        self._Clear_inside_action = QAction("Clear In", self,
+            triggered=self.Clear_inside_action)
+        self.channel_menu.addAction(self._Clear_inside_action)
+        self._Clear_inside_action.setToolTip('Delete all points in selected channels\nin the visible range')
+
+        # Clear outside menu item
+        self._Clear_outside_action = QAction("Clear Out", self,
+            triggered=self.Clear_outside_action)
+        self.channel_menu.addAction(self._Clear_outside_action)
+        self._Clear_outside_action.setToolTip('Delete all points in selected channels\noutside the visible range')
+
         # Clear menu item
         self._Clear_action = QAction("Clear", self,
             triggered=self.Clear_action)
         self.channel_menu.addAction(self._Clear_action)
+        self._Clear_action.setToolTip('Delete all points in selected channels')
 
         # Delete menu item
         self._Delete_action = QAction("Delete Selected", self,
             shortcut=QKeySequence.Delete,
             triggered=self.Delete_action)
         self.channel_menu.addAction(self._Delete_action)
+        self._Delete_action.setToolTip('Delete all selected channels')
 
 
         # Create the Tags dropdown menu #################################
