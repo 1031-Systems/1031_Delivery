@@ -43,6 +43,10 @@ except:
         sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
         exit(10)
 
+import importlib
+import importlib.metadata
+# print('Version:', importlib.metadata.version('Hauntimator'))
+
 #/* Define block */
 verbosity = False
 
@@ -58,9 +62,21 @@ def print_usage(name):
     sys.stderr.write("\nUsage: %s [-/-h/-help] [-f/-file infilename]\n")
     sys.stderr.write("Create and edit animatronics control channels.\n");
     sys.stderr.write("-/-h/-help             :show this information\n");
+    sys.stderr.write("-V/-version            :print version information and exit\n")
     sys.stderr.write("-f/-file infilename    :Input anim file\n")
     sys.stderr.write("\n\n");
 
+def print_module_version(module_name):
+    try:
+        import importlib
+        import importlib.metadata
+        version = importlib.metadata.version(module_name)
+        print(module_name + ':', version)
+        exitcode = 0
+    except:
+        print('Version information not available')
+        exitcode = 1
+    return exitcode
 
 #/* Main */
 def doAnimatronics():
@@ -73,13 +89,17 @@ def doAnimatronics():
     # Local Variables to support parsing an Animatronics file specified
     # on the command line
     infilename = None
+    exitcode = 0
 
     # Parse arguments
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == '-' or sys.argv[i] == '-h' or sys.argv[i] == '-help':
             print_usage(sys.argv[0]);
-            sys.exit(0);
+            sys.exit(exitcode);
+        elif sys.argv[i] == '-V' or sys.argv[i] == '-version':
+            exitcode = print_module_version('Hauntimator')
+            sys.exit(exitcode)
         elif sys.argv[i] == '-f' or sys.argv[i] == '-file':
             i += 1
             if i < len(sys.argv):
