@@ -695,7 +695,7 @@ class TextDisplayDialog(QDialog):
         tbutt.clicked.connect(self.findBackwards)
         tlayout.addWidget(tbutt)
         self.findWidget.setLayout(tlayout)
-        
+
     def showFinder(self):
         self.findWidget.setVisible(not self.findWidget.isVisible())
         # Set focus to text widget so user can start typing immediately
@@ -733,6 +733,20 @@ class TextDisplayDialog(QDialog):
             The text to be displayed
         """
         self.textView.setPlainText(text)
+        # Save lower-case version of text for various searches
+        self.text = self.textView.document().toPlainText().lower()
+
+    def setMarkdown(self, text):
+        """
+        The method setMarkdown sets the displayed text to the incoming Markdown
+            member of class: TextDisplayDialog
+        Parameters
+        ----------
+        self : TextDisplayDialog
+        text : str
+            The Markdown to be displayed
+        """
+        self.textView.setMarkdown(text)
         # Save lower-case version of text for various searches
         self.text = self.textView.document().toPlainText().lower()
 
@@ -1091,7 +1105,7 @@ class ChannelMenu(QMenu):
                 if lastValue is None or lastValue != currValue:
                     self.channel.add_knot(currTime, float(currValue))
                     lastValue = currValue
-                    
+
             else:
                 currValue = random.uniform(0.0, 1.0) * maxRate + self.channel.minLimit
                 if currValue > self.channel.maxLimit: currValue = self.channel.maxLimit
@@ -3412,6 +3426,7 @@ class MainWindow(QMainWindow):
         # Create the XML display dialog for constant refresh
         self.XMLPane = TextDisplayDialog('XML', parent=self)
         self.ClipboardPane = TextDisplayDialog('Clipboard', parent=self)
+        self.PortMap = TextDisplayDialog('Port Map', parent=self)
 
         # Create the Help Popup
         self.helpPane = TextDisplayDialog('Hauntimator Help', parent=self)
@@ -5084,7 +5099,7 @@ class MainWindow(QMainWindow):
             newLeft = centerX - (currRight - currLeft)
             newRight = centerX + (currRight - currLeft)
         self.setTimeRange(newLeft, newRight)
-        
+
 
     def showall_action(self):
         """
@@ -5237,6 +5252,54 @@ class MainWindow(QMainWindow):
         """
         self.XMLPane.setText(self.animatronics.toXML())
         self.autoSave()
+        # Go ahead and update port map while here
+        self.populatePortMap()
+
+    def populatePortMap(self):
+        # Use ~~~s to set fixed width in markdown since nothing else seems to format well
+        text = '~~~\nDigital Ports                         Numeric Ports\n'
+        DigitalPorts = None
+        PWMPorts = None
+        if COMMLIB_ENABLED:
+            DigitalPorts = commlib.getConfiguredDigitalPorts()
+            PWMPorts = commlib.getConfiguredPWMPorts()
+        if DigitalPorts is None:
+            DigitalPorts = [i for i in range(SystemPreferences['MaxDigitalChannels'])]
+        if PWMPorts is None:
+            PWMPorts = [i for i in range(SystemPreferences['MaxServoChannels'])]
+
+        for indx in range(max(len(DigitalPorts), len(PWMPorts))):
+            digport = ''
+            numport = ''
+            numname = ''
+            digname = ''
+            if indx < len(DigitalPorts): digport = indx
+            if indx < len(PWMPorts): numport = indx
+            for name in self.animatronics.channels:
+                if self.animatronics.channels[name].port == indx:
+                    if self.animatronics.channels[name].type == self.animatronics.channels[name].DIGITAL:
+                        digname = name
+                    else:
+                        numname = name
+
+            text += '{:>4} - {:<30} {:>4} - {:<30}\n'.format(digport, digname, numport, numname)
+        text += '~~~'
+        self.PortMap.setMarkdown(text)
+
+    def showPortMap_action(self):
+        """
+        The method showPortMap_action brings up a text window that displays
+        the current mapping of ports in the system.
+            member of class: MainWindow
+        Parameters
+        ----------
+        self : MainWindow
+        """
+        # Put the current data in the port map
+        self.populatePortMap()
+        # Pop up text window containing PortMap to view (uneditable)
+        self.PortMap.setWindowTitle('Port Map')
+        self.PortMap.show()
 
     def getPlotValues(self, pixelX, pixelY):
         """
@@ -6620,6 +6683,11 @@ class MainWindow(QMainWindow):
         self._showXML_action = QAction("Show XML", self,
             triggered=self.showXML_action)
         self.help_menu.addAction(self._showXML_action)
+
+        # showPortMap menu item
+        self._showPortMap_action = QAction("Show Port Map", self,
+            triggered=self.showPortMap_action)
+        self.help_menu.addAction(self._showPortMap_action)
 
     def buildplugins(self):
         # Initialize plugin menu to None
