@@ -1,5 +1,6 @@
 #/* Import block */
 
+import xml.etree.ElementTree as ET
 import Animatronics
 
 usedPyQt = None
@@ -163,5 +164,74 @@ def shift(channelList, theanim, starttime=None, endtime=None):
 
     return(retval)
 
-external_callables = [invert, repeat]  # , shift]
+def replicate(channelList, theanim, starttime=None, endtime=None):
+    global lastrepeatstart, lastrepeatend, lastrepeatcount
+
+    if len(channelList) != 1:
+        return False
+
+    dialog = QDialog()
+    dialog.setWindowTitle('Repeat Parameters')
+    layout = QFormLayout()
+    _startedit = QLineEdit()
+    _startedit.setText(channelList[0].name)
+    layout.addRow(QLabel('Replicate Channel:'), _startedit)
+    _countedit = QLineEdit()
+    if lastrepeatcount is not None:
+        _countedit.setText(str(lastrepeatcount))
+    else:
+        _countedit.setText('1')
+    layout.addRow(QLabel(' Rep Count:'), _countedit)
+
+    okButton = QPushButton('Run')
+    okButton.setDefault(True)
+    cancelButton = QPushButton('Cancel')
+
+    okButton.clicked.connect(dialog.accept)
+    cancelButton.clicked.connect(dialog.reject)
+
+    hbox = QHBoxLayout()
+    hbox.addStretch(1)
+    hbox.addWidget(okButton)
+    hbox.addWidget(cancelButton)
+
+    vbox = QVBoxLayout(dialog)
+    vbox.addLayout(layout)
+    vbox.addLayout(hbox)
+    dialog.setLayout(vbox)
+    
+    code = dialog.exec_()
+    if code != QDialog.Accepted: return False
+
+    # Check for valid count
+    try:
+        lastrepeatcount = int(_countedit.text())
+    except:
+        return False
+    if lastrepeatcount < 1: return False
+
+    channel = channelList[0]
+    portnum = channel.port
+    lastport = portnum
+    name = channel.name
+    lastname = name
+    for indx in range(1, lastrepeatcount+1):
+        if portnum >= 0: lastport = portnum + indx
+        newname = name + '_' + str(indx)
+        channel.name = newname
+        channel.port = lastport
+        xml = channel.toXML()
+        newchannel = Animatronics.Channel()
+        eXML = ET.fromstring(xml)
+        newchannel.parseXML(eXML)
+        theanim.insertChannel(newchannel, placename=None)
+        lastname = newname
+
+    # Cleanup
+    channel.name = name
+    channel.port = portnum
+
+    return True # so Hauntimator knows a change was made
+
+external_callables = [invert, repeat, replicate]  # , shift]
 

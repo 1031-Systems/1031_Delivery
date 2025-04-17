@@ -10,8 +10,6 @@
 
 # Help for Hauntimator.py
 
-1.0.0(b)
-
 Hauntimator.py, as you might surmise, is a Python program.  Its general purpose
 is to synchronize control signals for animatronics and lighting to each other
 and to an audio track.  Hauntimator provides the means for visualizing and
@@ -38,7 +36,7 @@ output to the hardware controller to operate the mechanisms.
 The Hauntimator process is similar to that used by other tools that perform
 similar functions.  Generally it is preferred to synchronize mouth, face,
 and head movements to audio containing voices, then proceed to synchronize
-other movements, lighting controls,  and other activities to the audio.
+other movements, lighting controls, and other activities to the audio.
 
 1. Using an audio editor, create sound files for each character’s dialog, and a separate mix file which contains all of the characters, effects, and background music.
 2. Start Hauntimator.
@@ -514,7 +512,7 @@ and the dropdown menus then access the individual functions provided.  There is 
 plugins provided in the Stock entry.  This implements some useful tools that might be considered
 standard to Hauntimator.  There is also a Phonemes plugin provided that is activated if the
 pocketsphinx module is installed.  Users may develop or download other plugins at their
-convenience.  If Hauntimator does not find a plugins directory to does notfind any suitable Python
+convenience.  If Hauntimator does not find a plugins directory or does not find any suitable Python
 files within the plugins directory, the Plugins menu will not appear.
 
 Generally, the Stock plugins operate on the currently selected knots and channels.  However, plugins

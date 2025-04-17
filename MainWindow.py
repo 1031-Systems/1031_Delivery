@@ -4171,6 +4171,9 @@ class MainWindow(QMainWindow):
                 endtime = self.lastXmax
                 value = self.sender().data()(channellist, self.animatronics, starttime=starttime, endtime=endtime)
                 if value:
+                    # Redraw everything in case channels were added
+                    self.setAnimatronics(self.animatronics)
+                    return
                     # Redraw the modified channels
                     for name in self.plots:
                         if self.plots[name].selected:
