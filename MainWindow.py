@@ -72,6 +72,7 @@ try:
     from PyQt5.QtCore import *
     from PyQt5.QtGui import *
     from PyQt5.QtWidgets import *
+    from PyQt5.QtPrintSupport import *
     from PyQt5 import QtMultimedia as qm
     usedPyQt = 5
 except:
@@ -80,6 +81,7 @@ except:
         from PyQt6.QtCore import *
         from PyQt6.QtGui import *
         from PyQt6.QtWidgets import *
+        from PyQt6.QtPrintSupport import *
         from PyQt6 import QtMultimedia as qm
         usedPyQt = 6
     except:
@@ -663,6 +665,10 @@ class TextDisplayDialog(QDialog):
         taction = QAction('', self, shortcut="Ctrl+W",
             triggered=self.accept)
         self.addAction(taction)
+        # Add print capability
+        taction = QAction('', self, shortcut="Ctrl+P",
+            triggered=self.print)
+        self.addAction(taction)
 
         # Save lower-case version of text for various searches
         self.text = self.textView.document().toPlainText().lower()
@@ -720,6 +726,13 @@ class TextDisplayDialog(QDialog):
                 # Go to end and try again
                 self.textView.moveCursor(QTextCursor.End)
                 flag = self.textView.find(txt, QTextDocument.FindBackward)
+
+    def print(self):
+        printDialog = QPrintDialog()
+        result = printDialog.exec ()
+        if (result == QDialog.Accepted):
+            result = printDialog.printer ()
+            self.textView.print (result)
 
 
     def setText(self, text):
