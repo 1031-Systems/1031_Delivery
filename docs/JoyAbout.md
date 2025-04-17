@@ -7,9 +7,11 @@
 
 A tool for creating channels for Hauntimator with a joystick.
 
-1.0.0(b)
+0.0.5(b)
 
 ![Hauntimator Main Window](images/JoyUIsmall.png)
+
+***
 
 Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems
 

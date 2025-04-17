@@ -7,11 +7,13 @@
 
 A GUI for building controls for animatronics and lighting displays.
 
-1.0.0(b)
+0.0.5(b)
 
 ![Hauntimator Main Window](images/smallpanes.png)
 
-Copyright 2024 John R. Wright, William R. Douglas - 1031_Systems
+***
+
+Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems
 
 ![Logo](images/1031-logo.png)
 

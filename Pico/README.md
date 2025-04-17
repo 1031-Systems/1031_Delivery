@@ -203,3 +203,7 @@ controller will always have the preferred type of control file available.
 This software is made available for use under the GNU General Public License (GPL).
 A copy of this license is available within the repository for this software and is
 included herein by reference.
+
+***
+
+Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems

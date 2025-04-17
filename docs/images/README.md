@@ -7,3 +7,6 @@ This software is made available for use under the GNU General Public License (GP
 A copy of this license is available within the repository for this software and is
 included herein by reference.
 
+***
+
+Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems

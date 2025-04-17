@@ -116,4 +116,6 @@ to select a filename and path to save your work.  Conversely, use
 File->Open to open a file or use the -f filename option on the
 command line.
 
-Copyright 2024 John R. Wright, William R. Douglas - 1031_Systems
+***
+
+Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems

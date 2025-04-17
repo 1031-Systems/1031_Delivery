@@ -9,7 +9,7 @@
 
 # Help for joysticking.py
 
-v1.0.0(b)
+0.0.5(b)
 
 ***
 

@@ -56,3 +56,7 @@ port number if it is set and appending the copy number to the channel name.  For
 example, replicating channel XYZ with port number 7 a specified 3 times will create
 channels XYZ_1, XYZ_2, and XYZ_3 with port numbers 8, 9, and 10 respectively.  All
 the knots in channel XYZ will be copied to the new channels as well.
+
+***
+
+Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems

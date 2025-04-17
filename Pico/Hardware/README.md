@@ -160,3 +160,6 @@ The Bill of Materials for the board is in the 595_Extender_BOM.xls spreadsheet.
 
 A copy of the schematic, the top silkscreen and the Gerber files is included.
 
+***
+
+Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems

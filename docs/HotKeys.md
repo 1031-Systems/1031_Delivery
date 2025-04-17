@@ -34,9 +34,12 @@
 - Ctrl-Z - Undo
 - Ctrl-Shift-Z - Redo
 
-In Help widgets, a couple of the hot keys are remapped as follows:
+In Help widgets, some of the hot keys are remapped as follows:
 - Ctrl-F - Open/Close the finder tool within the Help widget
+- Ctrl-P - Print the content of the Help widget
 - Ctrl-W - Close the Help widget
+
+Most other hot keys do not work in the Help widgets.
 
 ## Arrow Keys
 - Left Arrow - Shift selected knots in channel 0.1 secs to left
@@ -83,4 +86,6 @@ Within a channel pane, the wheel zooms the vertical data range about
 the location of the cursor.  The right mouse button brings up the
 tools menu for the channel pane.
 
-Copyright 2024 John R. Wright, William R. Douglas - 1031_Systems
+***
+
+Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems
