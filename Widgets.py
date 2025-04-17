@@ -4,12 +4,14 @@ try:
     # PyQt5 import block for all widgets
     from PyQt5.QtCore import *
     from PyQt5.QtWidgets import *
+    from PyQt5.QtPrintSupport import *
     usedPyQt = 5
 except:
     try:
         # PyQt6 import block for all widgets
         from PyQt6.QtCore import *
         from PyQt6.QtWidgets import *
+        from PyQt6.QtPrintSupport import *
         usedPyQt = 6
     except:
         sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
@@ -57,6 +59,10 @@ class TextDisplayDialog(QDialog):
         taction = QAction('', self, shortcut="Ctrl+W",
             triggered=self.accept)
         self.addAction(taction)
+        # Add print capability
+        taction = QAction('', self, shortcut="Ctrl+P",
+            triggered=self.print)
+        self.addAction(taction)
 
         # Save lower-case version of text for various searches
         self.text = self.textView.document().toPlainText().lower()
@@ -89,7 +95,7 @@ class TextDisplayDialog(QDialog):
         tbutt.clicked.connect(self.findBackwards)
         tlayout.addWidget(tbutt)
         self.findWidget.setLayout(tlayout)
-        
+
     def showFinder(self):
         self.findWidget.setVisible(not self.findWidget.isVisible())
         # Set focus to text widget so user can start typing immediately
@@ -115,6 +121,13 @@ class TextDisplayDialog(QDialog):
                 self.textView.moveCursor(QTextCursor.End)
                 flag = self.textView.find(txt, QTextDocument.FindBackward)
 
+    def print(self):
+        printDialog = QPrintDialog()
+        result = printDialog.exec ()
+        if (result == QDialog.Accepted):
+            result = printDialog.printer ()
+            self.textView.print (result)
+
 
     def setText(self, text):
         """
@@ -127,6 +140,20 @@ class TextDisplayDialog(QDialog):
             The text to be displayed
         """
         self.textView.setPlainText(text)
+        # Save lower-case version of text for various searches
+        self.text = self.textView.document().toPlainText().lower()
+
+    def setMarkdown(self, text):
+        """
+        The method setMarkdown sets the displayed text to the incoming Markdown
+            member of class: TextDisplayDialog
+        Parameters
+        ----------
+        self : TextDisplayDialog
+        text : str
+            The Markdown to be displayed
+        """
+        self.textView.setMarkdown(text)
         # Save lower-case version of text for various searches
         self.text = self.textView.document().toPlainText().lower()
 
@@ -144,5 +171,4 @@ class TextDisplayDialog(QDialog):
         self.textView.setSource(QUrl.fromLocalFile(instr))
         # Save lower-case version of text for various searches
         self.text = self.textView.document().toPlainText().lower()
-
 
