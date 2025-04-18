@@ -782,9 +782,9 @@ class MainWindow(QMainWindow):
         # Create popup stuff
         # Create file dialog used only for saving files
         self.filedialog = QFileDialog(parent=self, caption="Get Save Filename")
-        self.filedialog.setOption(QFileDialog.DontUseNativeDialog)
-        self.filedialog.setAcceptMode(QFileDialog.AcceptSave)
-        self.filedialog.setFileMode(QFileDialog.AnyFile)
+        self.filedialog.setOption(QFileDialog.Option.DontUseNativeDialog)
+        self.filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        self.filedialog.setFileMode(QFileDialog.FileMode.AnyFile)
 
         # Create the Help Popup
         self.helpPane = Widgets.TextDisplayDialog('Hauntimator Help', parent=self)
@@ -846,9 +846,9 @@ class MainWindow(QMainWindow):
         xlayout = QHBoxLayout(tframe)
         self.modeLabel = QLabel(tframe)
         self.modeLabel.setText('Recording Enabled')
-        self.modeLabel.setFrameStyle(QFrame.Panel) # | QFrame.Raised)
+        self.modeLabel.setFrameStyle(QFrame.Shape.Panel)
         self.modeLabel.setLineWidth(2)
-        self.modeLabel.setAlignment(Qt.AlignVCenter | Qt.AlignHCenter)
+        self.modeLabel.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter)
         self.modeLabel.setScaledContents(True)
         self.modeLabel.setFont(QFont('Arial', 30))
         self.disableAll()
@@ -867,7 +867,7 @@ class MainWindow(QMainWindow):
         hlayout = QHBoxLayout(widget)
         tlabel = QLabel('Start:')
         tlabel.setFont(QFont('Arial', 20))
-        tlabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        tlabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         hlayout.addWidget(tlabel)
         self.startLCD = QLCDNumber()
         self.startLCD.setDigitCount(8)
@@ -878,7 +878,7 @@ class MainWindow(QMainWindow):
         hlayout.addWidget(self.startLCD)
         tlabel = QLabel('End:')
         tlabel.setFont(QFont('Arial', 20))
-        tlabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        tlabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         hlayout.addWidget(tlabel)
         self.endLCD = QLCDNumber()
         self.endLCD.setDigitCount(8)
@@ -926,8 +926,8 @@ class MainWindow(QMainWindow):
         # Set text for mode
         self.modeLabel.setText('Disabled')
         palette = self.modeLabel.palette()
-        palette.setColor(QPalette.Window, Qt.white)
-        palette.setColor(QPalette.WindowText, Qt.black)
+        palette.setColor(QPalette.ColorRole.Window, Qt.white)
+        palette.setColor(QPalette.ColorRole.WindowText, Qt.black)
         self.modeLabel.setPalette(palette)
 
     def enableRecording(self):
@@ -990,7 +990,7 @@ class MainWindow(QMainWindow):
             self.endTime = fromHMS(text)
 
     def getSomeTime(self, name, buttonValue):
-        text, ok = QInputDialog().getText(self, name, name, QLineEdit.Normal, buttonValue)
+        text, ok = QInputDialog().getText(self, name, name, QLineEdit.EchoMode.Normal, buttonValue)
         if ok and text.find(':') < 0:
             text = toHMS(float(text))
         return text, ok
@@ -1024,7 +1024,7 @@ class MainWindow(QMainWindow):
 
         # Open action
         self._open_file_action = QAction("&Open Anim File", self,
-            shortcut=QKeySequence.Open,
+            shortcut=QKeySequence.StandardKey.Open,
             triggered=self.openAnimFile)
         self.file_menu.addAction(self._open_file_action)
 
@@ -1032,12 +1032,12 @@ class MainWindow(QMainWindow):
 
         # Save action
         self._save_file_action = QAction("&Save Anim File",
-                self, shortcut=QKeySequence.Save, triggered=self.saveAnimFile)
+                self, shortcut=QKeySequence.StandardKey.Save, triggered=self.saveAnimFile)
         self.file_menu.addAction(self._save_file_action)
 
         # Save As action
         self._save_as_file_action = QAction("&Save As",
-                self, shortcut=QKeySequence.SaveAs, triggered=self.saveAsFile)
+                self, shortcut=QKeySequence.StandardKey.SaveAs, triggered=self.saveAsFile)
         self.file_menu.addAction(self._save_as_file_action)
 
         self.file_menu.addSeparator()
@@ -1053,7 +1053,7 @@ class MainWindow(QMainWindow):
 
         # exit action
         self.file_menu.addSeparator()
-        self._exit_action = QAction("&Quit", self, shortcut=QKeySequence.Quit,
+        self._exit_action = QAction("&Quit", self, shortcut=QKeySequence.StandardKey.Quit,
                 triggered=self.exit_action)
         self.file_menu.addAction(self._exit_action)
 
@@ -1062,7 +1062,7 @@ class MainWindow(QMainWindow):
         self.help_menu.setToolTipsVisible(True)
 
         self._about_action = QAction("About", self,
-            shortcut=QKeySequence.WhatsThis,
+            shortcut=QKeySequence.StandardKey.WhatsThis,
             triggered=self.about_action)
         self.help_menu.addAction(self._about_action)
 
@@ -1071,7 +1071,7 @@ class MainWindow(QMainWindow):
         self.help_menu.addAction(self._quick_action)
 
         self._help_action = QAction("Help", self,
-            shortcut=QKeySequence.HelpContents,
+            shortcut=QKeySequence.StandardKey.HelpContents,
             triggered=self.help_action)
         self.help_menu.addAction(self._help_action)
 
@@ -1489,7 +1489,7 @@ class MainWindow(QMainWindow):
         """Get filename and open as active animatronics"""
         fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
                             "Mapping Files (*.map);;All Files (*)",
-                            options=QFileDialog.DontUseNativeDialog)
+                            options=QFileDialog.Option.DontUseNativeDialog)
 
         if fileName:
             try:
@@ -1516,7 +1516,7 @@ class MainWindow(QMainWindow):
             """Get filename and open as active animatronics"""
             fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
                                 "Anim Files (*.anim);;All Files (*)",
-                                options=QFileDialog.DontUseNativeDialog)
+                                options=QFileDialog.Option.DontUseNativeDialog)
 
             if fileName:
                 newAnim = Animatronics.Animatronics()
@@ -1560,8 +1560,8 @@ class MainWindow(QMainWindow):
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('Whoops - Unable to write to animatronics file:')
                 msgBox.setInformativeText(self.animatronics.filename)
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.setIcon(QMessageBox.Warning)
+                msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msgBox.setIcon(QMessageBox.Icon.Warning)
                 ret = msgBox.exec_()
                 return
         pass
@@ -1601,8 +1601,8 @@ class MainWindow(QMainWindow):
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('Whoops - Unable to write to specified file:')
                 msgBox.setInformativeText(fileName)
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.setIcon(QMessageBox.Warning)
+                msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msgBox.setIcon(QMessageBox.Icon.Warning)
                 ret = msgBox.exec_()
                 return
 
@@ -1637,8 +1637,8 @@ class MainWindow(QMainWindow):
                 msgBox = QMessageBox(parent=self)
                 msgBox.setText('Whoops - Unable to write to specified file:')
                 msgBox.setInformativeText(fileName)
-                msgBox.setStandardButtons(QMessageBox.Ok)
-                msgBox.setIcon(QMessageBox.Warning)
+                msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msgBox.setIcon(QMessageBox.Icon.Warning)
                 ret = msgBox.exec_()
                 return
 
@@ -1668,13 +1668,13 @@ class MainWindow(QMainWindow):
             msgBox = QMessageBox(parent=self)
             msgBox.setText('The current animation has unsaved changes')
             msgBox.setInformativeText("Save them?")
-            msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-            msgBox.setDefaultButton(QMessageBox.Save)
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setStandardButtons(QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel)
+            msgBox.setDefaultButton(QMessageBox.StandardButton.Save)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             ret = msgBox.exec_()
-            if ret == QMessageBox.Save:
+            if ret == QMessageBox.StandardButton.Save:
                 self.saveAnimFile()
-            elif ret == QMessageBox.Cancel:
+            elif ret == QMessageBox.StandardButton.Cancel:
                 return False
         return True
 
