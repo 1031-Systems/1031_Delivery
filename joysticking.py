@@ -926,8 +926,8 @@ class MainWindow(QMainWindow):
         # Set text for mode
         self.modeLabel.setText('Disabled')
         palette = self.modeLabel.palette()
-        palette.setColor(QPalette.ColorRole.Window, Qt.white)
-        palette.setColor(QPalette.ColorRole.WindowText, Qt.black)
+        palette.setColor(QPalette.ColorRole.Window, QColor('white'))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor('black'))
         self.modeLabel.setPalette(palette)
 
     def enableRecording(self):
@@ -940,8 +940,8 @@ class MainWindow(QMainWindow):
         # Set text for mode
         self.modeLabel.setText('Recording Enabled')
         palette = self.modeLabel.palette()
-        palette.setColor(self.modeLabel.backgroundRole(), Qt.red)
-        palette.setColor(self.modeLabel.foregroundRole(), Qt.white)
+        palette.setColor(self.modeLabel.backgroundRole(), QColor('red'))
+        palette.setColor(self.modeLabel.foregroundRole(), QColor('white'))
         self.modeLabel.setAutoFillBackground(True)
         self.modeLabel.setPalette(palette)
 
