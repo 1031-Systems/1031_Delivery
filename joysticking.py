@@ -1562,7 +1562,7 @@ class MainWindow(QMainWindow):
                 msgBox.setInformativeText(self.animatronics.filename)
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msgBox.setIcon(QMessageBox.Icon.Warning)
-                ret = msgBox.exec_()
+                ret = msgBox.exec()
                 return
         pass
 
@@ -1584,7 +1584,7 @@ class MainWindow(QMainWindow):
         fileName = 'Unknown'
         self.filedialog.setDefaultSuffix('anim')
         self.filedialog.setNameFilter("Anim Files (*.anim);;All Files (*)")
-        if self.filedialog.exec_():
+        if self.filedialog.exec():
             try:
                 fileName = self.filedialog.selectedFiles()[0]
                 with open(fileName, 'w') as outfile:
@@ -1603,7 +1603,7 @@ class MainWindow(QMainWindow):
                 msgBox.setInformativeText(fileName)
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msgBox.setIcon(QMessageBox.Icon.Warning)
-                ret = msgBox.exec_()
+                ret = msgBox.exec()
                 return
 
     def saveMapAsFile(self):
@@ -1626,7 +1626,7 @@ class MainWindow(QMainWindow):
             self.filedialog.selectFile(fileName)
         self.filedialog.setDefaultSuffix('map')
         self.filedialog.setNameFilter("Map Files (*.map);;All Files (*)")
-        if self.filedialog.exec_():
+        if self.filedialog.exec():
             try:
                 fileName = self.filedialog.selectedFiles()[0]
                 self.table.write(filename=fileName)
@@ -1639,7 +1639,7 @@ class MainWindow(QMainWindow):
                 msgBox.setInformativeText(fileName)
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msgBox.setIcon(QMessageBox.Icon.Warning)
-                ret = msgBox.exec_()
+                ret = msgBox.exec()
                 return
 
     def exit_action(self):
@@ -1671,7 +1671,7 @@ class MainWindow(QMainWindow):
             msgBox.setStandardButtons(QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel)
             msgBox.setDefaultButton(QMessageBox.StandardButton.Save)
             msgBox.setIcon(QMessageBox.Icon.Warning)
-            ret = msgBox.exec_()
+            ret = msgBox.exec()
             if ret == QMessageBox.StandardButton.Save:
                 self.saveAnimFile()
             elif ret == QMessageBox.StandardButton.Cancel:
@@ -1880,7 +1880,7 @@ def doJoysticking():
         main_win.table.read(tablefilename)
         main_win.updateUIfromTable()
 
-    app.exec_()
+    app.exec()
 
 if __name__ == "__main__":
     doJoysticking()
