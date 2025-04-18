@@ -1390,13 +1390,22 @@ class MainWindow(QMainWindow):
                 playout.addLayout(tlayout)
 
     def enterJoystickCombo(self, event):
-        self.currentJoystick = self.childAt(event.windowPos().toPoint())
+        if usedPyQt == 5:
+            self.currentJoystick = self.childAt(event.windowPos().toPoint())
+        elif usedPyQt == 6:
+            self.currentJoystick = self.childAt(event.scenePosition().toPoint())
 
     def enterButtonCombo(self, event):
-        self.currentButtonSelector = self.childAt(event.windowPos().toPoint())
+        if usedPyQt == 5:
+            self.currentButtonSelector = self.childAt(event.windowPos().toPoint())
+        elif usedPyQt == 6:
+            self.currentButtonSelector = self.childAt(event.scenePosition().toPoint())
 
     def enterAxisCombo(self, event):
-        self.currentAxisSelector = self.childAt(event.windowPos().toPoint())
+        if usedPyQt == 5:
+            self.currentAxisSelector = self.childAt(event.windowPos().toPoint())
+        elif usedPyQt == 6:
+            self.currentAxisSelector = self.childAt(event.scenePosition().toPoint())
 
     def leaveCombo(self, event):
         self.currentButtonSelector = None
