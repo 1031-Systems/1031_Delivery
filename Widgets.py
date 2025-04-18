@@ -3,6 +3,7 @@ usedPyQt = None
 try:
     # PyQt5 import block for all widgets
     from PyQt5.QtCore import *
+    from PyQt5.QtGui import *
     from PyQt5.QtWidgets import *
     from PyQt5.QtPrintSupport import *
     usedPyQt = 5
@@ -53,15 +54,15 @@ class TextDisplayDialog(QDialog):
         self.textView.setReadOnly(True)
         self.resize(500, 600)
         # Add shortcut to open searchbar
-        taction = QAction('', self, shortcut="Ctrl+F",
+        taction = QAction('', self, shortcut=QKeySequence("Ctrl+F"),
             triggered=self.showFinder)
         self.addAction(taction)
         # Add shortcut to close window
-        taction = QAction('', self, shortcut="Ctrl+W",
+        taction = QAction('', self, shortcut=QKeySequence("Ctrl+W"),
             triggered=self.accept)
         self.addAction(taction)
         # Add print capability
-        taction = QAction('', self, shortcut="Ctrl+P",
+        taction = QAction('', self, shortcut=QKeySequence("Ctrl+P"),
             triggered=self.print)
         self.addAction(taction)
 
@@ -88,11 +89,11 @@ class TextDisplayDialog(QDialog):
         # a forward search.  Clicking the up arrow does a backward search and sets focus
         # so subsequent returns continue searching backwards.
         tbutt = QPushButton()
-        tbutt.setIcon(self.style().standardIcon(QStyle.SP_TitleBarUnshadeButton))  #ArrowDown))
+        tbutt.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarUnshadeButton))  #ArrowDown))
         tbutt.clicked.connect(self.findForwards)
         tlayout.addWidget(tbutt)
         tbutt = QPushButton()
-        tbutt.setIcon(self.style().standardIcon(QStyle.SP_TitleBarShadeButton))  #ArrowUp))
+        tbutt.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarShadeButton))  #ArrowUp))
         tbutt.clicked.connect(self.findBackwards)
         tlayout.addWidget(tbutt)
         self.findWidget.setLayout(tlayout)
@@ -109,23 +110,23 @@ class TextDisplayDialog(QDialog):
             flag = self.textView.find(txt)
             if not flag:
                 # Go to beginning and try again
-                self.textView.moveCursor(QTextCursor.Start)
+                self.textView.moveCursor(QTextCursor.MoveOperation.Start)
                 flag = self.textView.find(txt)
 
     def findBackwards(self):
         txt = self.searchTextWidget.text()
         if len(txt) > 0:
             if self.text.find(txt.lower()) < 0: return
-            flag = self.textView.find(txt, QTextDocument.FindBackward)
+            flag = self.textView.find(txt, QTextDocument.FindFlag.FindBackward)
             if not flag:
                 # Go to end and try again
-                self.textView.moveCursor(QTextCursor.End)
-                flag = self.textView.find(txt, QTextDocument.FindBackward)
+                self.textView.moveCursor(QTextCursor.MoveOperation.End)
+                flag = self.textView.find(txt, QTextDocument.FindFlag.FindBackward)
 
     def print(self):
         printDialog = QPrintDialog()
         result = printDialog.exec ()
-        if (result == QDialog.Accepted):
+        if (result == QDialog.DialogCode.Accepted):
             result = printDialog.printer ()
             self.textView.print (result)
 
