@@ -229,12 +229,15 @@ one or more entire channels but not points within a channel.  Users may Paste or
 of points copied from a single channel into one or more selected channels as new points within
 those channels.  Users may Paste a single channel into one or more selected channels, replacing
 all data within those channels except name and port number.  When Pasting, the user will be given
-choice between Pasting or Inserting the copied channel.  If Insert At is selected, the channel
+choice between Pasting or Inserting the copied channel.  If Insert is selected, the channel
 will be inserted at the selected channel with a modified name and the port number cleared if
 they are already present in the animation.  If multiple channels have been Cut or Copied, they
 may only be inserted at the current selection.  Note that Insert always Inserts and does not
 give the option of overwriting the current content of a channel.  Otherwise, it behaves like
 Paste.
+
+The editing features also support copying channels from one animation file to another either
+within a single instance of Hauntimator or between multiple instances of Hauntimator.
 
 A note on selection.  To select a channel, the user clicks on the area to the left of the main
 data display window in a manner similar to Excel when selecting an entire row.  The user may
@@ -305,6 +308,7 @@ to files and communication.  The individual preferences are:
 + ServoDataFile - The name of the file containing known servo types and their associated information.  The user may rename this file or move it so the preference allows that.  The values in the servo file are used to set initial limits on the channel values.  These are based on the ServoDefaultMaximum and ServoDefaultMinimum and the duty cycle of the servo from the file.  These are NOT used to distinguish servos on GPIO pins from servos on PCA9685 boards.  That is done within the controller.
 + UploadPath - The name of the directory to upload audio and control files to as it is used in the controller software.  The Pico software that accompanies the Hauntimator and is run on the Pico looks for a particular file and this must match that.  This will typically be on the SD card and look like "/sd/anims" to match expectations in the controller software.  If the controller software is edited, this can be changed to match.  Note that this is irrelevant if writing files locally to an SD card to be transferred later to the controller.
 + TTYPortRoot - This is most of the name of the communications port to use to talk to the controller when it is plugged into the USB port on the computer that Hauntimator runs on.  Under linux, this is typically /dev/ttyACM0 but may also be /dev/ttyACM1, 2, ... so the TTYPortRoot is set to /dev/ttyACM.  On a Mac it is more like /dev/tty00bb10 so the TTYPortRoot is set to /dev/tty00bb1.  Under Windows it is something I don't care about.  Note that this is irrelevant if writing files locally to an SD card to be transferred later to the controller and otherwise not using Hauntimator to talk directly to the controller.
++ Toolbar_On_Window (Mac Only) - This controls whether the menubar for Hauntimator is at the top of the screen, the usual for Mac OSX applications, or at the top of the Hauntimator window.  If set to False, it will be at the top of the screen which makes some of the hot keys work strangely.  If set to True, it will be at the top of the window and functionality will be very much like that on Linux.
 
 <a name="view">
 &nbsp;
@@ -417,15 +421,16 @@ The Channels menu is used for operations on channels.  The options are:
 
 + Select All - Select all channels
 + Deselect All - Deselect all channels
-+ New Numeric Channel - Add an empty servo channel to the animation
++ New PWM Channel - Add an empty servo channel to the animation
 + New Digital Channel - Add an empty on/off channel to the animation
-+ Delete Channels - Bring up a channel selector to select and delete multiple channels
-+ Amplitudize - Fill all selected channels with data points that follow the amplitude of the audio
-+ Shift - Shift data points in selected data channels in time
-+ Clear - Deleta all knots in selected channels
++ Delete Dialog - Bring up a channel selector to select and delete multiple channels
 + Delete - Delete all selected channels after confirmation
++ Amplitudize - Fill all selected channels with data points that follow the amplitude of the audio
++ Clear In - Delete all knots in selected channels in visible time range
++ Clear Out - Delete all knots in selected channels except those in visible time range
++ Clear - Delete all knots in selected channels
 
-New channels are created and inserted into the display using Ctrl-E for numeric, PWM-type channels
+New channels are created and inserted into the display using Ctrl-P for numeric, PWM-type channels
 and Ctrl-D for Digital channels.  These pop up a metadata widget so the user may specify initial
 values for the metadata, including name, port number, limits, interpolation, etc.  Channel name
 validation is performed and existing channel names cannot be reused.  Port number dropdowns do
@@ -435,19 +440,21 @@ New channels are generally appended to the bottom of the display.  However, if a
 selected, new channels will be inserted at that position, pushing the selected channel and others
 down the display.
 
+The Delete function requests confirmation prior to deleting.  This is because it is difficult but
+possible to select and then delete a channel that is hidden such that the user is not immediately
+aware that a channel was deleted.  Of course the delete may be undone.  Hauntimator attempts to
+deselect any channel that is hidden so you should not have any problems with weird changes happening
+to hidden channels.
+
 The Amplitudize function fills the channel with data points based on the amplitude of the audio signal.
 By default, it only fills the visible part of the channel but the user may change that as well as the
 sampling rate of the new data points.  The dialog for the Amplitudize function also allows a cutoff value
 to be specified.  For Digital channels, any value below the cutoff results in a zero digital value while
 any value above the cutoff results in a one digital value.
 
-The Shift function is not yet implemented.
-
-The Delete function requests confirmation prior to deleting.  This is because it is difficult but
-possible to select and then delete a channel that is hidden such that the user is not immediately
-aware that a channel was deleted.  Of course the delete may be undone.  Hauntimator attempts to
-deselect any channel that is hidden so you should not have any problems with weird changes happening
-to hidden channels.
+The Clear functions are used to delete knots from selected channels.  Clear In deletes knots in the
+visible time range.  Clear Out deletes knots outside the visible time range, preserving the visible ones.
+Clear deletes all knots in the selected channels.
 
 <a name="tags">
 &nbsp;
@@ -497,6 +504,9 @@ maybe approximately align with the spoken dialogue but many shifts are generally
 alignment.  
 
 The Phonemes plugin also offers a way to populate the Tags pane.  See the plugin help for more details.
+
+At this time, there is no good way to edit the text in a tag.  Generally they have to be deleted and
+reinserted with a new string.
 
 <a name="plugins">
 &nbsp;
