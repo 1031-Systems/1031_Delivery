@@ -3597,11 +3597,11 @@ class MainWindow(QMainWindow):
         if event.type() == QEvent.Resize:
             vp = self.scrollArea.viewport()
             width = vp.size().width()
-            self.tagPlot.setFixedWidth(width)
+            self.tagPlot.setMaximumWidth(width)
             if self.audioPlot is not None:
-                self.audioPlot.setFixedWidth(width)
+                self.audioPlot.setMaximumWidth(width)
             if self.audioPlotRight is not None:
-                self.audioPlotRight.setFixedWidth(width)
+                self.audioPlotRight.setMaximumWidth(width)
             # Enable wheel in channel pane iff no scrollbar is present
             sb = self.scrollArea.verticalScrollBar()
             self.paneScrollable = not sb.isVisible()
