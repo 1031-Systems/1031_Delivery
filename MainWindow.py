@@ -50,6 +50,19 @@ SystemPreferenceTypes = {
 'TTYPortRoot':'str',
 }
 
+# Try to deal with Mac idiosyncracies
+import platform
+if platform.system() == 'Darwin':
+    # It's a Mac
+    keystring = '\u2318 '   # Use the Apple key character as needed
+    MacOS = True
+    SystemPreferences['Toolbar_On_Window'] = False
+    SystemPreferenceTypes['Toolbar_On_Window'] = 'bool'
+else:
+    # It's not
+    keystring = 'Ctrl+'
+    MacOS = False
+
 
 # Utilize XML to read/write animatronics files
 import xml.etree.ElementTree as ET
@@ -98,21 +111,6 @@ main_win = None     # Global reference to the main window for global methods
 
 # Dictionary of known servo types to aid user
 ServoData = {}
-
-#/* Usage method */
-def print_usage(name):
-    """
-    The method print_usage prints the standard usage message.
-    Parameters
-    ----------
-    name : str
-        The name of the application from argv[0]
-    """
-    sys.stderr.write("\nUsage: %s [-/-h/-help]\n")
-    sys.stderr.write("Run regression tests.\n");
-    sys.stderr.write("-/-h/-help             :show this information\n");
-    #sys.stderr.write("-f/-file infilename    :Input anim file\n")
-    sys.stderr.write("\n\n");
 
 def pushState():
     """
@@ -3190,7 +3188,6 @@ class MainWindow(QMainWindow):
     channel_menu : QMenu
     _selectAll_action : QAction
     _deselectAll_action : QAction
-    _selectorPane_action : QAction
     _Copy_action : QAction
     _Paste_action : QAction
     _Shift_action : QAction
@@ -3253,7 +3250,6 @@ class MainWindow(QMainWindow):
     Paste_action(self)
     Shift_action(self)
     Delete_action(self)
-    selectorPane_action(self)
     create_menus(self)
     """
 
@@ -6007,35 +6003,6 @@ class MainWindow(QMainWindow):
             self.deleteChannels(dellist)
         pass
 
-    def selectorPane_action(self):
-        """
-        The method selectorPane_action brings up a checklist for the user
-        to select specific channels. (Not implemented yet)
-
-            member of class: MainWindow
-        Parameters
-        ----------
-        self : MainWindow
-        """
-        print('Hit selectorPane action')
-
-        """
-        # Testing of preloading wave file into QByteArray to play - fails
-        player = qm.QMediaPlayer(self);
-
-        file = QFile("drama.wav");
-        file.open(QIODevice.ReadOnly);
-        arr = QByteArray();
-        arr.append(file.readAll());
-        file.close();
-        buffer = QBuffer(arr);
-        buffer.open(QIODevice.ReadWrite);
-
-        player.setMedia(qm.QMediaContent(QUrl.fromLocalFile("drama.wav")), buffer);
-        player.play();
-        """
-        pass
-
     def togglePane_action(self):
         if self.tagPlot is None: return
         if self.tagPlot.isHidden():
@@ -6172,6 +6139,8 @@ class MainWindow(QMainWindow):
         ----------
         self : MainWindow
         """
+        if MacOS and 'Toolbar_On_Window' in SystemPreferences and SystemPreferences['Toolbar_On_Window']:
+            self.menuBar().setNativeMenuBar(False)
         # Create the File dropdown menu #################################
         self.file_menu = self.menuBar().addMenu("&File")
         self.file_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
@@ -6309,10 +6278,13 @@ class MainWindow(QMainWindow):
         self.view_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
 
         # resetscales menu item
-        self._resetscales_action = QAction("Fit to All Data", self,
-            shortcut=QKeySequence.Find,
+        self._resetscales_action = QAction("Fit to All Data              " + keystring + "F", self,
             triggered=self.resetscales_action)
         self.view_menu.addAction(self._resetscales_action)
+        dummy_action = QAction("", self,
+            shortcut=QKeySequence('Ctrl+F'),
+            triggered=self.resetscales_action)
+        self.addAction(dummy_action)
 
         # scaletoaudio menu item
         self._scaletoaudio_action = QAction("Fit to Audio", self,
@@ -6386,7 +6358,7 @@ class MainWindow(QMainWindow):
 
         # playbackcontrols menu item
         self._playbackcontrols_action = QAction("Toggle Playback Controls", self,
-            shortcut=QKeySequence.Print,
+            shortcut=QKeySequence("P"),
             triggered=self.playbackcontrols_action)
         self.view_menu.addAction(self._playbackcontrols_action)
 
@@ -6409,10 +6381,13 @@ class MainWindow(QMainWindow):
 
         self.channel_menu.addSeparator()
 
-        self._newchannel_action = QAction("New Numeric Channel", self,
-            shortcut="Ctrl+E",
+        self._newchannel_action = QAction("New PWM Channel   " + keystring + "P", self,
             triggered=self.newchannel_action)
         self.channel_menu.addAction(self._newchannel_action)
+        self._newchannel_action = QAction("", self,
+            shortcut="Ctrl+P",
+            triggered=self.newchannel_action)
+        self.addAction(self._newchannel_action)
 
         self._newdigital_action = QAction("New Digital Channel", self,
             shortcut="Ctrl+D",
