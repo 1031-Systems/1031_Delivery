@@ -365,7 +365,7 @@ class JSWrapper:
 #/* Usage method */
 def print_usage(name):
     """ Simple method to output usage when needed """
-    sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose] [-a/-animfile animfilename] [-t tablefilename] [-s/-start starttime] [-e/-end endtime] [-r/-rate samplerate]\n" % name)
+    sys.stderr.write("\nUsage: %s [-/-h/-help] [-V/-version] [-v/-verbose] [-a/-animfile animfilename] [-t tablefilename] [-s/-start starttime] [-e/-end endtime] [-r/-rate samplerate]\n" % name)
     sys.stderr.write("\n");
     sys.stderr.write("    This tool supports the use of a joystick for populating channels in an\n");
     sys.stderr.write("animatronics file.  Channels to be populated must already be defined in the\n");
@@ -380,6 +380,7 @@ def print_usage(name):
         sys.stderr.write("data or a new animation file may be written instead.\n");  
     sys.stderr.write("\n");
     sys.stderr.write("-/-h/-help                    :show this information\n");
+    sys.stderr.write("-V/-version                   :print version information and exit\n")
     sys.stderr.write("-v/-verbose                   :run more verbosely, including help\n");
     sys.stderr.write("-a/-animfile animfilename     :animatronics file\n")
     sys.stderr.write("-t/-tablefile tablefilename   :channel association table file\n")
@@ -388,302 +389,17 @@ def print_usage(name):
     sys.stderr.write("-r/-rate samplerate           :sample rate in Hz (default: 10Hz)\n")
     sys.stderr.write("\n\n");
 
-#/* Main */
-def main():
-    global verbosity
-
-    # Defaults
-    starttime = 0.0
-    endtime = None
-    rate = 10.0  # 10Hz
-    tablefilename = None
-    writetable = False
-    skipbuttons = False
-    outfilename = None
-    animfilename = None
-
-    i = 1
-    while i < len(sys.argv):
-        if sys.argv[i] == '-' or sys.argv[i] == '-h' or sys.argv[i] == '-help':
-            print_usage(sys.argv[0]);
-            sys.exit(0);
-        elif sys.argv[i] == '-v' or sys.argv[i] == '-verbose':
-            verbosity = True
-        elif sys.argv[i] == '-tw' or sys.argv[i] == '-tablewrite':
-            i += 1
-            if i < len(sys.argv):
-                tablefilename = sys.argv[i]
-                writetable = True
-        elif sys.argv[i] == '-nb' or sys.argv[i] == '-nobuttons':
-            skipbuttons = True
-        elif sys.argv[i] == '-a' or sys.argv[i] == '-animfile':
-            i += 1
-            if i < len(sys.argv):
-                animfilename = sys.argv[i]
-        elif sys.argv[i] == '-o' or sys.argv[i] == '-outfile':
-            i += 1
-            if i < len(sys.argv):
-                outfilename = sys.argv[i]
-        elif sys.argv[i] == '-t' or sys.argv[i] == '-tablefile':
-            i += 1
-            if i < len(sys.argv):
-                tablefilename = sys.argv[i]
-        elif sys.argv[i] == '-s' or sys.argv[i] == '-start':
-            i += 1
-            if i < len(sys.argv):
-                starttime = float(sys.argv[i])
-        elif sys.argv[i] == '-e' or sys.argv[i] == '-end':
-            i += 1
-            if i < len(sys.argv):
-                endtime = float(sys.argv[i])
-        elif sys.argv[i] == '-r' or sys.argv[i] == '-rate':
-            i += 1
-            if i < len(sys.argv):
-                rate = float(sys.argv[i])
-        else:
-            sys.stderr.write("\nWhoops - Unrecognized argument: %s\n" % sys.argv[i]);
-            print_usage(sys.argv[0]);
-            sys.exit(10);
-
-        i += 1
-
-    # Validate input
-    if animfilename is None:
-        sys.stderr.write("\nWhoops - Unspecified animatronics file\n")
-        print_usage(sys.argv[0]);
-        sys.exit(10);
-    if not os.path.isfile(animfilename):
-        sys.stderr.write("\nWhoops - Specified animatronics file does not exist!\n")
-        sys.stderr.write(animfilename + "\n")
-        print_usage(sys.argv[0]);
-        sys.exit(10);
-    if outfilename is None:
-        outfilename = animfilename
-    if tablefilename is None:
-        sys.stderr.write("\nWhoops - Unspecified association table file\n")
-        print_usage(sys.argv[0]);
-        sys.exit(10);
-    if not writetable and not os.path.isfile(tablefilename):
-        sys.stderr.write("\nWhoops - Specified association table file does not exist!\n")
-        sys.stderr.write(tablefilename + "\n")
-        print_usage(sys.argv[0]);
-        sys.exit(10);
-    if rate < 0.5 or rate > 100.0:
-        sys.stderr.write("\nWhoops - Sampling rate should be between 0.5Hz and 100Hz!\n")
-        print_usage(sys.argv[0]);
-        sys.exit(10);
-
-    # Initialize some stuff
-    if endtime is None: endtime = starttime + 1000000.0
-    if endtime <= starttime:
-        sys.stderr.write("\nWhoops - Endtime must be greater than starttime!\n")
-        print_usage(sys.argv[0]);
-        sys.exit(10);
-
-    # Read the animatronics file
+def print_module_version(module_name):
     try:
-        anim = Animatronics.Animatronics()
-        anim.parseXML(animfilename)
+        import importlib
+        import importlib.metadata
+        version = importlib.metadata.version(module_name)
+        print(module_name + ':', version)
+        exitcode = 0
     except:
-        sys.stderr.write("\nWhoops - Error parsing animatronics file!\n")
-        sys.stderr.write(animfilename + "\n")
-        print_usage(sys.argv[0]);
-        sys.exit(10);
-
-    joystick = JSWrapper()
-    joystick.loadAudio(anim.newAudio.audiofile)
-
-    # Check for any initially pressed buttons
-    buttons = joystick.getPushedButtons()
-    time.sleep(1.0)
-    buttons = joystick.getPushedButtons()
-    if len(buttons) > 0:
-        sys.stderr.write("\nWhoops - Button states indicate some button(s) are already pressed.\n")
-        sys.stderr.write("This could be due to leftover state from previous code.\n")
-        sys.stderr.write("Release any buttons currently pressed, then press and release other buttons\n")
-        sys.stderr.write("until problem is cleared.\n\n")
-        while len(buttons) > 0:
-            sys.stderr.write("Current buttons pressed:")
-            for index in buttons:
-                sys.stderr.write(" %d" % index)
-            sys.stderr.write("                                    \r")
-            buttons = joystick.getPushedButtons()
-
-        sys.stderr.write("All clear -- proceeding.                                                    \n\n")
-
-
-    if writetable:
-        # Create a new table and write it out
-        table = Table()
-        print('\nBuilding channel recording association file\n\n')
-        print('Press and release button to be used for activating recording')
-        buttons = joystick.getPushedButtons()
-        while len(buttons) == 0:
-            buttons = joystick.getPushedButtons()
-        if verbosity: print('Button:', buttons)
-        table.setRecordButton(buttons[0])
-        # Wait for button to be released
-        while len(buttons) > 0:
-            buttons = joystick.getPushedButtons()
-
-        for channelname in anim.channels:
-            channel = anim.channels[channelname]
-            if channel.type == Animatronics.Channel.DIGITAL and not skipbuttons:
-                print('Press and release button to map to channel:', channelname)
-                buttons = joystick.getPushedButtons()
-                while len(buttons) == 0:
-                    buttons = joystick.getPushedButtons()
-                buttonIndex = buttons[0]
-                # Wait for button to be released
-                while len(buttons) > 0:
-                    buttons = joystick.getPushedButtons()
-                if buttonIndex == table.getRecordButton():
-                    continue
-                print('Button %d is mapped to channel:%s' % (buttonIndex, channelname))
-                table.addButton(buttonIndex, channelname)
-            else:   # type is any kind of numeric channel
-                print('Move joystick to limit in axis to map to channel:', channelname)
-                maxaxisindex, maxaxisvalue = joystick.getMaxAxis()
-                buttons = joystick.getPushedButtons()
-                while maxaxisvalue < 0.9 and len(buttons) == 0:
-                    maxaxisindex, maxaxisvalue = joystick.getMaxAxis()
-                    buttons = joystick.getPushedButtons()
-                axisIndex = maxaxisindex
-                lastaxisvalue = maxaxisvalue
-                while maxaxisvalue > 0.1 or lastaxisvalue != maxaxisvalue:
-                    time.sleep(0.1)
-                    lastaxisvalue = maxaxisvalue
-                    maxaxisindex, maxaxisvalue = joystick.getMaxAxis()
-                if len(buttons) > 0:
-                    # Skip this channel
-                    while len(buttons) > 0:
-                        buttons = joystick.getPushedButtons()
-                    continue    # Skip this channel and go on to next
-                print('Axis %d mapped to channel %s' % (axisIndex, channelname))
-                table.addAxis(axisIndex, channelname)
-
-        try:
-            table.write(filename=tablefilename)
-        except:
-            sys.stderr.write("\nWhoops - Error writing table file:%s\n" % tablefilename)
-            sys.exit(2)
-
-
-    # Read the channel association table, perhaps just created
-    table = Table(filename=tablefilename)
-
-    # Capture joystick input
-
-    # Initialize stuff
-    # Move model to state if any at initial time
-    # Wait for Record button
-    buttons = joystick.getPushedButtons()
-    while table.getRecordButton() not in buttons:
-        # Send button state to model
-        # Send axis state to model
-        # Check buttons again for Record button
-        buttons = joystick.getPushedButtons()
-
-    # Start record button has been pressed
-    duration = endtime - starttime
-    print('Recording started at time:', starttime)
-    startmono = time.monotonic()
-    nextRecordTime = startmono
-    recordTimeStep = 1.0/rate
-    recordFlag = False
-    lastButtons = []
-
-    # Clear the channels to be recorded for the time period    
-    for button in table.getButtonIndices():
-        channame = table.getButtonChannel(button)
-        if channame is not None:
-            channel = anim.channels[channame]
-            channel.delete_knot_range(starttime, endtime)
-        # Remember NOT of current button state
-        if button not in buttons: lastButtons.append(button)
-    for axis in table.getAxisIndices():
-        channame = table.getAxisChannel(axis)
-        if channame is not None:
-            channel = anim.channels[channame]
-            channel.delete_knot_range(starttime, endtime)
-
-
-    # While Record button pressed and endtime not reached
-    joystick.playAudio()
-    while table.getRecordButton() in buttons and time.monotonic() - startmono < duration:
-        # Get anim state at loop time
-        # Push state not being edited to model
-
-        # If we have reached next record time set flag
-        if time.monotonic() >= nextRecordTime:
-            recordFlag = True
-            nextRecordTime += recordTimeStep
-
-        # Get button states
-        buttons = joystick.getPushedButtons()
-        # If any changed state
-        for button in buttons:
-            if button in table.getButtonIndices() and button not in lastButtons:
-                # Map to channel
-                channame = table.getButtonChannel(button)
-                if channame is not None:
-                    channel = anim.channels[channame]
-                    # Send to controller
-                    if recordFlag:
-                        channel.add_knot(time.monotonic() - startmono + starttime, 1)
-                        #print('Adding knot to channel:', channame, 'at time:', time.monotonic() - startmono + starttime, 'with value:', 1)
-        for button in lastButtons:
-            if button in table.getButtonIndices() and button not in buttons:
-                # Map to channel
-                channame = table.getButtonChannel(button)
-                if channame is not None:
-                    channel = anim.channels[channame]
-                    # Send to controller
-
-                    if recordFlag:
-                        channel.add_knot(time.monotonic() - startmono + starttime, 0)
-                        #print('Adding knot to channel:', channame, 'at time:', time.monotonic() - startmono + starttime, 'with value:', 0)
-
-        # Copy buttons to lastButtons
-        if recordFlag:
-            lastButtons = []
-            for button in buttons: lastButtons.append(button)
-
-        # Get axis states
-        values = joystick.getAxisValues()
-        #print('values:', values)
-        for index in range(len(values)):
-            # Map to channels
-            if index in table.getAxisIndices():
-                channame = table.getAxisChannel(index)
-                if channame is not None:
-                    channel = anim.channels[channame]
-                # Translate joystick value to value in channel range
-                transvalue = (values[index] + 1.0) * 0.5 * (channel.maxLimit - channel.minLimit) + channel.minLimit
-                # Send to controller
-
-                if recordFlag:
-                    # If flag set: Insert value in channel
-                    channel.add_knot(time.monotonic() - startmono + starttime, transvalue)
-                    #print('Setting channel:', channame, 'to value:', transvalue, 'at time:', time.monotonic() - startmono + starttime)
-
-        # Unset flag
-        recordFlag = False
-
-    print('Recording terminated at time:', time.monotonic() - startmono + starttime)
-
-    joystick.stopAudio()
-
-    # Save the animation to the specified file
-    theXML = anim.toXML()
-    with open(outfilename, 'w') as ofile:
-        ofile.write(theXML)
-
-    # Clean up pygame and all events and such not
-    buttons = joystick.getPushedButtons()
-    while len(buttons) > 0:
-        buttons = joystick.getPushedButtons()
-    pygame.quit()
+        print('Version information not available')
+        exitcode = 1
+    return exitcode
 
 #======================================================================================================
 def getExecPath():
@@ -1808,6 +1524,9 @@ def doJoysticking():
         if sys.argv[i] == '-' or sys.argv[i] == '-h' or sys.argv[i] == '-help':
             print_usage(sys.argv[0]);
             sys.exit(0);
+        elif sys.argv[i] == '-V' or sys.argv[i] == '-version':
+            exitcode = print_module_version('joysticking')
+            sys.exit(exitcode)
         elif sys.argv[i] == '-v' or sys.argv[i] == '-verbose':
             verbosity = True
         elif sys.argv[i] == '-tw' or sys.argv[i] == '-tablewrite':
