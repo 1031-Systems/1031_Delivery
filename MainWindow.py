@@ -6357,7 +6357,7 @@ class MainWindow(QMainWindow):
         self.view_menu.addSeparator()
 
         # playbackcontrols menu item
-        self._playbackcontrols_action = QAction("Toggle Playback Controls", self,
+        self._playbackcontrols_action = QAction("Toggle Playback Controls   ", self,
             shortcut=QKeySequence("P"),
             triggered=self.playbackcontrols_action)
         self.view_menu.addAction(self._playbackcontrols_action)
@@ -6466,7 +6466,7 @@ class MainWindow(QMainWindow):
         self.tag_menu.addAction(self._importScript_action)
 
         # togglePane menu item
-        self._togglePane_action = QAction("Toggle Tag Pane", self,
+        self._togglePane_action = QAction("Toggle Tag Pane   ", self,
             shortcut="T",
             triggered=self.togglePane_action)
         self.tag_menu.addAction(self._togglePane_action)
