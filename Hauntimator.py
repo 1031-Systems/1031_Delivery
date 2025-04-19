@@ -113,8 +113,9 @@ def doAnimatronics():
 
     # Create the global main window
     app = QApplication(sys.argv)
-    main_win = MainWindow.MainWindow()
+    # For Mac, preferences need to be read before creating main window
     MainWindow.PreferencesWidget.readPreferences()
+    main_win = MainWindow.MainWindow()
 
     # Start with empty animation by default but AFTER Preferences have been read
     animation = Animatronics.Animatronics()
