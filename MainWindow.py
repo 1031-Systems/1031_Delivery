@@ -6398,6 +6398,13 @@ class MainWindow(QMainWindow):
             triggered=self.deletechannel_action)
         self.channel_menu.addAction(self._deletechannel_action)
 
+        # Delete menu item
+        self._Delete_action = QAction("Delete Selected", self,
+            shortcut=QKeySequence.Delete,
+            triggered=self.Delete_action)
+        self.channel_menu.addAction(self._Delete_action)
+        self._Delete_action.setToolTip('Delete all selected channels')
+
         self.channel_menu.addSeparator()
 
         # Amplitudize menu item
@@ -6406,11 +6413,13 @@ class MainWindow(QMainWindow):
         self.channel_menu.addAction(self._Amplitudize_action)
         self._Amplitudize_action.setToolTip('Add points to selected channels\nbased on amplitude of audio signal')
 
+        ''' Removed foir now since it is not implemented
         # Shift menu item
         self._Shift_action = QAction("Shift", self,
             triggered=self.Shift_action)
         self._Shift_action.setEnabled(False)
         self.channel_menu.addAction(self._Shift_action)
+        '''
 
         self.channel_menu.addSeparator()
 
@@ -6431,13 +6440,6 @@ class MainWindow(QMainWindow):
             triggered=self.Clear_action)
         self.channel_menu.addAction(self._Clear_action)
         self._Clear_action.setToolTip('Delete all points in selected channels')
-
-        # Delete menu item
-        self._Delete_action = QAction("Delete Selected", self,
-            shortcut=QKeySequence.Delete,
-            triggered=self.Delete_action)
-        self.channel_menu.addAction(self._Delete_action)
-        self._Delete_action.setToolTip('Delete all selected channels')
 
 
         # Create the Tags dropdown menu #################################
