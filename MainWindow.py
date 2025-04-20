@@ -6543,7 +6543,7 @@ class MainWindow(QMainWindow):
             except:
                 sys.stderr.write("\nWhoops - Problem importing plugin: %s\n" % pkg.name)
 
-        if len(discovered_plugins) <= 0: return
+        if len(discovered_plugins) <= 0: return helped_plugins
 
         # Look for the different types of functions in each plugin
         for module in discovered_plugins:
