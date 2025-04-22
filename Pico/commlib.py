@@ -18,7 +18,6 @@ import time
 # Get path to actual commlib.py file and add path/lib to search path
 _Path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib')
 sys.path.append(_Path)
-
 # Now import tables from our extended path
 import tables
 from helpers import filecrc16

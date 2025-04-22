@@ -6,8 +6,8 @@
 # Hot Key Cheat Sheet
 ---
 ### Help Keys
-- F1 - Display the Help file
-- Shift-F1 - Display the About file
+F1 - Display the Help file
+Shift-F1 - Display the About file
 
 ## Control Keys
 - Ctrl-O - Open animation file
