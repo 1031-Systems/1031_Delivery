@@ -11,6 +11,14 @@
 import os
 import sys
 
+# Set up search path so we can find commlib and associated files
+if getattr(sys, 'frozen', False):
+    application_path = os.path.dirname(sys.executable)
+elif __file__:
+    application_path = os.path.dirname(__file__)
+
+sys.path.append(application_path)
+
 # Import commlib for my board
 try:
     import commlib
