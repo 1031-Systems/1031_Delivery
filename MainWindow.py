@@ -76,7 +76,6 @@ elif __file__:
 sys.path.append(application_path)
 
 # Import commlib for my board
-import commlib
 try:
     import commlib
     ser = commlib.openPort()
