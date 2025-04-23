@@ -42,66 +42,10 @@ the audio.
 
 ## Installation
 
-The currently available version is __VERSION__.  It is totally beta.
+The latest available version is __VERSION__.  It is totally beta.
 Seems to work for me but I know the ins and outs.  Someday this 
 may be a previous version that may be available.
 
-In general, you will need to clone this repo to your local host
-or download the associated tar file and expand it.
-Then, create a virtual environment for the code using venv and
-activate it.  Then use pip to install the required libraries in
-your virtual environment.  At this point you should be able to 
-run Hauntimator.py.  The steps are as follows:
-
-~~~
-
-git clone git@github.com:steelheadj/Animatronics.git
-cd Animatronics
-python3 -m venv '.venv'     # Replace .venv with any name you like
-source .venv/bin/activate.shname  # Where shname is your shell name
-pip install --upgrade pip
-pip install -r ${OSTYPE}-requirements.txt
-pip install pocketsphinx    # To support phonemes plugin
-python ./Hauntimator.py
-
-~~~
-
-Note that there are several shells supported. bash is the
-default and is activated with just .venv/bin/activate with no shell
-name specified.
-
-In addition, you may have to find the appropriate requirements file
-for your system.  If the OSTYPE environment is set then you can use
-the command above.  If not, you will have to replace it with the
-appropriate OS type for your system.  If your system is not available,
-then you have to manually install needed modules with the  following:
-
-~~~
-
-pip install PyQt5 # (or PyQt6.5, whichever will actually install)
-pip install PythonQwt
-pip install pygame
-pip install rshell
-pip install pocketsphinx    # To support phonemes plugin
-pip freeze -l > ${OSTYPE}-requirements.txt # To save your own config
-
-~~~
-
-On darwin, the only MacOS test system I have, PyQt5 does not install
-but PyQt6 does.  Meanwhile, on my Rocky 9 test system, PyQt5 installs
-just fine whilst PyQt6 does not.  You will have to install whichever
-works for you.  Hauntimator.py is written to work with either PyQt5 or
-PyQt6.  However, when I updated my Mac to PyQt6.8, everything quit
-working.  PyQt6 seems to be changing a lot with every release, especially
-in the QMediaPlayer area which is used here.  Thus, it is recommended
-that you install specifically PyQt6.5 for now.
-
-Once Hauntimator is running in your virtual environment, the linktobin
-script will add scripts to your bin directory to run Hauntimator and
-other tools from any directory without the need to be in the virtual
-environment.  This allows the user to set up their animation development
-directories any way they wish.  Note that linktobin creates scripts
-without the .py extension.
 
 
 ***
