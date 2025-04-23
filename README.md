@@ -1,10 +1,11 @@
 <!-- john Fri Dec 17 17:35:16 PDT 2023 -->
-# Animatronics
+# 1031_Delivery
 
 This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
-board designs created by Bill Douglas and available for
-download with this repo at [Pico/Hardware](Pico/Hardware/).
+board designs created by Bill Douglas and available right
+here in this repo under Pico/Hardware.  Read the README there
+for details on getting the boards fabbed.
 
 This codebase contains an application, Hauntimator, for creating control
 channel data for directing the animatronics and code for
@@ -15,6 +16,9 @@ Arduino or other Raspberry Pi versions.
 
 It also contains a utility application, joysticking.py, for recording
 joystick actions into Hauntimator channels.
+
+In addition, it contains a full suite of embedded code to be
+installed on a Raspberry Pi Pico for executing the animations.
 
 ***
 
@@ -38,34 +42,9 @@ the audio.
 
 ## Installation
 
-This README accompanies version __VERSION__.  It is totally beta.
-Seems to work for me but I know the ins and outs.  Someday this 
-may be a previous version that may be available.
-
-To install this software, simply unzip the zip file and it should
+To install this software, simply download and unzip the zip file and it should
 be ready to run.  The zip files are identified with their version
 number and the OS type they were built for.
-
-The Hauntimator and joysticking applications generally work best
-when they are able to communicate with and control the animatronics
-controller hardware.  This requires the following steps to install
-the embedded software into the flash memory of the Raspberry Pi
-Pico (currently the only supported controller):
-
-- Plug a USB cable into the Pico board and this PC
-- Install an appropriate MicroPython image on the board (see Pico/README)
-- cd to the Pico/lib directory
-- copy tabledefs_template to tabledefs and edit it as needed (see Pico/lib/README)
-- cd to the Pico directory
-- run "do_install" to install all the embedded software on the Pico
-- run "verifyload" to verify that all the necessary files made it
-
-Note that it is not necessary for Hauntimator and joysticking to
-communicate with the Pico.  It is perfectly possible to create
-animation control files, write them to an SD card on the PC, and 
-then transfer the SD card to the controller.  However, a direct
-connection provides for more rapid iterations when developing and
-testing an animation.
 
 ***
 
@@ -76,7 +55,7 @@ testing an animation.
 Hauntimator is the visual user interface for creating and editing the
 control channels.  It displays a stack of channels, typically with 
 audio at the top, in which all channels display the same time range.
-During audio playback, a red bar moves across all channels so that
+During audio playback, a green bar moves across all channels so that
 the user may visually align behaviors between channels and the audio
 track.
 
@@ -89,7 +68,7 @@ a similar set of knots but apply Lagrange interpolation between the
 knots for a smoother motion of the controlled device.
 
 Channel data may be exported to a CSV file to be transferred to an
-external hardware controller.  In addition, a pipe may be used to
+external hardware controller.  In addition, a serial port may be used to
 directly signal the controller from the system while it runs
 Hauntimator.
 
@@ -144,7 +123,7 @@ Drop me a line at SW.1031_Systems at gmail.com.  Note that I am generally
 clueless about running a repo with more than one developer so a repo
 manager would be extremely useful.
 
-This software is made available for use under the GNU General Public License (GPL).
+This software is made available for use under the GNU General Public License (GPL3).
 A copy of this license is available within the repository for this software and is
 included herein by reference.
 
