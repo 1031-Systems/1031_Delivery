@@ -42,7 +42,7 @@ the audio.
 
 ## Installation
 
-The currently available version is 0.0.5(b).  It is totally beta.
+The currently available version is __VERSION__.  It is totally beta.
 Seems to work for me but I know the ins and outs.  Someday this 
 will be a previous version that may be available.
 

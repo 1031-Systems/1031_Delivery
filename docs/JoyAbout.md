@@ -7,7 +7,7 @@
 
 A tool for creating channels for Hauntimator with a joystick.
 
-0.0.5(b)
+__VERSION__
 
 ![Hauntimator Main Window](images/JoyUIsmall.png)
 

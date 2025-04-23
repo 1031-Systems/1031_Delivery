@@ -7,7 +7,7 @@
 
 A GUI for building controls for animatronics and lighting displays.
 
-0.0.5(b)
+__VERSION__
 
 ![Hauntimator Main Window](images/smallpanes.png)
 
