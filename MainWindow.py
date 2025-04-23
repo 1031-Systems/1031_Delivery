@@ -67,7 +67,16 @@ else:
 # Utilize XML to read/write animatronics files
 import xml.etree.ElementTree as ET
 
+# Set up search path so we can find commlib and associated files
+if getattr(sys, 'frozen', False):
+    application_path = os.path.dirname(sys.executable)
+elif __file__:
+    application_path = os.path.dirname(__file__)
+
+sys.path.append(application_path)
+
 # Import commlib for my board
+import commlib
 try:
     import commlib
     ser = commlib.openPort()
