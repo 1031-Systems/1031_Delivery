@@ -30,8 +30,6 @@ The channels may act as step functions, linear paths, and
 smoothed or spline paths.  Each channel is linked to a single
 control on a controller.
 
-![Hauntimator Main Window](docs/images/allpanes.png)
-
 Once the control channels have been created and validated to be
 synchronized with the audio, they are installed on the control
 hardware in flash memory or on an SD card.  Then the software
