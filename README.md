@@ -14,7 +14,7 @@ The Hauntimator application is intended to be board-agnostic so
 users may develop code for different processors such as 
 Arduino or other Raspberry Pi versions.
 
-It also contains a utility application, joysticking.py, for recording
+It also contains a utility application, joysticking, for recording
 joystick actions into Hauntimator channels.
 
 In addition, it contains a full suite of embedded code to be
