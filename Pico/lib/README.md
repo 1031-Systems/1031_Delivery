@@ -1,5 +1,5 @@
 <!-- john Tue Apr  2 07:11:17 AM PDT 2024 -->
-<!-- This software is made available for use under the GNU General Public License (GPL). -->
+<!-- This software is made available for use under the GNU General Public License (GPL3). -->
 <!-- A copy of this license is available within the repository for this software and is -->
 <!-- included herein by reference. -->
 
@@ -108,7 +108,7 @@ is thus typically the same file on both the embedded system and the desktop syst
 running Hauntimator.  Hauntimator uses commlib.py which uses tables.py which uses
 tabledefs to allow Hauntimator to write binary files on the desktop.  This only works
 properly when the embedded and desktop tabledefs are in sync.  Users are required to
-attest to this in commlib.py to enable this feature.
+make sure this is the case.
 
 ### tables.py
 
@@ -157,7 +157,7 @@ wildly from the Pico's values.
 
 ***
 
-This software is made available for use under the GNU General Public License (GPL).
+This software is made available for use under the GNU General Public License (GPL3).
 A copy of this license is available within the repository for this software and is
 included herein by reference.
 

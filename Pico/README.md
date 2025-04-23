@@ -1,5 +1,5 @@
 <!-- john Tue Apr  2 07:11:17 AM PDT 2024 -->
-<!-- This software is made available for use under the GNU General Public License (GPL). -->
+<!-- This software is made available for use under the GNU General Public License (GPL3). -->
 <!-- A copy of this license is available within the repository for this software and is -->
 <!-- included herein by reference. -->
 
@@ -200,7 +200,7 @@ controller will always have the preferred type of control file available.
 
 
 
-This software is made available for use under the GNU General Public License (GPL).
+This software is made available for use under the GNU General Public License (GPL3).
 A copy of this license is available within the repository for this software and is
 included herein by reference.
 
