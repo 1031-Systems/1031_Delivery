@@ -121,6 +121,10 @@ Drop me a line at SW.1031_Systems at gmail.com.  Note that I am generally
 clueless about running a repo with more than one developer so a repo
 manager would be extremely useful.
 
+Hmmmm, I think I see how the source code can be bundled into the delivery
+pretty easily so that may be soon forthcoming.  Creating Pull Requests and
+merging other's work back in will require more edumacation.
+
 This software is made available for use under the GNU General Public License (GPL3).
 A copy of this license is available within the repository for this software and is
 included herein by reference.
