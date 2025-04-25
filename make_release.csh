@@ -99,9 +99,6 @@ mv -f dist/rshell $DeliveryRepo
 # Also copy over the support files
 cp servotypes $DeliveryRepo
 sed "s/__VERSION__/$vnum/g" Delivery_README > $DeliveryRepo/README.md
-foreach f (*.dist-info)
-    cp -r $f $DeliveryRepo
-end
 
 # Build the single directory tools for each hardware type
 foreach hw (Pico)
