@@ -67,7 +67,7 @@ endif
 
 # Update to latest
 git pull origin main
-if($status && ! $force) then
+if($status && ! $?force) then
     echo Whoops - Problem pulling from github
     echo Better sort things out first
     exit 10
