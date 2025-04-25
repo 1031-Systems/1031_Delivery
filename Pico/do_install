@@ -1,51 +1,67 @@
-#!/bin/csh -f
+#!/bin/bash -f
 #set echo
 
+function usage() {
+
+echo
+echo 'Usage:'$0' [-/-h/-help] [-v/-verbose]'
+echo '    This tool installs all the code on the Pico.'
+echo '-/-h/-help          :Print this helpful info'
+echo '-v/-verbose         :Run more verbosely'
+echo
+
+}
+
 # Set initial/default values
-set out=/dev/null
+out=/dev/null
 
 # Parse arguments
-set i = 1
-while($i <= $#argv)
-    if("-" == "$argv[$i]" || "-h" == "$argv[$i]" || "-help" == "$argv[$i]") then
-        goto usage
-    else if("$argv[$i]" == "-v" || "-verbose" == "$argv[$i]") then
-        set out=/dev/stdout
+i=1
+j=$#
+
+while [ $i -le $j ]
+do
+    echo Processing arg:$1
+    if [[ "-" == "$1" || "-h" == "$1" || "-help" == "$1" ]]; then
+        usage
+    elif [[ "$1" == "-v" || "-verbose" == "$1" ]]; then
+        out=/dev/stdout
     else
         echo
-        echo "Whoops - Unrecognized argument:$argv[$i]"
-        goto usage
-    endif
+        echo "Whoops - Unrecognized argument:$1"
+        usage
+    fi
 
-    @ i++
-end
+    shift
+    ((i++))
+done
 
 # Do the right thing
 
 # Check to make sure tabledefs has been created
 echo Validating local tabledefs
-python lib/tables.py -r >& /dev/null
-if($status) then
+python3 lib/tables.py -r >& /dev/null
+if [[ $status ]]; then
     echo
     echo Whoops - problems with tabledefs file - aborting
     echo Results of check are:
-    python lib/tables.py -r -v
+    python3 lib/tables.py -r -v
     exit
-endif
+fi
 
 # Determine which rshell to use
-set rshell = `which rshell`
-if ($status) then
-    if (-e ../rshell) then
-        set rshell = ../rshell
+rshell=rshell
+if ! which rshell >& /dev/null; then
+    if [ -f ../rshell ]; then
+        rshell='../rshell'
     else
         echo Whoops - Unable to find rshell tool needed for installation
         exit 10
-    endif
-endif
+    fi
+fi
 
 # Get the port used by rshell (we assume it is first in the list)
-set port=`${rshell} -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
+port=`${rshell} -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
 echo Using port: $port >& $out
 
 echo Prepping Pico filesystem
@@ -78,10 +94,10 @@ echo Installing boot.py
 ${rshell} --quiet cp boot.py /pyboard
 
 # Make the link to commlib in the root directory
-set pushdsilent=1
-pushd ..
-rm -f commlib.py
-ln -s Pico/commlib.py . 
+rm -f ../commlib.py
+ln -s commlib.py ..
+rm -f _internal
+ln -s ../_internal .
 
 # Reboot the Pico
 echo Resetting Pico
@@ -94,21 +110,14 @@ sleep 5
 echo
 echo Verifying installation
 echo
-popd
-python3 ./verifyload.py -p $port
+if [ -f ./verifyload ]; then
+    ./verifyload -p $port
+else
+    python3 verifyload.py -p $port
+fi
 
-if ! $status then
+if [[ ! $status ]]; then
     echo All files validate
-endif
+fi
 
 exit
-
-usage:
-
-echo
-echo 'Usage:'$0' [-/-h/-help] [-v/-verbose]'
-echo '    This tool installs all the code on the Pico.'
-echo '-/-h/-help          :Print this helpful info'
-echo '-v/-verbose         :Run more verbosely'
-echo
-
