@@ -44,7 +44,20 @@ the audio.
 
 The currently available version is __VERSION__.  It is totally beta.
 Seems to work for me but I know the ins and outs.  Someday this 
-will be a previous version that may be available.
+will be a previous version that may be available.  Note that I am
+a code developer but not, by any stretch of the imagination, a
+repo manager.  Sure hope everything works for you.
+
+## If You Are a User
+
+The releases contain executables built with pyinstaller that should
+work for you without setting up virtual environments or installing
+requirements.  Pick a release to the right that matches your OS,
+download the release zip file, unzip it, and you should be ready to
+go.  The README in the unzipped release will contain more information
+about getting started.
+
+## If You Are A Developer
 
 In general, you will need to clone this repo to your local host
 or download the associated tar file and expand it.
