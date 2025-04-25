@@ -95,7 +95,7 @@ ${rshell} --quiet cp boot.py /pyboard
 
 # Make the link to commlib in the root directory
 rm -f ../commlib.py
-ln -s commlib.py ..
+ln -s Pico/commlib.py ../commlib.py
 rm -f _internal
 ln -s ../_internal .
 

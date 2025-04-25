@@ -12,6 +12,8 @@ while($i <= $#argv)
         goto usage
     else if("$argv[$i]" == "-v" || "$argv[$i]" == "-verbose" ) then
         set verbosity = 1
+    else if("$argv[$i]" == "-f" || "$argv[$i]" == "-force" ) then
+        set force = 1
     else if("$argv[$i]" == "-V" || "$argv[$i]" == "-Version" ) then
         @ i++
         if ($i <= $#argv) then
@@ -65,7 +67,7 @@ endif
 
 # Update to latest
 git pull origin main
-if($status) then
+if($status && ! $force) then
     echo Whoops - Problem pulling from github
     echo Better sort things out first
     exit 10
@@ -83,7 +85,7 @@ mkdir $DeliveryRepo
 foreach package (Ha jo rshell)
     if($verbosity) then
         echo Building the package
-        pyinstaller ${package}.spec --noconfirm
+        pyinstaller ${package}.spec --noconfirm >& /dev/null
     else
         pyinstaller ${package}.spec --noconfirm >& /dev/null
     endif
@@ -114,7 +116,7 @@ foreach hw (Pico)
         set package = `basename $specfile .spec`
         if($verbosity) then
             echo Building the package $package
-            pyinstaller $specfile --noconfirm
+            pyinstaller $specfile --noconfirm >& /dev/null
         else
             pyinstaller $specfile --noconfirm >& /dev/null
         endif
