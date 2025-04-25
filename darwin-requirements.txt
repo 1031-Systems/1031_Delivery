@@ -1,0 +1,14 @@
+cffi==1.16.0
+numpy==1.25.0
+packaging==23.1
+pocketsphinx==5.0.3
+pycparser==2.22
+PyQt6==6.5.1
+PyQt6-Qt6==6.5.1
+PyQt6-sip==13.5.1
+pyserial==3.5
+PythonQwt==0.10.2
+pyudev==0.24.1
+QtPy==2.3.1
+rshell==0.0.31
+sounddevice==0.4.6

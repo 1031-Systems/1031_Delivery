@@ -1,0 +1,30 @@
+Metadata-Version: 2.1
+Name: Hauntimator
+Version: __VERSION__
+Summary: Create Animatronics Control Files
+Author: John Wright
+Author-email: SW.1031_systems@gmail.com
+License: GPL
+Project-URL: 
+Keywords: animatronics
+Platform: any
+Classifier: License :: OSI Approved :: Gnu Public License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Requires-Python: 
+License-File: LICENSE
+Requires-Dist: CFFI (>=1.0)
+
+Create Control files for Animatronics
+=================================
+
+
+Documentation:
+
+Source code repository and issue tracker:
+
+License:
+   GPL3 -- see the file ``LICENSE`` for details.
+
+.. _Python: https://www.python.org/

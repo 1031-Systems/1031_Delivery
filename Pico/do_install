@@ -1,0 +1,123 @@
+#!/bin/bash -f
+#set echo
+
+function usage() {
+
+echo
+echo 'Usage:'$0' [-/-h/-help] [-v/-verbose]'
+echo '    This tool installs all the code on the Pico.'
+echo '-/-h/-help          :Print this helpful info'
+echo '-v/-verbose         :Run more verbosely'
+echo
+
+}
+
+# Set initial/default values
+out=/dev/null
+
+# Parse arguments
+i=1
+j=$#
+
+while [ $i -le $j ]
+do
+    echo Processing arg:$1
+    if [[ "-" == "$1" || "-h" == "$1" || "-help" == "$1" ]]; then
+        usage
+    elif [[ "$1" == "-v" || "-verbose" == "$1" ]]; then
+        out=/dev/stdout
+    else
+        echo
+        echo "Whoops - Unrecognized argument:$1"
+        usage
+    fi
+
+    shift
+    ((i++))
+done
+
+# Do the right thing
+
+# Check to make sure tabledefs has been created
+echo Validating local tabledefs
+python3 lib/tables.py -r >& /dev/null
+if [[ $status ]]; then
+    echo
+    echo Whoops - problems with tabledefs file - aborting
+    echo Results of check are:
+    python3 lib/tables.py -r -v
+    exit
+fi
+
+# Determine which rshell to use
+rshell=rshell
+if ! which rshell >& /dev/null; then
+    if [ -f ../rshell ]; then
+        rshell='../rshell'
+    else
+        echo Whoops - Unable to find rshell tool needed for installation
+        exit 10
+    fi
+fi
+
+# Get the port used by rshell (we assume it is first in the list)
+port=`${rshell} -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
+echo Using port: $port >& $out
+
+echo Prepping Pico filesystem
+${rshell} --quiet rm /pyboard/boot.py >& $out
+${rshell} --quiet repl '~ import machine ~ machine.reset() ~' >& $out
+sleep 5
+
+echo Installing libraries
+${rshell} --quiet mkdir /pyboard/lib >& $out
+${rshell} --quiet mkdir /pyboard/anims >& $out
+${rshell} --quiet cp lib/servo.py \
+          lib/wave.py \
+          lib/pca9685.py \
+          lib/sdcard.py \
+          lib/memstats.py \
+          lib/tables.py \
+          lib/tabledefs \
+          lib/helpers.py \
+          /pyboard/lib
+echo Installing main.py
+${rshell} --quiet cp main.py /pyboard
+
+echo ''
+
+# Check on the results
+${rshell} --quiet repl '~ import memstats ~' >& $out
+
+# Install boot.py last as rshell runs really slowly once it's there
+echo Installing boot.py
+${rshell} --quiet cp boot.py /pyboard
+
+# Make the link to commlib in the root directory
+rm -f ../commlib.py
+ln -s Pico/commlib.py ../commlib.py
+rm -f _internal
+ln -s ../_internal .
+
+# Reboot the Pico
+echo Resetting Pico
+${rshell} --quiet repl '~ import machine ~ machine.reset() ~' >& $out
+
+# Wait a couple of seconds for Pico to restart running main
+sleep 5
+
+# Verify installation
+echo
+echo Verifying installation
+echo
+if [ -f ./verifyload ]; then
+    ./verifyload -p $port
+else
+    python3 verifyload.py -p $port
+fi
+
+if [[ ! $status ]]; then
+    echo All files validate
+fi
+
+exit

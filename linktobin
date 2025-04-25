@@ -1,0 +1,39 @@
+#!/bin/tcsh -f
+
+if(! $?VIRTUAL_ENV) then
+    echo
+    echo Whoops - Cannot find virtual environment
+    goto usage
+endif
+
+# Always use bash as tcsh confuses -f option to Hauntimator as conditional
+set SHELL='/bin/bash'
+
+cat << EOF > ~/bin/Hauntimator
+#!$SHELL
+
+${VIRTUAL_ENV}/bin/python3 ${cwd}/Hauntimator.py \$1 \$2 \$3 \$4 \$5 \$6 \$7 \$8 \$9
+EOF
+
+chmod +x ~/bin/Hauntimator
+
+cat << EOF > ~/bin/joysticking
+#!$SHELL
+
+${VIRTUAL_ENV}/bin/python3 ${cwd}/joysticking.py \$1 \$2 \$3 \$4 \$5 \$6 \$7 \$8 \$9
+EOF
+
+chmod +x ~/bin/joysticking
+
+exit
+
+usage:
+
+echo
+echo Usage: $0
+echo
+echo '    'This tool creates a script in the user"'"s bin directory for
+echo running Hauntimator without needing to be in Hauntimator"'"s 
+echo virtual environment.  The VIRTUAL_ENV envar is used to identify
+echo the path to the virtual environment and must be set.
+echo
