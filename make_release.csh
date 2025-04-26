@@ -135,14 +135,10 @@ endif
 rm -rf dist
 rm -rf build
 
-# Save the tagged version in github
-if($verbosity) echo Saving the tagged version to github
-
-
 # Commit the delivery
 if($verbosity) echo Pushing delivery tag to github
 #git commit -m "Delivery of Release $vnum" -a
-git push $vnum origin/main
+git push origin $vnum
 
 exit
 
