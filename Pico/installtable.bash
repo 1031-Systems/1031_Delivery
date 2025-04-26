@@ -3,11 +3,24 @@
 file=lib/tabledefs
 out=/dev/null
 
-set port=`rshell -l | grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
+# Determine which rshell to use
+rshell=rshell
+if ! which rshell >& /dev/null; then
+    if [ -f ../rshell ]; then
+        rshell='../rshell'
+    else
+        echo Whoops - Unable to find rshell tool needed for installation
+        exit 10
+    fi
+fi
 
-rshell --quiet cp $file /pyboard/$file >& $out
+port=`${rshell} -l | grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
 
-rshell --quiet repl '~ import machine ~ machine.reset() ~' >& $out
+${rshell} --quiet cp $file /pyboard/$file >& $out
+
+${rshell} --quiet repl '~ import machine ~ machine.reset() ~' >& $out
+# Sleep long enough for Pico to reboot
+sleep 5
 
 if [ -f ../verifyload ]; then
     ../verifyload -p $port -f $file

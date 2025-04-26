@@ -31,28 +31,36 @@ if(! -e $file) then
 endif
 
 echo Validating local $file
-python lib/tables.py -r >& /dev/null
+python3 lib/tables.py -r >& /dev/null
 if($status) then
     echo
     echo Whoops - problems with tabledefs file - aborting
     echo Results of check are:
-    python lib/tables.py -r -v
+    python3 lib/tables.py -r -v
     exit
 endif
 
+# Determine which rshell to use
+set rshell=rshell
+if ( -e ../rshell ) set rshell=../rshell
+
 # Get the port used by rshell (we assume it is first in the list)
-set port=`rshell -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
+set port=`${rshell} -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
 echo Using port: $port >& $out
 
 echo Installing $file on Pico
-rshell --quiet cp $file /pyboard/$file >& $out
+${rshell} --quiet cp $file /pyboard/$file >& $out
 
 echo Resetting Pico
-rshell --quiet repl '~ import machine ~ machine.reset() ~' >& $out
+${rshell} --quiet repl '~ import machine ~ machine.reset() ~' >& $out
 sleep 5
 
 echo Validating install
-python3 ./verifyload.py -p $port -f $file
+if ( -f ../verifyload ) then
+    ../verifyload -p $port -f $file
+else
+    python3 ./verifyload.py -p $port -f $file
+endif
 if(! $status) echo Install successful
 
 exit

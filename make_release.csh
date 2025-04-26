@@ -3,7 +3,7 @@
 
 # Set initial/default values
 set verbosity = 0
-set DeliveryRepo = temp_Delivery
+set DeliveryRepo = 1031_Hauntimator
 
 # Parse arguments
 set i = 1
@@ -94,6 +94,7 @@ endif
 # Set up Delivery directory
 rm -rf $DeliveryRepo
 mkdir $DeliveryRepo
+rm -f ${vnum}.zip
 
 # Build the single directory distributions
 foreach package (Ha jo rshell verifyload)
