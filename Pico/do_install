@@ -61,7 +61,7 @@ if ! which rshell >& /dev/null; then
 fi
 
 # Get the port used by rshell (we assume it is first in the list)
-port=`${rshell} -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
+port=`${rshell} -l | grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
 echo Using port: $port >& $out
 
 echo Prepping Pico filesystem
