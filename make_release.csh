@@ -14,8 +14,6 @@ while($i <= $#argv)
         set verbosity = 1
     else if("$argv[$i]" == "-f" || "$argv[$i]" == "-local" ) then
         set local = 1
-    else if("$argv[$i]" == "-f" || "$argv[$i]" == "-force" ) then
-        set force = 1
     else if("$argv[$i]" == "-V" || "$argv[$i]" == "-Version" ) then
         @ i++
         if ($i <= $#argv) then
@@ -37,8 +35,6 @@ if (! ${?vnum} ) then
     goto usage
 endif
 
-set vnum = ${vnum}_${OSTYPE}
-
 # Set system-specific values
 if ( ${OSTYPE} == 'darwin' ) then
 else if ( ${OSTYPE} == 'linux' ) then
@@ -52,9 +48,9 @@ set tagcount = `git tag | wc -l`
 if ( $tagcount ) then
     set tags = `git tag`
     foreach ltag ( $tags)
-        if $vnum == $ltag then
+        if ${vnum}_${OSTYPE} == $ltag then
             echo
-            echo WHOOPS - Version $vnum has already been tagged
+            echo WHOOPS - Version ${vnum}_${OSTYPE} has already been tagged
             goto usage
         endif
     end
@@ -78,7 +74,7 @@ endif
 if ( ! $?local ) then
     # Update to latest
     git pull origin main
-    if($status && ! $?force) then
+    if($status) then
         echo WHOOPS - Problem pulling from github
         echo Better sort things out first
         exit 10
@@ -86,14 +82,20 @@ if ( ! $?local ) then
 
     # Tag the release
     if($verbosity) echo Tagging the release files
-    git tag -a $vnum -m "Release version $vnum"
+    git tag -a ${vnum}_${OSTYPE} -m "Local build version ${vnum}_${OSTYPE}"
+    git tag -a ${vnum} -m "Release version ${vnum}"
+else
+    if ($verbosity) then
+        echo Would tag release as ${vnum}_${OSTYPE} in local repo
+        echo and as ${vnum} in remote repo
+    endif
 endif
 
 # Set up Delivery directory
 rm -rf $DeliveryRepo
 mkdir $DeliveryRepo
-rm -f ${vnum}.zip
-rm -f ${vnum}.gtz
+rm -f ${vnum}_${OSTYPE}.zip
+rm -f ${vnum}_${OSTYPE}.tar.gz
 
 # Build the single directory distributions
 foreach package (Ha jo rshell verifyload)
@@ -154,8 +156,8 @@ end
 if($verbosity) then 
     echo Zipping up the executables for delivery
 endif
-zip -qry ${vnum}.zip $DeliveryRepo
-tar czf ${vnum}.gtz $DeliveryRepo
+zip -qry ${vnum}_${OSTYPE}.zip $DeliveryRepo
+tar czf ${vnum}_${OSTYPE}.tar.gz $DeliveryRepo
 
 # Clean up
 if($verbosity) then
@@ -163,12 +165,14 @@ if($verbosity) then
 endif
 rm -rf dist
 rm -rf build
+rm -rf $DeliveryRepo
 
 # Commit the delivery
 if ( ! $?local ) then
-    if($verbosity) echo Pushing delivery tag to github
-    #git commit -m "Delivery of Release $vnum" -a
+    if($verbosity) echo Pushing delivery tag $vnum to github
     git push origin $vnum
+else
+    if($verbosity) echo Would tag release as $vnum in remote repo
 endif
 
 exit
@@ -176,7 +180,7 @@ exit
 usage:
 
 echo
-echo 'Usage:'$0' [-v/-verbose] -V version'
+echo 'Usage:'$0' [-v/-verbose] -V version [-local]'
 echo '    This tool packages up a release for Hauntimator or joysticking'
 echo 'and delivers it to the public repo.'
 if ($verbosity) then
@@ -190,4 +194,20 @@ endif
 echo '-/-h/-help          :Print this helpful info'
 echo '-v/-verbose         :Make this more verbose'
 echo '-V/-Version version :Specifies the version string of the release'
+echo '-local              :Build with current files and no repo use local or remote'
 echo
+if ($verbosity) then
+    echo 'Tagging strategy (when not running local):'
+    echo 'Version of the form vn.m.l[a-z] (e.g. v0.0.7) is the global tag for the'
+    echo 'release and is tagged in the remote repo from whence the actual release'
+    echo 'is performed.  For each platform, a local tag is generated which has the'
+    echo 'form vn.m.l[a-z]_platformname (e.g. v0.0.7_linux) and which is tagged'
+    echo 'only in the local repo and not propagated to the remote repo.  The global'
+    echo 'tag is, of course, also tagged in the local repo.  I think this pattern'
+    echo 'will prevent accidentally overwriting tags, simplify attaching releases'
+    echo 'to tags in github, avoid too many tags in the remote repo, and allow the'
+    echo 'build on multiple platforms for the same version without conflict.  It'
+    echo 'does not prevent code changes between releases on different platforms'
+    echo 'so that could be a problem.'
+    echo ''
+endif
