@@ -1,8 +1,13 @@
+altgraph==0.17.4
 cffi==1.16.0
+macholib==1.16.3
 numpy==1.25.0
 packaging==23.1
 pocketsphinx==5.0.3
 pycparser==2.22
+pygame==2.6.1
+pyinstaller==6.13.0
+pyinstaller-hooks-contrib==2025.3
 PyQt6==6.5.1
 PyQt6-Qt6==6.5.1
 PyQt6-sip==13.5.1

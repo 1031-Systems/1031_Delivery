@@ -23,7 +23,7 @@ while($i <= $#argv)
         endif
     else
         echo
-        echo "Whoops - Unrecognized argument:$argv[$i]"
+        echo "WHOOPS - Unrecognized argument:$argv[$i]"
         goto usage
     endif
 
@@ -33,7 +33,7 @@ end
 # Check that required arguments are provided
 if (! ${?vnum} ) then
     echo
-    echo Whoops - the release version was not provided
+    echo WHOOPS - the release version was not provided
     goto usage
 endif
 
@@ -41,9 +41,7 @@ set vnum = ${vnum}_${OSTYPE}
 
 # Set system-specific values
 if ( ${OSTYPE} == 'darwin' ) then
-    set sed_flags = '-I ""'
 else if ( ${OSTYPE} == 'linux' ) then
-    set sed_flags = '-i'
 else
     echo WHOOPS - No idea how to handle os type:${OSTYPE}
     exit
@@ -56,7 +54,7 @@ if ( $tagcount ) then
     foreach ltag ( $tags)
         if $vnum == $ltag then
             echo
-            echo Whoops - Version $vnum has already been tagged
+            echo WHOOPS - Version $vnum has already been tagged
             goto usage
         endif
     end
@@ -66,14 +64,14 @@ endif
 set bad = `find . -name '*.swap' | wc -l`
 if ($bad) then
     echo
-    echo Whoops - Files are open for editing
+    echo WHOOPS - Files are open for editing
     echo Save your work and try again
     goto usage
 endif
 git branch | grep '\* main' >& /dev/null
 if ($status) then
     echo
-    echo Whoops - Not on main branch
+    echo WHOOPS - Not on main branch
     goto usage
 endif
 
@@ -81,7 +79,7 @@ if ( ! $?local ) then
     # Update to latest
     git pull origin main
     if($status && ! $?force) then
-        echo Whoops - Problem pulling from github
+        echo WHOOPS - Problem pulling from github
         echo Better sort things out first
         exit 10
     endif
@@ -95,6 +93,7 @@ endif
 rm -rf $DeliveryRepo
 mkdir $DeliveryRepo
 rm -f ${vnum}.zip
+rm -f ${vnum}.gtz
 
 # Build the single directory distributions
 foreach package (Ha jo rshell verifyload)
@@ -134,17 +133,29 @@ end
 # Update all the versions in the code and help files and dist info
 if($verbosity) echo Updating all the version IDs in the release files
 foreach f (`find ${DeliveryRepo} -name '*.md'`)
-    sed $sed_flags "s/__VERSION__/$vnum/g" $f 
+    if ( ${OSTYPE} == 'darwin' ) then
+        sed -i '' "s/__VERSION__/$vnum/g" $f 
+    else if ( ${OSTYPE} == 'linux' ) then
+        sed -i "s/__VERSION__/$vnum/g" $f 
+    endif
     # Make a plain text version of markdown files
     set bname = `echo $f | sed 's/md$/txt/'`
     ./mdtotext.py < $f > $bname
 end
 foreach f (`find ${DeliveryRepo} -name METADATA`)
-    sed $sed_flags "s/__VERSION__/$vnum/g" $f
+    if ( ${OSTYPE} == 'darwin' ) then
+        sed -i '' "s/__VERSION__/$vnum/g" $f 
+    else if ( ${OSTYPE} == 'linux' ) then
+        sed -i "s/__VERSION__/$vnum/g" $f 
+    endif
 end
 
 # Zip up the delivery
-zip -qr ${vnum}.zip $DeliveryRepo
+if($verbosity) then 
+    echo Zipping up the executables for delivery
+endif
+zip -qry ${vnum}.zip $DeliveryRepo
+tar czf ${vnum}.gtz $DeliveryRepo
 
 # Clean up
 if($verbosity) then
