@@ -84,7 +84,7 @@ mkdir $DeliveryRepo
 # Build the single directory distributions
 foreach package (Ha jo rshell)
     if($verbosity) then
-        echo Building the package
+        echo Building the package $package
         pyinstaller ${package}.spec --noconfirm >& /dev/null
     else
         pyinstaller ${package}.spec --noconfirm >& /dev/null
@@ -111,17 +111,6 @@ foreach hw (Pico)
     foreach f (`git ls-tree -r --name-only HEAD | grep "^$hw"`)
         cp --parents $f $DeliveryRepo
     end
-    # Now build any packaged executables in the hardware directory
-    foreach specfile (${hw}/*.spec)
-        set package = `basename $specfile .spec`
-        if($verbosity) then
-            echo Building the package $package
-            pyinstaller $specfile --noconfirm >& /dev/null
-        else
-            pyinstaller $specfile --noconfirm >& /dev/null
-        endif
-        mv -f dist/$package/$package $DeliveryRepo/$hw
-    endif
 end
 
 # Update all the versions in the code and help files and dist info
