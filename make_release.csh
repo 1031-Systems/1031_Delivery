@@ -3,7 +3,7 @@
 
 # Set initial/default values
 set verbosity = 0
-set DeliveryRepo = 1031_Delivery
+set DeliveryRepo = temp_Delivery
 
 # Parse arguments
 set i = 1
@@ -42,10 +42,8 @@ set vnum = ${vnum}_${OSTYPE}
 # Set system-specific values
 if ( ${OSTYPE} == 'darwin' ) then
     set sed_flags = '-I ""'
-    set cp_flags = ''
 else if ( ${OSTYPE} == 'linux' ) then
     set sed_flags = '-i'
-    set cp_flags = '--parent'
 else
     echo WHOOPS - No idea how to handle os type:${OSTYPE}
     exit
@@ -98,7 +96,7 @@ rm -rf $DeliveryRepo
 mkdir $DeliveryRepo
 
 # Build the single directory distributions
-foreach package (Ha jo rshell)
+foreach package (Ha jo rshell verifyload)
     if($verbosity) then
         echo Building the package $package
         pyinstaller ${package}.spec --noconfirm >& /dev/null
@@ -113,6 +111,7 @@ mv -f dist/Hauntimator/Hauntimator $DeliveryRepo
 mv -f dist/Hauntimator/_internal $DeliveryRepo
 mv -f dist/joysticking/joysticking $DeliveryRepo
 mv -f dist/rshell $DeliveryRepo
+mv -f dist/verifyload/verifyload $DeliveryRepo
 
 # Also copy over the support files
 cp servotypes $DeliveryRepo
@@ -125,7 +124,9 @@ foreach hw (Pico)
     endif
     # First copy everything in repo in that directory to the Delivery area
     foreach f (`git ls-tree -r --name-only HEAD | grep "^$hw"`)
-        cp $cp_flags $f $DeliveryRepo
+        set dname = `dirname $f`
+        mkdir -p ${DeliveryRepo}/${dname}
+        cp $f ${DeliveryRepo}/${dname}
     end
 end
 
