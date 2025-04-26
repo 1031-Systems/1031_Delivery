@@ -28,6 +28,13 @@ while($i <= $#argv)
     @ i++
 end
 
+# Check that you are in the (some) virtual environment
+if (! $?VIRTUAL_ENV ) then
+    echo
+    echo WHOOPS - Must be in python virtual environment to build
+    goto usage
+endif
+
 # Check that required arguments are provided
 if (! ${?vnum} ) then
     echo
@@ -172,7 +179,7 @@ rm -rf $DeliveryRepo
 
 # Commit the delivery
 if ( ! $?local ) then
-    if (i! $?globaltag) then
+    if (! $?globaltag) then
         if($verbosity) echo Pushing delivery tag $vnum to github
         git tag -a ${vnum} -m "Release version ${vnum}"
         git push origin $vnum
