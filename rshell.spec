@@ -1,14 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
+# Find the needed rshell packages within the virtual environment
+import os
+venv = os.environ.get('VIRTUAL_ENV', '.')
+import re
+import sys
+localdatas = []
+for path in sys.path:
+    m = re.match('(' + venv + '/lib.*site-packages)', path)
+    if m is not None:
+        for rpath in os.listdir(m.group(1)):
+            if rpath.find('rshell') == 0:
+                localdatas.append((m.group(1) + '/' + rpath, rpath))
+        break
+        
 a = Analysis(
-    ['/home/john/QtProjects/.venv/bin/rshell'],
+    [venv + '/bin/rshell'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('/home/john/QtProjects/.venv/lib64/python3.9/site-packages/rshell', 'rshell'),
-        ('/home/john/QtProjects/.venv/lib64/python3.9/site-packages/rshell-0.0.31-py3.9.egg-info', 'rshell-0.0.31-py3.9.egg-info'),
-    ],
+    datas = localdatas,
     hiddenimports=['serial', 'serial.tools', 'serial.tools.list_ports', 'rlcompleter'],
     hookspath=[],
     hooksconfig={},

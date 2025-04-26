@@ -110,8 +110,8 @@ sleep 5
 echo
 echo Verifying installation
 echo
-if [ -f ./verifyload ]; then
-    ./verifyload -p $port
+if [ -f ../verifyload ]; then
+    ../verifyload -p $port
 else
     python3 verifyload.py -p $port
 fi
