@@ -12,6 +12,8 @@ while($i <= $#argv)
         goto usage
     else if("$argv[$i]" == "-v" || "$argv[$i]" == "-verbose" ) then
         set verbosity = 1
+    else if("$argv[$i]" == "-f" || "$argv[$i]" == "-local" ) then
+        set local = 1
     else if("$argv[$i]" == "-f" || "$argv[$i]" == "-force" ) then
         set force = 1
     else if("$argv[$i]" == "-V" || "$argv[$i]" == "-Version" ) then
@@ -36,6 +38,18 @@ if (! ${?vnum} ) then
 endif
 
 set vnum = ${vnum}_${OSTYPE}
+
+# Set system-specific values
+if ( ${OSTYPE} == 'darwin' ) then
+    set sed_flags = '-I ""'
+    set cp_flags = ''
+else if ( ${OSTYPE} == 'linux' ) then
+    set sed_flags = '-i'
+    set cp_flags = '--parent'
+else
+    echo WHOOPS - No idea how to handle os type:${OSTYPE}
+    exit
+endif
 
 # Check to see if this release has been previously generated
 set tagcount = `git tag | wc -l`
@@ -65,17 +79,19 @@ if ($status) then
     goto usage
 endif
 
-# Update to latest
-git pull origin main
-if($status && ! $?force) then
-    echo Whoops - Problem pulling from github
-    echo Better sort things out first
-    exit 10
-endif
+if ( ! $?local ) then
+    # Update to latest
+    git pull origin main
+    if($status && ! $?force) then
+        echo Whoops - Problem pulling from github
+        echo Better sort things out first
+        exit 10
+    endif
 
-# Tag the release
-if($verbosity) echo Tagging the release files
-git tag -a $vnum -m "Release version $vnum"
+    # Tag the release
+    if($verbosity) echo Tagging the release files
+    git tag -a $vnum -m "Release version $vnum"
+endif
 
 # Set up Delivery directory
 rm -rf $DeliveryRepo
@@ -109,20 +125,20 @@ foreach hw (Pico)
     endif
     # First copy everything in repo in that directory to the Delivery area
     foreach f (`git ls-tree -r --name-only HEAD | grep "^$hw"`)
-        cp --parents $f $DeliveryRepo
+        cp $cp_flags $f $DeliveryRepo
     end
 end
 
 # Update all the versions in the code and help files and dist info
 if($verbosity) echo Updating all the version IDs in the release files
 foreach f (`find ${DeliveryRepo} -name '*.md'`)
-    sed -i "s/__VERSION__/$vnum/g" $f 
+    sed $sed_flags "s/__VERSION__/$vnum/g" $f 
     # Make a plain text version of markdown files
     set bname = `echo $f | sed 's/md$/txt/'`
-    mdtotext.py < $f > $bname
+    ./mdtotext.py < $f > $bname
 end
 foreach f (`find ${DeliveryRepo} -name METADATA`)
-    sed -i "s/__VERSION__/$vnum/g" $f
+    sed $sed_flags "s/__VERSION__/$vnum/g" $f
 end
 
 # Zip up the delivery
@@ -136,9 +152,11 @@ rm -rf dist
 rm -rf build
 
 # Commit the delivery
-if($verbosity) echo Pushing delivery tag to github
-#git commit -m "Delivery of Release $vnum" -a
-git push origin $vnum
+if ( ! $?local ) then
+    if($verbosity) echo Pushing delivery tag to github
+    #git commit -m "Delivery of Release $vnum" -a
+    git push origin $vnum
+endif
 
 exit
 
