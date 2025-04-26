@@ -53,6 +53,10 @@ if ( $tagcount ) then
             echo WHOOPS - Version ${vnum}_${OSTYPE} has already been tagged
             goto usage
         endif
+        if ${vnum} == $ltag then
+            # Note that global release was tagged, probably elsewhere
+            set globaltag = ${vnum}_${OSTYPE}
+        endif
     end
 endif
 
@@ -81,9 +85,8 @@ if ( ! $?local ) then
     endif
 
     # Tag the release
-    if($verbosity) echo Tagging the release files
+    if($verbosity) echo Tagging the local release as ${vnum}_${OSTYPE}
     git tag -a ${vnum}_${OSTYPE} -m "Local build version ${vnum}_${OSTYPE}"
-    git tag -a ${vnum} -m "Release version ${vnum}"
 else
     if ($verbosity) then
         echo Would tag release as ${vnum}_${OSTYPE} in local repo
@@ -169,8 +172,13 @@ rm -rf $DeliveryRepo
 
 # Commit the delivery
 if ( ! $?local ) then
-    if($verbosity) echo Pushing delivery tag $vnum to github
-    git push origin $vnum
+    if (i! $?globaltag) then
+        if($verbosity) echo Pushing delivery tag $vnum to github
+        git tag -a ${vnum} -m "Release version ${vnum}"
+        git push origin $vnum
+    else
+        if($verbosity) echo Release $vnum already tagged in remote repo
+    endif
 else
     if($verbosity) echo Would tag release as $vnum in remote repo
 endif
