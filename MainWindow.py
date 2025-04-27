@@ -1177,7 +1177,8 @@ class ChannelPane(qwt.QwtPlot):
         self.setAxisTitle(qwt.QwtPlot.yLeft, channelname)
 
         if self.channel.type == Channel.DIGITAL:
-            self.setMaximumHeight(150)
+            self.setMaximumHeight(150)  # Overridden when creating the slider box
+            self.setAxisMaxMajor(qwt.QwtPlot.yLeft, 1)
 
         self.create()
 
@@ -3601,7 +3602,7 @@ class MainWindow(QMainWindow):
         self.viewportCallback(event)
 
         # Resize upper panes to match viewport width
-        if self.scrollArea is None: return
+        if self.scrollArea is None: return False
         if event.type() == QEvent.Resize:
             vp = self.scrollArea.viewport()
             width = vp.size().width()
