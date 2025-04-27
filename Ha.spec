@@ -4,7 +4,9 @@
 a = Analysis(
     ['Hauntimator.py'],
     pathex=[],
-    binaries=[],
+    binaries=[
+        ('/usr/lib64/gtk-3.0/modules/libxapp-gtk3-module.so', '.'),
+    ],
     datas=[
         ('docs/*.md', 'docs'),
         ('docs/images/*.png', 'docs/images'),
