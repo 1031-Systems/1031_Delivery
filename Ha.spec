@@ -1,12 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+systemBinaries = []
+import os
+ostype = os.environ.get('OSTYPE', 'None')
+if ostype == 'darwin':
+    pass
+elif ostype == 'linux':
+    from pathlib import Path
+    sofile = Path('/usr/lib64/gtk-3.0/modules/libxapp-gtk3-module.so')
+    if sofile.is_file():
+        systemBinaries.append(('/usr/lib64/gtk-3.0/modules/libxapp-gtk3-module.so', '.'))
+    endif
+else:
+    print('WHOOPS - Unrecognized or nonexistent OSTYPE')
+
 
 a = Analysis(
     ['Hauntimator.py'],
     pathex=[],
-    binaries=[
-        ('/usr/lib64/gtk-3.0/modules/libxapp-gtk3-module.so', '.'),
-    ],
+    binaries=systemBinaries,
     datas=[
         ('docs/*.md', 'docs'),
         ('docs/images/*.png', 'docs/images'),
