@@ -35,7 +35,7 @@ verbosity = False
 #/* Usage method */
 def print_usage(name):
     """ Simple method to output usage when needed """
-    sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose] [-f/-file filename]\n")
+    sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose] [-f/-file filename] [-f/-file filename] ...\n")
     sys.stderr.write("    This tool validates that file(s) installed on the Pico are identical\n");
     sys.stderr.write("to those on the development system.  Returned status is zero if all files\n");
     sys.stderr.write("match and nonzero otherwise.\n");
@@ -44,7 +44,7 @@ def print_usage(name):
     sys.stderr.write("\n");
     sys.stderr.write("-/-h/-help        :show this information\n");
     sys.stderr.write("-v/-verbose       :run more verbosely\n");
-    sys.stderr.write("-f/-file filename :file to validate (Default: all in standard installation)\n")
+    sys.stderr.write("-f/-file filename :a file to validate (Default: all in standard installation)\n")
     sys.stderr.write("\n\n");
 
 #/* Main */
@@ -52,7 +52,7 @@ def main():
     global verbosity
 
     # Initialize
-    filename = None
+    filenames = []
     allfiles = [
         'lib/servo.py',
         'lib/wave.py',
@@ -78,7 +78,7 @@ def main():
         elif sys.argv[i] == '-f' or sys.argv[i] == '-file':
             i += 1
             if i < len(sys.argv):
-                filename = sys.argv[i]
+                filenames.append(sys.argv[i])
         elif sys.argv[i] == '-p' or sys.argv[i] == '-port':
             i += 1
             if i < len(sys.argv):
@@ -91,8 +91,8 @@ def main():
 
         i += 1
 
-    if filename is not None:
-        allfiles = [filename]
+    if len(filenames) > 0:
+        allfiles = filenames
 
     for fname in allfiles:
         if verbosity: print('Processing file:', fname)
