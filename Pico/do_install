@@ -100,6 +100,9 @@ ln -s Pico/commlib.py ../commlib.py
 rm -f _internal
 ln -s ../_internal .
 
+# Record the port locally for commlib to pick up
+echo -n $port > .portid
+
 # Reboot the Pico
 echo Resetting Pico
 ${rshell} --quiet repl '~ import machine ~ machine.reset() ~' >& $out

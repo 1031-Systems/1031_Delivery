@@ -87,6 +87,9 @@ try:
 except:
     COMMLIB_ENABLED = False
 
+if 'TTYPortRoot' in SystemPreferences and COMMLIB_ENABLED:
+    SystemPreferences['TTYPortRoot'] = commlib.getPort()
+
 usedPyQt = None
 
 try:
@@ -2654,7 +2657,7 @@ class PreferencesWidget(QDialog):
         self.accept()
         # Write out changes to preferences file wherever we put it
         try:
-            preffile = os.path.join(os.path.expanduser("~"), '.animrc')
+            preffile = os.path.join(os.path.expanduser("~"), '.anim.prefs')
             with open(preffile, 'w') as prefs:
                 for pref in SystemPreferences:
                     if type(SystemPreferenceTypes[pref]) is list:
@@ -2711,7 +2714,7 @@ class PreferencesWidget(QDialog):
     def readPreferences():
         """ Static method to read the preferences file if it exists """
         try:
-            preffile = os.path.join(os.path.expanduser("~"), '.animrc')
+            preffile = os.path.join(os.path.expanduser("~"), '.anim.prefs')
             with open(preffile, 'r') as prefs:
                 line = prefs.readline()
                 while line:

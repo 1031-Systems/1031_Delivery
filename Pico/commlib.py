@@ -21,18 +21,27 @@ sys.path.append(_Path)
 # Now import tables from our extended path
 import tables
 from helpers import filecrc16
+
+# Read port id from local cache file
+portRoot = '/dev/ttyACM'    # May be set by Hauntimator prior to comms
+cachefile = os.path.join(os.path.dirname(os.path.realpath(__file__)), '.portid')
+if os.path.exists(cachefile):
+    with open(cachefile, 'r') as file:
+        portRoot = file.read()
+
 # Remove path so other code can't accidentally get to it
 sys.path.remove(_Path)
 
 
 ################# Serial Comm Code #########################
-portRoot = '/dev/ttyACM'    # Set by Hauntimator prior to comms
-
 def openPort():
+    global portRoot
     # Try a whole bunch of port options
     for suffix in ['', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
         try:
             ser = serial.Serial(portRoot + suffix, 115200, timeout=5)
+            # Save the good port
+            portRoot = portRoot + suffix
             break   # Found a good one
         except:
             if suffix == '9':
@@ -40,6 +49,10 @@ def openPort():
                 return None
             pass
     return ser
+
+def getPort():
+    # Return the last found working port
+    return portRoot
 
 def toPico(ser, instring):
     bytescount = ser.write(instring.encode('utf-8'))
