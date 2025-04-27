@@ -10,7 +10,6 @@ elif ostype == 'linux':
     sofile = Path('/usr/lib64/gtk-3.0/modules/libxapp-gtk3-module.so')
     if sofile.is_file():
         systemBinaries.append(('/usr/lib64/gtk-3.0/modules/libxapp-gtk3-module.so', '.'))
-    endif
 else:
     print('WHOOPS - Unrecognized or nonexistent OSTYPE')
 
