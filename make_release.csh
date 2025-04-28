@@ -50,6 +50,18 @@ else
     exit
 endif
 
+# Get the latest from the repo
+if ( ! $?local ) then
+    if($verbosity) echo Pulling latest from github repo
+    # Update to latest
+    git pull origin main
+    if($status) then
+        echo WHOOPS - Problem pulling from github
+        echo Better sort things out first
+        exit 10
+    endif
+endif
+
 # Check to see if this release has been previously generated
 set tagcount = `git tag | wc -l`
 if ( $tagcount ) then
@@ -83,14 +95,6 @@ if ($status) then
 endif
 
 if ( ! $?local ) then
-    # Update to latest
-    git pull origin main
-    if($status) then
-        echo WHOOPS - Problem pulling from github
-        echo Better sort things out first
-        exit 10
-    endif
-
     # Tag the release
     if($verbosity) echo Tagging the local release as ${vnum}_${OSTYPE}
     git tag -a ${vnum}_${OSTYPE} -m "Local build version ${vnum}_${OSTYPE}"
