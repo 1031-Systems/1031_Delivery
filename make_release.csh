@@ -200,20 +200,22 @@ usage:
 
 echo
 echo 'Usage:'$0' [-v/-verbose] -V version [-local]'
-echo '    This tool packages up a release for Hauntimator or joysticking'
-echo 'and delivers it to the public repo.'
+echo '    This tool packages up a release for Hauntimator and joysticking'
+echo 'and related stuff and delivers it to the public repo.'
 if ($verbosity) then
-    echo 'It uses pyinstaller to build a few files for distribution.'
-    echo 'That requires a spec file named for the packages.  Then it'
-    echo 'copies all the necessary stuff to the delivery repo and'
-    echo 'pushes it up to github.'
+    echo ''
+    echo '    It verifies conditions, pulls all the latest for the main branch,'
+    echo 'checks to see if tags have been used before, removes previous delivery'
+    echo 'products with the same tags, runs pyinstaller on the desired packages,'
+    echo 'copies what is needed to the delivery area, zips and tars up the entire'
+    echo 'delivery area, cleans up, and puts the release tag in the remote repo.'
     echo '    This also updates version numbers in all the docs and'
-    echo 'executables to a single value.'
+    echo 'executables to the tag value.'
 endif
 echo '-/-h/-help          :Print this helpful info'
 echo '-v/-verbose         :Make this more verbose'
 echo '-V/-Version version :Specifies the version string of the release'
-echo '-local              :Build with current files and no repo use local or remote'
+echo '-local              :Build with current files and no repo updates local or remote'
 echo
 if ($verbosity) then
     echo 'Tagging strategy (when not running local):'
