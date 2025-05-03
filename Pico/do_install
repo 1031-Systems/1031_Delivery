@@ -51,8 +51,11 @@ if [ $CODE -ne 0 ]; then
 fi
 
 # Determine which rshell to use
+echo Checking rshell
 rshell=rshell
-if ! which rshell >& /dev/null; then
+which rshell >& /dev/null
+CODE=$?
+if [ $CODE -ne 0 ]; then
     if [ -f ../rshell ]; then
         rshell='../rshell'
     else
@@ -61,8 +64,8 @@ if ! which rshell >& /dev/null; then
     fi
 fi
 
-# Get the port used by rshell (we assume it is first in the list)
-port=`${rshell} -l | grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
+# Get the port used by rshell - we assume it is first in the list
+port=$(${rshell} -l | grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%')
 echo Using port: $port >& $out
 
 echo Prepping Pico filesystem
@@ -95,10 +98,12 @@ echo Installing boot.py
 ${rshell} --quiet cp boot.py /pyboard
 
 # Make the link to commlib in the root directory
-rm -f ../commlib.py
-ln -s Pico/commlib.py ../commlib.py
-rm -f _internal
-ln -s ../_internal .
+rm -f ../src/commlib.py
+ln -s Pico/commlib.py ../src/commlib.py
+if [ -d ../_internal ]; then
+    rm -f _internal
+    ln -s ../_internal .
+fi
 
 # Record the port locally for commlib to pick up
 echo -n $port > .portid
@@ -114,8 +119,8 @@ sleep 5
 echo
 echo Verifying installation
 echo
-if [ -f ../verifyload ]; then
-    ../verifyload -p $port
+if [ -f verifyload ]; then
+    verifyload -p $port
 else
     python3 verifyload.py -p $port
 fi

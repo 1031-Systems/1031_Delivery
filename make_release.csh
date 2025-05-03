@@ -108,7 +108,7 @@ endif
 # Set up Delivery directory
 rm -rf $DeliveryRepo
 mkdir $DeliveryRepo
-rm -f ${vnum}_${OSTYPE}.zip
+rm -f ${vnum}*.zip
 rm -f ${vnum}_${OSTYPE}.tar.gz
 
 # Build the single directory distributions
@@ -173,6 +173,37 @@ endif
 zip -qry ${vnum}_${OSTYPE}.zip $DeliveryRepo
 tar czf ${vnum}_${OSTYPE}.tar.gz $DeliveryRepo
 
+# Copy over everything needed for the basics delivery
+if($verbosity) then
+    echo Building basics delivery
+endif
+mkdir -p $DeliveryRepo/src
+cp  src/Animatronics.py \
+    src/Hauntimator.py \
+    src/joysticking.py \
+    src/MainWindow.py \
+    src/Widgets.py \
+    $DeliveryRepo/src
+
+cp -r LICENSE \
+    docs \
+    Pico \
+    plugins \
+    install \
+    $DeliveryRepo
+
+zip -qry ${vnum}_basics.zip \
+    $DeliveryRepo/src \
+    $DeliveryRepo/LICENSE \
+    $DeliveryRepo/README.* \
+    $DeliveryRepo/servotypes \
+    $DeliveryRepo/docs \
+    $DeliveryRepo/Pico \
+    $DeliveryRepo/plugins \
+    $DeliveryRepo/*.dist-info \
+    $DeliveryRepo/install
+
+exit
 # Clean up
 if($verbosity) then
     echo Cleaning up build areas
