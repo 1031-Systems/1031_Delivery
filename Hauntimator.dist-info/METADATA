@@ -3,12 +3,12 @@ Name: Hauntimator
 Version: __VERSION__
 Summary: Create Animatronics Control Files
 Author: John Wright
-Author-email: SW.1031_systems@gmail.com
-License: GPL
+Author-email: SW.1031.Systems@gmail.com
+License: GPL3
 Project-URL: 
 Keywords: animatronics
 Platform: any
-Classifier: License :: OSI Approved :: Gnu Public License
+Classifier: License :: OSI Approved :: Gnu Public License 3
 Classifier: Operating System :: OS Independent
 Classifier: Programming Language :: Python
 Classifier: Programming Language :: Python :: 3

@@ -1,0 +1,98 @@
+#!/bin/bash
+SHELL=/bin/bash
+
+# No arguments
+
+# Get path to this script and thus to the install directory
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+echo Path:$SCRIPTPATH
+
+# Set up the virtual environment
+cd $SCRIPTPATH
+python3 -m venv .venv
+CODE=$?
+if [ $CODE -ne 0 ]; then
+    echo WHOOPS - Need to install venv tools
+    exit $CODE
+fi
+source .venv/bin/activate
+
+# Install and update dependencies
+pip install -U pip
+pip install -U PyQt5
+CODE=$?
+if [ $CODE -ne 0 ]; then
+    echo WHOOPS - Need to install PyQt6
+    pip install -U PyQt6==6.5
+    CODE=$?
+    if [ $CODE -ne 0 ]; then
+        echo WHOOPS - Unable to install PyQt
+        exit $CODE
+    fi
+fi
+pip install -U PythonQwt
+pip install -U pygame
+pip install -U rshell
+pip install -U pocketsphinx
+
+# Make runnables that don't need venv
+cat << EOF > ${SCRIPTPATH}/Hauntimator
+#!$SHELL
+
+${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/Hauntimator.py "\$@"
+EOF
+
+chmod +x Hauntimator
+
+cat << EOF > ${SCRIPTPATH}/joysticking
+#!$SHELL
+
+${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/joysticking.py "\$@"
+EOF
+
+chmod +x joysticking
+
+cat << EOF > ${SCRIPTPATH}/rshell
+#!$SHELL
+
+${VIRTUAL_ENV}/bin/rshell "\$@"
+EOF
+
+chmod +x rshell
+
+cat << EOF > ${SCRIPTPATH}/Pico/verifyload
+#!$SHELL
+
+${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/Pico/verifyload.py "\$@"
+EOF
+
+chmod +x Pico/verifyload
+
+# Create desktop links to run Hauntimator and joysticking
+if [ -d ~/Desktop ]; then
+echo -n 'Do you want to install desktop icons (y/N)? '
+read answer
+if [ $answer == 'y' ]; then
+cat << EOF > ~/Desktop/Hauntimator.desktop
+[Desktop Entry]
+Version=v0.0.7g
+Type=Application
+Terminal=true
+Exec=${SCRIPTPATH}/Hauntimator
+Name=Hauntimator
+Comment=Hauntimator
+Icon=${SCRIPTPATH}/src/docs/images/image1.png
+EOF
+
+cat << EOF > ~/Desktop/joysticking.desktop
+[Desktop Entry]
+Version=v0.0.7g
+Type=Application
+Terminal=true
+Exec=${SCRIPTPATH}/joysticking
+Name=joysticking
+Comment=joysticking
+Icon=${SCRIPTPATH}/src/docs/images/JoyUI.png
+EOF
+fi
+fi

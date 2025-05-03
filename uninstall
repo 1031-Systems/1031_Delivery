@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# No arguments
+
+# Get path to this script and thus to the install directory
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+echo Uninstalling $SCRIPTPATH
+
+# Delete everything
+cd $SCRIPTPATH/..
+rm -rf $SCRIPTPATH
+

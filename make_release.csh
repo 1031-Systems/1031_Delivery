@@ -132,6 +132,12 @@ mv -f dist/verifyload/verifyload $DeliveryRepo
 # Also copy over the support files
 cp servotypes $DeliveryRepo
 sed "s/__VERSION__/$vnum/g" Delivery_README > $DeliveryRepo/README.md
+foreach f (*.dist-info)
+    mkdir $DeliveryRepo/$f
+    foreach g ($f/*)
+        sed "s/__VERSION__/$vnum/g" $g > $DeliveryRepo/$g
+    end
+end
 
 # Build the single directory tools for each hardware type
 foreach hw (Pico)
@@ -158,13 +164,6 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
     set bname = `echo $f | sed 's/md$/txt/'`
     ./mdtotext.py < $f > $bname
 end
-foreach f (`find ${DeliveryRepo} -name METADATA`)
-    if ( ${OSTYPE} == 'darwin' ) then
-        sed -i '' "s/__VERSION__/$vnum/g" $f 
-    else if ( ${OSTYPE} == 'linux' ) then
-        sed -i "s/__VERSION__/$vnum/g" $f 
-    endif
-end
 
 # Zip up the delivery
 if($verbosity) then 
@@ -178,18 +177,22 @@ if($verbosity) then
     echo Building basics delivery
 endif
 mkdir -p $DeliveryRepo/src
-cp  src/Animatronics.py \
-    src/Hauntimator.py \
-    src/joysticking.py \
-    src/MainWindow.py \
-    src/Widgets.py \
+cp  Animatronics.py \
+    Hauntimator.py \
+    joysticking.py \
+    MainWindow.py \
+    Widgets.py \
+    $DeliveryRepo/src
+
+cp -r docs \
+    plugins \
+    $DeliveryRepo/*.dist-info \
     $DeliveryRepo/src
 
 cp -r LICENSE \
-    docs \
     Pico \
-    plugins \
     install \
+    uninstall \
     $DeliveryRepo
 
 zip -qry ${vnum}_basics.zip \
@@ -197,11 +200,9 @@ zip -qry ${vnum}_basics.zip \
     $DeliveryRepo/LICENSE \
     $DeliveryRepo/README.* \
     $DeliveryRepo/servotypes \
-    $DeliveryRepo/docs \
     $DeliveryRepo/Pico \
-    $DeliveryRepo/plugins \
-    $DeliveryRepo/*.dist-info \
-    $DeliveryRepo/install
+    $DeliveryRepo/install \
+    $DeliveryRepo/uninstall \
 
 exit
 # Clean up
