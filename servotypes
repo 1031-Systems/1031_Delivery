@@ -1,2 +1,6 @@
 Name,Period,MinDuty,MaxDuty,MinAngle,MaxAngle
+Std180deg,20.0,0.5,2.5,0.0,180.0
+Std270deg,20.0,0.5,2.5,0.0,270.0
+Rev180deg,20.0,0.5,2.5,180.0,0.0
+Rev270deg,20.0,0.5,2.5,270.0,0.0
 SG90,20.0,0.6,2.4,0.0,180.0
