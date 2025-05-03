@@ -1,5 +1,5 @@
 <!-- john Fri Dec 17 17:35:16 PDT 2023 -->
-# Animatronics
+# 1031_Delivery
 
 This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
@@ -38,17 +38,27 @@ the audio.
 
 ## Installation
 
-This README accompanies version __VERSION__.  It is totally beta.
-Seems to work for me but I know the ins and outs.  Someday this 
-may be a previous version that may be available.
-
-To install this software, simply unzip the zip file and it should
-be ready to run.  The zip files are identified with their version
-number and the OS type they were built for.
+If you are reading this, you have already downloaded and unzipped the
+release files.  To enable the applications, run the install script in
+the same directory as this README.  Run it in a terminal window as it
+asks if you want desktop icons created.
 
 The Hauntimator and joysticking applications generally work best
 when they are able to communicate with and control the animatronics
-controller hardware.  This requires the following steps to install
+controller hardware.  This requires that the user run tools that
+access the Pico over the serial port.  This requires system
+permissions such that the user is in the dialout group.  Check with:
+
+groups
+
+If the list that is output includes dialout you are golden.  If not,
+you have to add yourself to the dialout group with this command:
+
+sudo usermod -aG dialout `whoami`
+
+Then you have to at least log out and back in or restart the system.
+
+Once you are in the dialout group, proceed with the following steps to install
 the embedded software into the flash memory of the Raspberry Pi
 Pico (currently the only supported controller):
 
@@ -69,6 +79,9 @@ testing an animation.
 ***
 
 ## Details
+
+Both Hauntimator and joysticking have available Help accessible via
+the Help menu.  Hopefully, it is mostly accurate and up-to-date.
 
 ### Hauntimator
 
@@ -110,7 +123,7 @@ the Pico directory.  See the README there for more details.
 In the Pico part of the repo there is a file named commlib.py.  This
 is the interface library for Hauntimator to talk to the hardware.
 In order for Hauntimator to load the right commlib, there should be a
-symbolic link in the Animatronics directory to the appropriate
+symbolic link in the 1031_Delivery directory to the appropriate
 commlib.py file to support users developing controllers with other
 hardware or programming languages.  commlib.py has the purpose of
 decoupling Hauntimator from the hardware specifics.  Note that the
@@ -130,13 +143,12 @@ This package is intended to support creating animations and running
 them on the type of board specified in the Pico/Hardware section of the
 repo.  Due to the nature of the embedded software, it is quite possible
 to modify any of the code that runs on the Pico.  However, there is no
-mechanism for pushing changes back to the repo.  In addition, the main
-applications are built with pyinstaller such that they can be run in
-most environments without the user needing to set up virtual environments,
-installing all the required packages, etc.  It is intended to simplify
-the process.  It does not provide access to the source code.
+mechanism for pushing changes back to the repo.  Similarly, the main
+desktop application source code is available (in the src directory)
+but there is no mechanism for pushing changes back to the repo.  If
+you wish to do this, follow the Developers instructions on the repo's
+README.
 
-The source code for all theses tools is available in the repo as well.
 New team members to contribute or deploy a Windows version are welcome.
 Drop me a line at SW.1031.Systems at gmail.com.  Note that I am generally
 clueless about running a repo with more than one developer so a repo

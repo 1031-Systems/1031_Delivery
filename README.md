@@ -42,20 +42,25 @@ the audio.
 
 ## Installation
 
-The currently available version is __VERSION__.  It is totally beta.
-Seems to work for me but I know the ins and outs.  Someday this 
-will be a previous version that may be available.  Note that I am
+Note that I am
 a code developer but not, by any stretch of the imagination, a
 repo manager.  Sure hope everything works for you.
 
 ## If You Are a User
 
-The releases contain executables built with pyinstaller that should
-work for you without setting up virtual environments or installing
-requirements.  Pick a release to the right that matches your OS,
-download the release zip file, unzip it, and you should be ready to
-go.  The README in the unzipped release will contain more information
-about getting started.
+To have a readily runnable version of the tools, download the zipped
+release file of your choice from https://github.com/1031-Systems/1031_Delivery/releases,
+navigating to the realease of your choice.  If you just want the
+latest release, find the one labeled Latest.  Note that you will
+want the zip file with _basics in the name.
+
+Once the zip file is downloaded, unzip it into the directory of
+your choice.  Unzipping the file produces a directory named
+1031_Hauntimator.  Navigate to that directory and run install.
+The tools should be ready to run.
+
+If you encounter any issues, the README in the unzipped release
+will contain more information about getting started.
 
 ## If You Are A Developer
 
@@ -68,10 +73,10 @@ run Hauntimator.py.  The steps are as follows:
 
 ~~~
 
-git clone git@github.com:steelheadj/Animatronics.git
-cd Animatronics
-python3 -m venv '.venv'     # Replace .venv with any name you like
-source .venv/bin/activate.shname  # Where shname is your shell name
+git clone git@github.com:1031-Systems/1031_Delivery.git
+cd 1031_Delivery
+python3 -m venv '.venv'
+source .venv/bin/activate.$SHELL
 pip install --upgrade pip
 pip install -r ${OSTYPE}-requirements.txt
 pip install pocketsphinx    # To support phonemes plugin
@@ -91,7 +96,7 @@ then you have to manually install needed modules with the  following:
 
 ~~~
 
-pip install PyQt5 # (or PyQt6.5, whichever will actually install)
+pip install PyQt5 # (or PyQt6==6.5, whichever will actually install)
 pip install PythonQwt
 pip install pygame
 pip install rshell
@@ -108,14 +113,6 @@ PyQt6.  However, when I updated my Mac to PyQt6.8, everything quit
 working.  PyQt6 seems to be changing a lot with every release, especially
 in the QMediaPlayer area which is used here.  Thus, it is recommended
 that you install specifically PyQt6.5 for now.
-
-Once Hauntimator is running in your virtual environment, the linktobin
-script will add scripts to your bin directory to run Hauntimator and
-other tools from any directory without the need to be in the virtual
-environment.  This allows the user to set up their animation development
-directories any way they wish.  Note that linktobin creates scripts
-without the .py extension.
-
 
 ***
 
