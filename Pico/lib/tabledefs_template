@@ -38,12 +38,15 @@
 # assignments for additional verification.
 ############## Define your configuration here ##########################################
 
+### This example defines only the outputs on the board, 8 servos on the 8 buffered gpio pins,
+### 16 digital outputs from the 74AHCT595s and 2 digital outputs from the unbufffered gpio pins
+
 # PWM Port Definitions
 # Example - Configure two pca9685 boards at addresses 0 and 1 on ports 0-31
 # configurepca9685(firstport=0, boardid=0)
 # configurepca9685(firstport=16, boardid=1)
 
-# Example - Manually enter a single Digital using a Pico GPIO
+# Example - Manually enter a single PWM using a Pico GPIO
 # addPWMPortTableEntry(32, {'func':dogpio , 'pin':20})
 
 # Digital Port Definitions
@@ -54,6 +57,57 @@
 # Note that this example is not commented out as it matches the standard board design
 configure595s(firstport=0, portcount=16, datapin=2, clockpin=4, rclkpin=3, clearpin=5)
 
+#Define the remaining 10 GPIO pins buffered pins as PWM and unbuffered pins as digital outputs
+
+# Define GPIO pin 6
+addPWMPortTableEntry(0, {'func':dogpio , 'pin':6})
+#addDigitalPortTableEntry(16, {'func':dogpiodigital , 'pin':6})
+
+# Define GPIO pin 7
+addPWMPortTableEntry(1, {'func':dogpio , 'pin':7})
+#addDigitalPortTableEntry(17, {'func':dogpiodigital , 'pin':7})
+
+# Define GPIO pin 8
+addPWMPortTableEntry(2, {'func':dogpio , 'pin':8})
+#addDigitalPortTableEntry(18, {'func':dogpiodigital , 'pin':8})
+
+# Define GPIO pin 12
+addPWMPortTableEntry(3, {'func':dogpio , 'pin':12})
+#addDigitalPortTableEntry(19, {'func':dogpiodigital , 'pin':12})
+
+# Define GPIO pin 13
+addPWMPortTableEntry(4, {'func':dogpio , 'pin':13})
+#addDigitalPortTableEntry(20, {'func':dogpiodigital , 'pin':13})
+
+# Define GPIO pin 14
+addPWMPortTableEntry(5, {'func':dogpio , 'pin':14})
+#addDigitalPortTableEntry(21, {'func':dogpiodigital , 'pin':14})
+
+# Define GPIO pin 15
+addPWMPortTableEntry(6, {'func':dogpio , 'pin':15})
+#addDigitalPortTableEntry(22, {'func':dogpiodigital , 'pin':15})
+
+# Define GPIO pin 20
+addPWMPortTableEntry(7, {'func':dogpio , 'pin':20})
+#addDigitalPortTableEntry(23, {'func':dogpiodigital , 'pin':20})
+
+#2 unbufferd pins as digital outputs
+
+# Define GPIO pin 21
+#addPWMPortTableEntry(8, {'func':dogpio , 'pin':21})
+addDigitalPortTableEntry(16, {'func':dogpiodigital , 'pin':21})
+
+# Define GPIO pin 22
+#addPWMPortTableEntry(9, {'func':dogpio , 'pin':22})
+addDigitalPortTableEntry(17, {'func':dogpiodigital , 'pin':22})
+
+
 setPreferBinary(False)      # Set to True for larger applications
+
+
+
+
+
+
 
 
