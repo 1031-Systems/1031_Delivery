@@ -10,3 +10,12 @@ echo Uninstalling $SCRIPTPATH
 cd $SCRIPTPATH/..
 rm -rf $SCRIPTPATH
 
+# Remove desktop icons that point to this repo
+for f in ~/Desktop/*.desktop; do
+    grep -q "$SCRIPTPATH" $f
+    CODE=$?
+    if [ $CODE -eq 0 ]; then
+        rm -f $f
+    fi
+done
+
