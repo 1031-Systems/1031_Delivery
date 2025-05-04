@@ -52,13 +52,13 @@ EOF
 
 chmod +x joysticking
 
-cat << EOF > ${SCRIPTPATH}/rshell
+cat << EOF > ${SCRIPTPATH}/Pico/rshell
 #!$SHELL
 
 ${VIRTUAL_ENV}/bin/rshell "\$@"
 EOF
 
-chmod +x rshell
+chmod +x Pico/rshell
 
 cat << EOF > ${SCRIPTPATH}/Pico/verifyload
 #!$SHELL

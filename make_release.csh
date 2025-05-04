@@ -111,6 +111,7 @@ mkdir $DeliveryRepo
 rm -f ${vnum}*.zip
 rm -f ${vnum}_${OSTYPE}.tar.gz
 
+if ( 0 ) then   # Skip the pyinstaller steps
 # Build the single directory distributions
 foreach package (Ha jo rshell verifyload)
     if($verbosity) then
@@ -128,6 +129,7 @@ mv -f dist/Hauntimator/_internal $DeliveryRepo
 mv -f dist/joysticking/joysticking $DeliveryRepo
 mv -f dist/rshell $DeliveryRepo
 mv -f dist/verifyload/verifyload $DeliveryRepo
+endif
 
 # Also copy over the support files
 cp servotypes $DeliveryRepo
@@ -162,7 +164,7 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
     endif
     # Make a plain text version of markdown files
     set bname = `echo $f | sed 's/md$/txt/'`
-    ./mdtotext.py < $f > $bname
+    pandoc -f markdown -t plain $f -o $bname
 end
 
 # Zip up the delivery
@@ -176,6 +178,12 @@ tar czf ${vnum}_${OSTYPE}.tar.gz $DeliveryRepo
 if($verbosity) then
     echo Building basics delivery
 endif
+# Clean up Pico directory
+rm -rf $DeliveryRepo/Pico Pico/*~ Pico/lib/*~
+foreach f (`find . -name '__pycache__'`)
+    rm -rf $f
+end
+
 mkdir -p $DeliveryRepo/src
 cp  Animatronics.py \
     Hauntimator.py \
@@ -186,11 +194,14 @@ cp  Animatronics.py \
 
 cp -r docs \
     plugins \
+    $DeliveryRepo/servotypes \
     $DeliveryRepo/*.dist-info \
     $DeliveryRepo/src
 
-cp -r LICENSE \
-    Pico \
+cp -r COPYING \
+    $DeliveryRepo/LICENSE
+
+cp -r Pico \
     install \
     uninstall \
     $DeliveryRepo
@@ -199,7 +210,6 @@ zip -qry ${vnum}_basics.zip \
     $DeliveryRepo/src \
     $DeliveryRepo/LICENSE \
     $DeliveryRepo/README.* \
-    $DeliveryRepo/servotypes \
     $DeliveryRepo/Pico \
     $DeliveryRepo/install \
     $DeliveryRepo/uninstall \

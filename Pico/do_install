@@ -58,6 +58,8 @@ CODE=$?
 if [ $CODE -ne 0 ]; then
     if [ -f ../rshell ]; then
         rshell='../rshell'
+    elif [ -f ./rshell ]; then
+        rshell='./rshell'
     else
         echo Whoops - Unable to find rshell tool needed for installation
         exit 10
@@ -99,7 +101,7 @@ ${rshell} --quiet cp boot.py /pyboard
 
 # Make the link to commlib in the root directory
 rm -f ../src/commlib.py
-ln -s Pico/commlib.py ../src/commlib.py
+ln -s ../Pico/commlib.py ../src/commlib.py
 if [ -d ../_internal ]; then
     rm -f _internal
     ln -s ../_internal .
@@ -119,8 +121,8 @@ sleep 5
 echo
 echo Verifying installation
 echo
-if [ -f verifyload ]; then
-    verifyload -p $port
+if [ -f ./verifyload ]; then
+    ./verifyload -p $port
 else
     python3 verifyload.py -p $port
 fi
