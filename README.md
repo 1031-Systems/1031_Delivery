@@ -48,6 +48,10 @@ repo manager.  Sure hope everything works for you.
 
 ## If You Are a User
 
+These tools have been built and tested on Mint 22.1 and Rocky 9,
+two distributions of linux, and on MacOS Sonoma 14.9, another
+variant of linux.  It has not been tested at all under Windows.
+
 To have a readily runnable version of the tools, download the zipped
 release file of your choice from https://github.com/1031-Systems/1031_Delivery/releases,
 navigating to the realease of your choice.  If you just want the
