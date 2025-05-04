@@ -234,7 +234,6 @@ zip -qry ${vnum}_basics.zip \
     $DeliveryRepo/install \
     $DeliveryRepo/uninstall \
 
-exit
 # Clean up
 if($verbosity) then
     echo Cleaning up build areas
