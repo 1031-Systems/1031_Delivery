@@ -158,9 +158,9 @@ end
 if($verbosity) echo Updating all the version IDs in the release files
 foreach f (`find ${DeliveryRepo} -name '*.md'`)
     if ( ${OSTYPE} == 'darwin' ) then
-        sed -i '' "s/__VERSION__/$vnum/g" $f 
+        sed -i '' "s/__VERSION__/$vnum/g" $f
     else if ( ${OSTYPE} == 'linux' ) then
-        sed -i "s/__VERSION__/$vnum/g" $f 
+        sed -i "s/__VERSION__/$vnum/g" $f
     endif
     # Make a plain text version of markdown files
     set bname = `echo $f | sed 's/md$/txt/'`
@@ -168,7 +168,7 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
 end
 
 # Zip up the delivery
-if($verbosity) then 
+if($verbosity) then
     echo Zipping up the executables for delivery
 endif
 zip -qry ${vnum}_${OSTYPE}.zip $DeliveryRepo
@@ -205,6 +205,26 @@ cp -r Pico \
     install \
     uninstall \
     $DeliveryRepo
+
+# Update all the versions in the code and help files and dist info
+if($verbosity) echo Updating all the version IDs in the release files
+foreach f (`find ${DeliveryRepo} -name '*.md'`)
+    if ( ${OSTYPE} == 'darwin' ) then
+        sed -i '' "s/__VERSION__/$vnum/g" $f
+    else if ( ${OSTYPE} == 'linux' ) then
+        sed -i "s/__VERSION__/$vnum/g" $f
+    endif
+    # Make a plain text version of markdown files
+    if(`basename $f` == README.md) then
+        set bname = `echo $f | sed 's/md$/txt/'`
+        pandoc -f markdown -t plain $f -o $bname
+    endif
+end
+
+# Clean up leftover vi backup files
+foreach f (`find ${DeliveryRepo} -name '*~'`)
+    rm -f $f
+end
 
 zip -qry ${vnum}_basics.zip \
     $DeliveryRepo/src \
