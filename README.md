@@ -4,7 +4,7 @@
 This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
 board designs created by Bill Douglas and available for
-download at here in this repo at [Pico/Hardware](Pico/Hardware/).
+download here in this repo at [Pico/Hardware](Pico/Hardware/).
 
 This codebase contains an application, Hauntimator, for creating control
 channel data for directing the animatronics and code for
@@ -59,6 +59,11 @@ your choice.  Unzipping the file produces a directory named
 1031_Hauntimator.  Navigate to that directory and run install.
 The tools should be ready to run.
 
+Note that the directory structure and file locations for the User
+version are different from that for the Developer to avoid distractions
+of source code and data files.  While most of the files are there,
+it is not intended to be a development environment.
+
 If you encounter any issues, the README in the unzipped release
 will contain more information about getting started.
 
@@ -83,10 +88,6 @@ pip install pocketsphinx    # To support phonemes plugin
 python ./Hauntimator.py
 
 ~~~
-
-Note that there are several shells supported. bash is the
-default and is activated with just .venv/bin/activate with no shell
-name specified.
 
 In addition, you may have to find the appropriate requirements file
 for your system.  If the OSTYPE environment is set then you can use
