@@ -54,7 +54,7 @@ except:
         from PyQt6 import QtMultimedia as qm
         usedPyQt = 6
     except:
-        sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
+        sys.stderr.write('WHOOPS - Unable to find PyQt5 or PyQt6 - Quitting\n')
         exit(10)
 
 import Widgets
@@ -174,7 +174,7 @@ class Table:
             elif self.filename is not None:
                 file = open(self.filename, 'r')
             else:
-                sys.stderr.write("Whoops - Unspecified table file!\n")
+                sys.stderr.write("WHOOPS - Unspecified table file!\n")
                 return
 
             # Clear out the old table
@@ -183,7 +183,7 @@ class Table:
             # Skip header line in file
             skipline = file.readline()
             if skipline != 'Type,ChannelName,Joystick,ID\n':
-                sys.stderr.write("Whoops - Not a valid table file!\n")
+                sys.stderr.write("WHOOPS - Not a valid table file!\n")
                 raise FileError('Not a valid table file!')
 
             for line in file:
@@ -203,7 +203,7 @@ class Table:
             self.filename = filename
 
         except:
-            sys.stderr.write("Whoops - Error reading table file!\n")
+            sys.stderr.write("WHOOPS - Error reading table file!\n")
 
     def write(self, filename=None):
         '''
@@ -226,7 +226,7 @@ class Table:
             elif self.filename is not None:
                 file = open(self.filename, 'w')
             else:
-                sys.stderr.write("Whoops - Unspecified table file!\n")
+                sys.stderr.write("WHOOPS - Unspecified table file!\n")
                 return
 
             file.write('Type,ChannelName,Joystick,ID\n')
@@ -244,7 +244,7 @@ class Table:
 
             file.close()
         else: #except:
-            sys.stderr.write("Whoops - Error writing table file!\n")
+            sys.stderr.write("WHOOPS - Error writing table file!\n")
 
 class Audio:
 
@@ -309,7 +309,7 @@ class JSWrapper:
             time.sleep(0.1)
             buttons = self.getPushedButtons()
             if len(buttons) > 0:
-                sys.stderr.write("\nWhoops - Button states indicate some button(s) are already pressed.\n")
+                sys.stderr.write("\nWHOOPS - Button states indicate some button(s) are already pressed.\n")
                 sys.stderr.write("This could be due to leftover state from previous code.\n")
                 sys.stderr.write("Release any buttons currently pressed, then press and release other buttons\n")
                 sys.stderr.write("until problem is cleared.\n\n")
@@ -486,7 +486,12 @@ class MainWindow(QMainWindow):
         # Get the number of joysticks attached and quit if none
         self.jsCount = pygame.joystick.get_count()
         if self.jsCount <= 0:
-            sys.stderr.write('\nWhoops - Must have at least one (1) joystick attached\n')
+            sys.stderr.write('\nWHOOPS - Must have at least one (1) joystick attached\n')
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('WHOOPS - Must have at least one (1) joystick attached')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.exec_()
             sys.exit(10)
 
         # Create wrappers for each joystick
@@ -1231,7 +1236,7 @@ class MainWindow(QMainWindow):
                 self.updateUIfromTable()
 
             except Exception as e:
-                sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
+                sys.stderr.write("\nWHOOPS - Error reading input file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 return
 
@@ -1260,7 +1265,7 @@ class MainWindow(QMainWindow):
                     self.unsavedChanges = False
 
                 except Exception as e:
-                    sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
+                    sys.stderr.write("\nWHOOPS - Error reading input file %s\n" % fileName)
                     sys.stderr.write("Message: %s\n" % e)
                     return
 
@@ -1289,10 +1294,10 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = False
 
             except Exception as e:
-                sys.stderr.write("\nWhoops - Error writing output file %s\n" % self.animatronics.filename)
+                sys.stderr.write("\nWHOOPS - Error writing output file %s\n" % self.animatronics.filename)
                 sys.stderr.write("Message: %s\n" % e)
                 msgBox = QMessageBox(parent=self)
-                msgBox.setText('Whoops - Unable to write to animatronics file:')
+                msgBox.setText('WHOOPS - Unable to write to animatronics file:')
                 msgBox.setInformativeText(self.animatronics.filename)
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msgBox.setIcon(QMessageBox.Icon.Warning)
@@ -1330,10 +1335,10 @@ class MainWindow(QMainWindow):
                 self.setWindowName(fileName)
 
             except Exception as e:
-                sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
+                sys.stderr.write("\nWHOOPS - Error writing output file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 msgBox = QMessageBox(parent=self)
-                msgBox.setText('Whoops - Unable to write to specified file:')
+                msgBox.setText('WHOOPS - Unable to write to specified file:')
                 msgBox.setInformativeText(fileName)
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msgBox.setIcon(QMessageBox.Icon.Warning)
@@ -1366,10 +1371,10 @@ class MainWindow(QMainWindow):
                 self.table.write(filename=fileName)
 
             except Exception as e:
-                sys.stderr.write("\nWhoops - Error writing output file %s\n" % fileName)
+                sys.stderr.write("\nWHOOPS - Error writing output file %s\n" % fileName)
                 sys.stderr.write("Message: %s\n" % e)
                 msgBox = QMessageBox(parent=self)
-                msgBox.setText('Whoops - Unable to write to specified file:')
+                msgBox.setText('WHOOPS - Unable to write to specified file:')
                 msgBox.setInformativeText(fileName)
                 msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
                 msgBox.setIcon(QMessageBox.Icon.Warning)
@@ -1570,7 +1575,7 @@ def doJoysticking():
             if i < len(sys.argv):
                 rate = float(sys.argv[i])
         else:
-            sys.stderr.write("\nWhoops - Unrecognized argument: %s\n" % sys.argv[i]);
+            sys.stderr.write("\nWHOOPS - Unrecognized argument: %s\n" % sys.argv[i]);
             print_usage(sys.argv[0]);
             sys.exit(10);
 
@@ -1590,12 +1595,12 @@ def doJoysticking():
                 animation.parseXML(animfilename)
 
             except Exception as e:
-                sys.stderr.write("\nWhoops - Error reading input file %s\n" % animfilename)
+                sys.stderr.write("\nWHOOPS - Error reading input file %s\n" % animfilename)
                 sys.stderr.write("Message: %s\n" % e)
                 sys.exit(11)
 
         else:
-            sys.stderr.write("\nWhoops - Unable to use %s as a file\n" % animfilename)
+            sys.stderr.write("\nWHOOPS - Unable to use %s as a file\n" % animfilename)
             sys.exit(11)
 
     # Open the main window and process events
