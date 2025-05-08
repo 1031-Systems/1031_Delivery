@@ -5,9 +5,13 @@ out=/dev/null
 
 # Determine which rshell to use
 rshell=rshell
-if ! which rshell >& /dev/null; then
+which rshell >& /dev/null
+CODE=$?
+if [ $CODE -ne 0 ]; then
     if [ -f ../rshell ]; then
         rshell='../rshell'
+    elif [ -f ./rshell ]; then
+        rshell='./rshell'
     else
         echo Whoops - Unable to find rshell tool needed for installation
         exit 10

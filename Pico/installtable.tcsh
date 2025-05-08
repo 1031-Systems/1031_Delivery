@@ -43,6 +43,7 @@ endif
 # Determine which rshell to use
 set rshell=rshell
 if ( -e ../rshell ) set rshell=../rshell
+if ( -e ./rshell ) set rshell=./rshell
 
 # Get the port used by rshell (we assume it is first in the list)
 set port=`${rshell} -l |& grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%'`
