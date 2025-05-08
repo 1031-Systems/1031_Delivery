@@ -81,7 +81,7 @@ Terminal=true
 Exec=${SCRIPTPATH}/Hauntimator
 Name=Hauntimator
 Comment=Hauntimator
-Icon=${SCRIPTPATH}/src/docs/images/image1.png
+Icon=${SCRIPTPATH}/src/docs/images/Hlogo.png
 EOF
 
 cat << EOF > ~/Desktop/joysticking.desktop
@@ -92,7 +92,7 @@ Terminal=true
 Exec=${SCRIPTPATH}/joysticking
 Name=joysticking
 Comment=joysticking
-Icon=${SCRIPTPATH}/src/docs/images/JoyUI.png
+Icon=${SCRIPTPATH}/src/docs/images/jlogo.png
 EOF
 fi
 fi
