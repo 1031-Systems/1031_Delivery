@@ -55,8 +55,8 @@ variant of linux.  It has not been tested at all under Windows.
 To have a readily runnable version of the tools, download the zipped
 release file of your choice from https://github.com/1031-Systems/1031_Delivery/releases,
 navigating to the realease of your choice.  If you just want the
-latest release, find the one labeled Latest.  Note that you will
-want the zip file with _basics in the name.
+latest release, find the one labeled Latest.  It should be at
+https://github.com/1031-Systems/1031_Delivery/releases/latest.
 
 Once the zip file is downloaded, unzip it into the directory of
 your choice.  Unzipping the file produces a directory named
