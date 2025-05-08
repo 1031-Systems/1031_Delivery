@@ -225,14 +225,19 @@ end
 foreach f (`find ${DeliveryRepo} -name '*~'`)
     rm -f $f
 end
+# Clean up some other unwanted files
+rm -f ${DeliveryRepo}/Pico/installtable*
+rm -f ${DeliveryRepo}/Pico/dumpBinary.py
+rm -f ${DeliveryRepo}/Pico/.portid
 
-zip -qry ${vnum}_basics.zip \
+rm -f Hauntimator_${vnum}.zip
+zip -qry Hauntimator_${vnum}.zip \
     $DeliveryRepo/src \
     $DeliveryRepo/LICENSE \
     $DeliveryRepo/README.* \
     $DeliveryRepo/Pico \
     $DeliveryRepo/install \
-    $DeliveryRepo/uninstall \
+    $DeliveryRepo/uninstall
 
 # Clean up
 if($verbosity) then
