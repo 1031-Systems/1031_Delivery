@@ -70,10 +70,60 @@ chmod +x Pico/verifyload
 
 # Create desktop links to run Hauntimator and joysticking
 if [ -d ~/Desktop ]; then
-echo -n 'Do you want to install desktop icons (y/N)? '
-read answer
-if [ $answer == 'y' ]; then
-cat << EOF > ~/Desktop/Hauntimator.desktop
+    echo -n 'Do you want to install desktop icons (y/N)? '
+    read answer
+    if [ $answer == 'y' ]; then
+        if [ $OSTYPE == 'darwin' ]; then
+            # Make icons from logo.png files
+            pushd src/docs/images
+            mkdir MyIcon.iconset
+            ln -s Hlogo.png Icon1024.png
+            cp Icon1024.png MyIcon.iconset/icon_512x512@2x.png
+            sips -z 16 16     Icon1024.png --out MyIcon.iconset/icon_16x16.png
+            sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_16x16@2x.png
+            sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_32x32.png
+            sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_32x32@2x.png
+            sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_128x128.png
+            sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_128x128@2x.png
+            sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_256x256.png
+            sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_256x256@2x.png
+            sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_512x512.png
+            iconutil -c icns MyIcon.iconset
+            mv MyIcon.icns Hicon.icns
+            rm -rf MyIcon.iconset Icon1024.png
+
+            mkdir MyIcon.iconset
+            ln -s jlogo.png Icon1024.png
+            cp Icon1024.png MyIcon.iconset/icon_512x512@2x.png
+            sips -z 16 16     Icon1024.png --out MyIcon.iconset/icon_16x16.png
+            sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_16x16@2x.png
+            sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_32x32.png
+            sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_32x32@2x.png
+            sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_128x128.png
+            sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_128x128@2x.png
+            sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_256x256.png
+            sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_256x256@2x.png
+            sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_512x512.png
+            iconutil -c icns MyIcon.iconset
+            mv MyIcon.icns jicon.icns
+            rm -rf MyIcon.iconset Icon1024.png
+            popd
+
+            # Now create Automator app directories from our clone
+            cd ${SCRIPTPATH}
+            unzip appdir
+            cp -f src/docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
+            sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/Hauntimator%g" appdir/Contents/document.wflow
+            mv appdir ~/Desktop/Hauntimator.app
+            rm -rf appdir
+            unzip appdir
+            cp -f src/docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
+            sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/joysticking%g" appdir/Contents/document.wflow
+            mv appdir ~/Desktop/joysticking.app
+            rm -rf appdir
+
+        elif [ ${OSTYPE:0:5} == linux ]; then
+            cat << EOF > ~/Desktop/Hauntimator.desktop
 [Desktop Entry]
 Version=v0.0.7g
 Type=Application
@@ -84,7 +134,7 @@ Comment=Hauntimator
 Icon=${SCRIPTPATH}/src/docs/images/Hlogo.png
 EOF
 
-cat << EOF > ~/Desktop/joysticking.desktop
+            cat << EOF > ~/Desktop/joysticking.desktop
 [Desktop Entry]
 Version=v0.0.7g
 Type=Application
@@ -94,5 +144,10 @@ Name=joysticking
 Comment=joysticking
 Icon=${SCRIPTPATH}/src/docs/images/jlogo.png
 EOF
+        fi
+    fi
 fi
-fi
+
+# Clean up some unwanted things
+cd ${SCRIPTPATH}
+rm -rf appdir.zip appdir
