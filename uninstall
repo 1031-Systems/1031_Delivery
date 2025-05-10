@@ -10,12 +10,26 @@ echo Uninstalling $SCRIPTPATH
 cd $SCRIPTPATH/..
 rm -rf $SCRIPTPATH
 
-# Remove desktop icons that point to this repo
+# Make for loops skip if empty
+shopt -s nullglob
+
+# Remove linux desktop icons that point to this repo
 for f in ~/Desktop/*.desktop; do
     grep -q "$SCRIPTPATH" $f
     CODE=$?
     if [ $CODE -eq 0 ]; then
         rm -f $f
+    fi
+done
+
+# Remove MacOS desktop icons that point to this repo
+for f in ~/Desktop/*.app; do
+    if [ -e ${f}/Contents/document.wflow ]; then
+        grep -q "$SCRIPTPATH" ${f}/Contents/document.wflow
+        CODE=$?
+        if [ $CODE -eq 0 ]; then
+            rm -rf $f
+        fi
     fi
 done
 
