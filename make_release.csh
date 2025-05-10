@@ -204,6 +204,7 @@ cp -r COPYING \
 cp -r Pico \
     install \
     uninstall \
+    appdir.zip \
     $DeliveryRepo
 
 # Update all the versions in the code and help files and dist info
@@ -236,6 +237,7 @@ zip -qry Hauntimator_${vnum}.zip \
     $DeliveryRepo/LICENSE \
     $DeliveryRepo/README.* \
     $DeliveryRepo/Pico \
+    $DeliveryRepo/appdir.zip \
     $DeliveryRepo/install \
     $DeliveryRepo/uninstall
 
