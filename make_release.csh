@@ -194,6 +194,7 @@ cp  Animatronics.py \
 
 cp -r docs \
     plugins \
+    appdir.zip \
     $DeliveryRepo/servotypes \
     $DeliveryRepo/*.dist-info \
     $DeliveryRepo/src
@@ -204,7 +205,6 @@ cp -r COPYING \
 cp -r Pico \
     install \
     uninstall \
-    appdir.zip \
     $DeliveryRepo
 
 # Update all the versions in the code and help files and dist info

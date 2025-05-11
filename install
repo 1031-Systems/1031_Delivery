@@ -110,17 +110,18 @@ if [ -d ~/Desktop ]; then
             popd
 
             # Now create Automator app directories from our clone
-            cd ${SCRIPTPATH}
-            unzip appdir
-            cp -f src/docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
+            cd ${SCRIPTPATH}/src
+            unzip appdir.zip
+            cp -f docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
             sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/Hauntimator%g" appdir/Contents/document.wflow
+            rm -rf ~/Desktop/Hauntimator.app
             mv appdir ~/Desktop/Hauntimator.app
-            rm -rf appdir
-            unzip appdir
-            cp -f src/docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
+
+            unzip appdir.zip
+            cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
             sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/joysticking%g" appdir/Contents/document.wflow
+            rm -rf ~/Desktop/joysticking.app
             mv appdir ~/Desktop/joysticking.app
-            rm -rf appdir
 
         elif [ ${OSTYPE:0:5} == linux ]; then
             cat << EOF > ~/Desktop/Hauntimator.desktop
@@ -150,4 +151,3 @@ fi
 
 # Clean up some unwanted things
 cd ${SCRIPTPATH}
-rm -rf appdir.zip appdir
