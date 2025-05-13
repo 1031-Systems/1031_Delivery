@@ -109,20 +109,35 @@ if [ -d ~/Desktop ]; then
             rm -rf MyIcon.iconset Icon1024.png
             popd
 
-            # Now create Automator app directories from our clone
-            cd ${SCRIPTPATH}/src
-            unzip appdir.zip
-            cp -f docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
-            sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/Hauntimator%g" appdir/Contents/document.wflow
-            rm -rf ~/Desktop/Hauntimator.app
-            mv appdir ~/Desktop/Hauntimator.app
+            if [ -e ~/Desktop/Untitled.app ]; then
+                # Create apps from existing structure
+                cd ${SCRIPTPATH}/src
+                cp -r ~/Desktop/Untitled.app appdir
+                cp -f docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
+                sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Hauntimator<%g" appdir/Contents/document.wflow
+                rm -rf ~/Desktop/Hauntimator.app
+                mv appdir ~/Desktop/Hauntimator.app
 
-            unzip appdir.zip
-            cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
-            sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/joysticking%g" appdir/Contents/document.wflow
-            rm -rf ~/Desktop/joysticking.app
-            mv appdir ~/Desktop/joysticking.app
+                cp -r ~/Desktop/Untitled.app appdir
+                cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
+                sed -i '' -e "s%>cat<%>${SCRIPTPATH}/joysticking<%g" appdir/Contents/document.wflow
+                rm -rf ~/Desktop/joysticking.app
+                mv appdir ~/Desktop/joysticking.app
+            else
+                # Now create Automator app directories from our clone
+                cd ${SCRIPTPATH}/src
+                unzip appdir.zip
+                cp -f docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
+                sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/Hauntimator%g" appdir/Contents/document.wflow
+                rm -rf ~/Desktop/Hauntimator.app
+                mv appdir ~/Desktop/Hauntimator.app
 
+                unzip appdir.zip
+                cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
+                sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/joysticking%g" appdir/Contents/document.wflow
+                rm -rf ~/Desktop/joysticking.app
+                mv appdir ~/Desktop/joysticking.app
+            fi
         elif [ ${OSTYPE:0:5} == linux ]; then
             cat << EOF > ~/Desktop/Hauntimator.desktop
 [Desktop Entry]

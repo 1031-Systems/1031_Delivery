@@ -41,7 +41,19 @@ the audio.
 If you are reading this, you have already downloaded and unzipped the
 release files.  To enable the applications, run the install script in
 the same directory as this README.  Run it in a terminal window as it
-asks if you want desktop icons created.
+asks if you want desktop icons created.  Select anything other than 'y'
+if you prefer command line operation as I do.
+
+Note that on a Mac, it is difficult to create executable desktop icons
+due to their security setup.  In order for the install script to be able
+to create the desktop icons in working condition, the user needs to
+create an Automator template to use.  To do this, run the Automator
+application, shipped with every Mac, from the Applications folder.  On
+the first page, select Application.  Then select "Run Shell Script"
+from the long list of possible actions by double clicking on it.  Then
+Save it on the desktop as Untitled.  The install script will use this
+as a template to create executable icons on the desktop.  Once the
+icons are created, the Untitled template may be deleted.
 
 The Hauntimator and joysticking applications generally work best
 when they are able to communicate with and control the animatronics
@@ -88,7 +100,7 @@ the Help menu.  Hopefully, it is mostly accurate and up-to-date.
 Hauntimator is the visual user interface for creating and editing the
 control channels.  It displays a stack of channels, typically with 
 audio at the top, in which all channels display the same time range.
-During audio playback, a red bar moves across all channels so that
+During audio playback, a green bar moves across all channels so that
 the user may visually align behaviors between channels and the audio
 track.
 
