@@ -166,6 +166,7 @@ def runSphinxWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, 
 
     # Compare to transcript and correct mistranslations
     segments = decoder.seg()
+    '''
     if decoder.seg() is not None and transcript is not None:
         words = []
         segments = []
@@ -250,6 +251,7 @@ def runSphinxWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, 
                 outsegments.append(Segment(word, badstart, badstart+worddur))
                 badstart += worddur
         segments = outsegments
+    '''
 
 
     # Output list of words with start and end times
@@ -319,7 +321,7 @@ def runSphinx(audiofile, dict=None, lm=None, transcript=None, starttime=0, endti
         phones = []
         for s in decoder.seg():
             if verbosity: print(s.start_frame, s.end_frame, s.word)
-            phones.append((s.word, float(s.start_frame + s.end_frame) / 200.0) + starttime)
+            phones.append((s.word, float(s.start_frame + s.end_frame) / 200.0 + starttime))
     else:
         # Because the above seems to be not so good, we try something else with a dictionary
         # First get the words and timing
@@ -460,7 +462,7 @@ def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
 
     if widget.getTagFlag() == 'Words' and words is None:
         # Rerun sphinx just looking for word timing
-        words = runSphinxWords(widget.getAudioFile(), dict=dictfile, lm=lmfile, starttime=starttime, endtime=endtime)
+        words = runSphinxWords(widget.getAudioFile(), dict=dictfilename, lm=lmfilename, starttime=starttime, endtime=endtime)
 
     if widget.getTagFlag() != 'None':
         theanim.clearTags(starttime=starttime, endtime=endtime)
