@@ -166,6 +166,12 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
     set bname = `echo $f | sed 's/md$/txt/'`
     pandoc -f markdown -t plain $f -o $bname
 end
+if ( ${OSTYPE} == 'darwin' ) then
+    sed -i '' "s/__VERSION__/$vnum/g" ${DeliveryRepo}/install
+else if ( ${OSTYPE} == 'linux' ) then
+    sed -i "s/__VERSION__/$vnum/g" ${DeliveryRepo}/install
+endif
+
 
 # Zip up the delivery
 if($verbosity) then
@@ -194,7 +200,6 @@ cp  Animatronics.py \
 
 cp -r docs \
     plugins \
-    appdir.zip \
     $DeliveryRepo/servotypes \
     $DeliveryRepo/*.dist-info \
     $DeliveryRepo/src
@@ -221,6 +226,12 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
         pandoc -f markdown -t plain $f -o $bname
     endif
 end
+if ( ${OSTYPE} == 'darwin' ) then
+    sed -i '' "s/__VERSION__/$vnum/g" ${DeliveryRepo}/install
+else if ( ${OSTYPE} == 'linux' ) then
+    sed -i "s/__VERSION__/$vnum/g" ${DeliveryRepo}/install
+endif
+
 
 # Clean up leftover vi backup files
 foreach f (`find ${DeliveryRepo} -name '*~'`)
@@ -237,7 +248,6 @@ zip -qry Hauntimator_${vnum}.zip \
     $DeliveryRepo/LICENSE \
     $DeliveryRepo/README.* \
     $DeliveryRepo/Pico \
-    $DeliveryRepo/appdir.zip \
     $DeliveryRepo/install \
     $DeliveryRepo/uninstall
 

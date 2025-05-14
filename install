@@ -83,6 +83,8 @@ if [ -d ~/Desktop ]; then
             sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_16x16@2x.png
             sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_32x32.png
             sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_32x32@2x.png
+            sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_64x64.png
+            sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_64x64@2x.png
             sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_128x128.png
             sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_128x128@2x.png
             sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_256x256.png
@@ -99,6 +101,8 @@ if [ -d ~/Desktop ]; then
             sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_16x16@2x.png
             sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_32x32.png
             sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_32x32@2x.png
+            sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_64x64.png
+            sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_64x64@2x.png
             sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_128x128.png
             sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_128x128@2x.png
             sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_256x256.png
@@ -113,51 +117,39 @@ if [ -d ~/Desktop ]; then
                 # Create apps from existing structure
                 cd ${SCRIPTPATH}/src
                 cp -r ~/Desktop/Untitled.app appdir
+                rm -f appdir/Contents/Resources/ApplicationStub.icns
                 cp -f docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
                 sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Hauntimator<%g" appdir/Contents/document.wflow
                 rm -rf ~/Desktop/Hauntimator.app
                 mv appdir ~/Desktop/Hauntimator.app
 
                 cp -r ~/Desktop/Untitled.app appdir
+                rm -f appdir/Contents/Resources/ApplicationStub.icns
                 cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
                 sed -i '' -e "s%>cat<%>${SCRIPTPATH}/joysticking<%g" appdir/Contents/document.wflow
-                rm -rf ~/Desktop/joysticking.app
-                mv appdir ~/Desktop/joysticking.app
-            else
-                # Now create Automator app directories from our clone
-                cd ${SCRIPTPATH}/src
-                unzip appdir.zip
-                cp -f docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
-                sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/Hauntimator%g" appdir/Contents/document.wflow
-                rm -rf ~/Desktop/Hauntimator.app
-                mv appdir ~/Desktop/Hauntimator.app
-
-                unzip appdir.zip
-                cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
-                sed -i '' -e "s%_APPLICATION_%${SCRIPTPATH}/joysticking%g" appdir/Contents/document.wflow
                 rm -rf ~/Desktop/joysticking.app
                 mv appdir ~/Desktop/joysticking.app
             fi
         elif [ ${OSTYPE:0:5} == linux ]; then
             cat << EOF > ~/Desktop/Hauntimator.desktop
 [Desktop Entry]
-Version=v0.0.7g
+Version=__VERSION__
 Type=Application
 Terminal=true
 Exec=${SCRIPTPATH}/Hauntimator
 Name=Hauntimator
-Comment=Hauntimator
+Comment=Hauntimator Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/Hlogo.png
 EOF
 
             cat << EOF > ~/Desktop/joysticking.desktop
 [Desktop Entry]
-Version=v0.0.7g
+Version=__VERSION__
 Type=Application
 Terminal=true
 Exec=${SCRIPTPATH}/joysticking
 Name=joysticking
-Comment=joysticking
+Comment=joysticking Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/jlogo.png
 EOF
         fi
