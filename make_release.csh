@@ -241,6 +241,7 @@ end
 rm -f ${DeliveryRepo}/Pico/installtable*
 rm -f ${DeliveryRepo}/Pico/dumpBinary.py
 rm -f ${DeliveryRepo}/Pico/.portid
+rm -f ${DeliveryRepo}/docs/images/*.xcf
 
 rm -f Hauntimator_${vnum}.zip
 zip -qry Hauntimator_${vnum}.zip \
