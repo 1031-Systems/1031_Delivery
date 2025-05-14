@@ -438,7 +438,7 @@ def fromHMS(string):
         seconds = int(m.group(2)) * 3600.0
         seconds += int(m.group(3)) * 60
         seconds += float(m.group(4))
-        if m.group(0) == '-': seconds = -seconds
+        if m.group(1) == '-': seconds = -seconds
     return seconds
 
 
