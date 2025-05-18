@@ -423,22 +423,25 @@ def toHMS(seconds):
     flag = seconds < 0
     if flag:
         seconds = -seconds
+    time = ''
     hours = int(seconds/3600.0)
+    if hours > 0:
+        time += '%02d:' % hours
     seconds -= hours*3600
     minutes = int(seconds/60.0)
     seconds -= minutes*60
-    time = '%02d:%02d:%05.2f' % (hours, minutes, seconds)
+    time += '%02d:%05.2f' % (minutes, seconds)
     if flag: time = '-' + time
     return time
 
 def fromHMS(string):
     seconds = 0.0
-    m = re.match('^(-?)(\d+):(\d+):(\d+\.?\d*)', string)
-    if m:
-        seconds = int(m.group(2)) * 3600.0
-        seconds += int(m.group(3)) * 60
-        seconds += float(m.group(4))
-        if m.group(1) == '-': seconds = -seconds
+    string = string.strip()
+    flag = string[0] == '-'
+    values = string.split(':')
+    for value in values:
+        seconds = seconds * 60.0 + abs(float(value))
+    if flag: seconds = -seconds
     return seconds
 
 
@@ -605,8 +608,9 @@ class MainWindow(QMainWindow):
         self.startLCD.mouseDoubleClickEvent = self.setStartTime
         self.startLCD.setMaximumHeight(40)
         self.startLCD.setMinimumHeight(40)
+        self.startLCD.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         hlayout.addWidget(self.startLCD)
-        tlabel = QLabel('End:')
+        tlabel = QLabel('  End:')
         tlabel.setFont(QFont('Arial', 20))
         tlabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         hlayout.addWidget(tlabel)
@@ -614,6 +618,7 @@ class MainWindow(QMainWindow):
         self.endLCD.setDigitCount(8)
         self.endLCD.setMaximumHeight(40)
         self.endLCD.setMinimumHeight(40)
+        self.endLCD.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.endLCD.display(toHMS(self.endTime))
         self.endLCD.mouseDoubleClickEvent = self.setEndTime
         hlayout.addWidget(self.endLCD)
@@ -699,44 +704,48 @@ class MainWindow(QMainWindow):
 
     def setStartTimeTo(self, intime):
         self.startTime = intime
-        self.startLCD.display(toHMS(self.startTime))
+        intime = toHMS(intime)
+        self.startLCD.setDigitCount(len(intime))
+        self.startLCD.display(intime)
+        # Set main time display to max length of start and end times
+        self.lcd.setDigitCount(max(self.startLCD.digitCount(), self.endLCD.digitCount()))
 
     def setStartTime(self, event):
-        print('Setting start')
         text, ok = self.getSomeTime('Set Start Time', toHMS(self.time))
         if ok:
-            self.startLCD.display(text)
-            self.startTime = fromHMS(text)
+            self.setStartTimeTo(fromHMS(text))
 
     def setEndTimeTo(self, intime):
         self.endTime = intime
-        self.endLCD.display(toHMS(self.endTime))
+        intime = toHMS(intime)
+        self.endLCD.setDigitCount(len(intime))
+        self.endLCD.display(intime)
+        # Set main time display to max length of start and end times
+        self.lcd.setDigitCount(max(self.startLCD.digitCount(), self.endLCD.digitCount()))
 
     def setEndTime(self, event):
-        print('Setting end')
         text, ok = self.getSomeTime('Set End Time', toHMS(self.time))
         if ok:
-            self.endLCD.display(text)
-            self.endTime = fromHMS(text)
+            self.setEndTimeTo(fromHMS(text))
 
     def getSomeTime(self, name, buttonValue):
         text, ok = QInputDialog().getText(self, name, name, QLineEdit.EchoMode.Normal, buttonValue)
-        if ok and text.find(':') < 0:
-            text = toHMS(float(text))
+        try:
+            text = toHMS(fromHMS(text))
+        except:
+            ok = False
         return text, ok
 
     def rewind(self):
         self.time = self.startTime
-        self.startLCD.display(toHMS(self.startTime))
+        self.setStartTimeTo(self.startTime)
         self.lcd.display(toHMS(self.time))
 
     def resetToAudio(self):
+        self.setStartTimeTo(0.0)
+        self.setEndTimeTo(self.audio.length)
         self.time = 0.0
-        self.startTime = 0.0
-        self.startLCD.display(toHMS(self.startTime))
         self.lcd.display(toHMS(self.time))
-        self.endTime = self.audio.length
-        self.endLCD.display(toHMS(self.endTime))
 
     def create_menus(self):
         """
@@ -840,14 +849,12 @@ class MainWindow(QMainWindow):
         self.reviewButton.setEnabled(self.table is not None and self.table.getRecordButton() >= 0 and COMMLIB_ENABLED)
         # Recording time controls
         if self.recording() and not self.currentRecordState:
-            print('Begin Recording')
             self.currentRecordState = True
             self.monoStartTime = time.monotonic()
             self.time = self.startTime
             self.nextRecordTime = self.startTime
             if self.audio is not None: self.audio.play(startTime=self.startTime)
         elif self.playingBack() and not self.currentRecordState:
-            print('Begin Playback')
             self.currentRecordState = True
             self.monoStartTime = time.monotonic()
             self.time = self.startTime

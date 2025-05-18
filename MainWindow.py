@@ -149,22 +149,25 @@ def toHMS(seconds):
     flag = seconds < 0
     if flag:
         seconds = -seconds
+    time = ''
     hours = int(seconds/3600.0)
+    if hours > 0:
+        time += '%02d:' % hours
     seconds -= hours*3600
     minutes = int(seconds/60.0)
     seconds -= minutes*60
-    time = '%02d:%02d:%05.2f' % (hours, minutes, seconds)
+    time += '%02d:%05.2f' % (minutes, seconds)
     if flag: time = '-' + time
     return time
 
 def fromHMS(string):
     seconds = 0.0
-    m = re.match('^(-?)(\d+):(\d+):(\d+\.?\d*)', string)
-    if m:
-        seconds = int(m.group(2)) * 3600.0
-        seconds += int(m.group(3)) * 60
-        seconds += float(m.group(4))
-        if m.group(1) == '-': seconds = -seconds
+    string = string.strip()
+    flag = string[0] == '-'
+    values = string.split(':')
+    for value in values:
+        seconds = seconds * 60.0 + abs(float(value))
+    if flag: seconds = -seconds
     return seconds
 
 #####################################################################
@@ -1887,7 +1890,7 @@ class ChannelNameValidator(QValidator):
         elif arg1 in self.namelist or len(arg1) == 0 or (len(arg1) > 0 and arg1[-1] == ' '):
             return QValidator.Intermediate, arg1, arg2
         else:
-            match = re.match('^[A-Za-z0-9_\- ]*$', arg1)
+            match = re.match(r'^[A-Za-z0-9_\- ]*$', arg1)
             if match is not None:
                 return QValidator.Acceptable, arg1, arg2
             else:
@@ -3700,12 +3703,14 @@ class MainWindow(QMainWindow):
             for channel in channellist:
                 if self.animatronics.channels[channel].port >= 0:
                     # getValueAtTime is not implemented so we get a range of values and take the first one
-                    value = self.animatronics.channels[channel].getValuesAtTimeSteps(currTime, currTime+1.0, 0.5)[0]
-                    port = self.animatronics.channels[channel].port
-                    if self.animatronics.channels[channel].type == Channel.DIGITAL:
-                        commlib.setDigitalChannel(port, value)
-                    else:   # For now must be servo type channel
-                        commlib.setServo(port, value)
+                    value = self.animatronics.channels[channel].getValuesAtTimeSteps(currTime, currTime+1.0, 0.5)
+                    if value is not None:
+                        value = value[0]
+                        port = self.animatronics.channels[channel].port
+                        if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                            commlib.setDigitalChannel(port, value)
+                        else:   # For now must be servo type channel
+                            commlib.setServo(port, value)
 
     def openAnimFile(self):
         """
@@ -6111,8 +6116,8 @@ class MainWindow(QMainWindow):
         if len(self._tagListWidget.selectedItems()) == 0: return
         # Get the text string
         text = self._tagListWidget.selectedItems()[0].text()
-        # Convert string back to float time
-        time = fromHMS(text)
+        # Convert string back to float time after removing tag string from end
+        time = fromHMS(text[0:text.find(' - ')])
         # Find nearest tag
         tagTime = self.findNearestTag(time)
         if abs(tagTime - time) < 0.01:
