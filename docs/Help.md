@@ -160,6 +160,7 @@ The File menu contains the following options:
 + Append Anim File - Open an existing animation and append common channels to current one
 + Save Anim File - Save the current animation to the file it was loaded from
 + Save As - Save the current animation under a new filename
++ Import - Import from an alternative file format
 + Export - Export to an alternative file format or send to controller
 + Quit - Duh!
 
@@ -178,6 +179,20 @@ Appended channels must appear in both animations and other channels will be igno
 a warning presented.  Note that the order of the append is irrelevant.  Prior, successor,
 or overlapping time ranges can be appended and they are inserted into the existing channel
 at their designated time.
+
+The Import menu allows users to import an animation from an alternative file format.  The
+only one currently supported is CSV.  If the user wrote a CSV file from Hauntimator, the
+channels and port numbers may be retrieved from the CSV file.  However, users may create CSV
+files through other programs and import those as well.  CSV files written by Hauntimator will
+have the first column be time in milliseconds.  Then all other columns represent channels.
+Hauntimator writes only the port identifier into the column header, which is of the form Dn
+or Sn for Digital channel on port n or Servo/PWM channel on port n respectively.  Upon import,
+any channel whose name begins with capital "D" will be assumed to be a digital channel and
+all others will be assumed to be PWM channels.  If python can successfully parse an integer 
+from the characters after the first one, then that will be assumed to be the port number.
+The entire column header will be used as the channel name.  Note that the CSV file never
+contains metadata such the name of the audio file so the user will have to define that
+after import.
 
 The Export option is generally used to upload the control file to the controller.
 To accomplish, the file is written as a CSV (comma-separated values) file and then

@@ -4056,6 +4056,117 @@ class MainWindow(QMainWindow):
                     # Nothing was done so clean up
                     self.undo_action()
 
+    def readCSVFile(self, filename):
+        if filename is None:
+            sys.stderr.write("\nWHOOPS - No CSV filename specified.\n")
+            print_usage(sys.argv[0]);
+            sys.exit(10);
+
+        with open(filename, 'r') as f:
+            # Create a new Animatronics object to populate
+            animation = Animatronics()
+
+            # Read the header line from the CSV file
+            line = f.readline()
+
+            # Split it at the commas (Could use pandas but no real need)
+            channelNames = line.split(',')
+
+            # Create an array for quick lookup later
+            channels = []
+            mins = []
+            maxes = []
+
+            # Create all the channels in the animatronics except time in column 0
+            for name in channelNames[1:]:
+                # We expect each name to be of the form Dn or Sn
+                # Dn indicates a Digital channel attached to port n
+                # Sn indicates a Servo or PWM channel attached to port n
+                # If the name does not match this form, the port is not set and the channel is assumed to be PWM
+                name = name.strip()
+                if name[0] == 'D':
+                    channel = Channel(inname=name, intype=Channel.DIGITAL)
+                else:
+                    channel = Channel(inname=name, intype=Channel.LINEAR)
+                animation.insertChannel(channel)
+                try:
+                    port = int(name[1:])
+                    channel.port = port
+                except:
+                    # Ignore error if the name is not of form Dn or Sn
+                    pass
+                # Save the channel in the dictionary
+                channels.append(channel)
+                mins.append(65535)
+                maxes.append(0)
+                if verbosity: print('Created a channel with name:', name)
+
+            # Now populate the channels with the data from the CSV file
+            if verbosity: print('Processing channel data')
+            line = f.readline()
+            while len(line) > 0:
+                values = line.split(',')
+                time = float(values[0]) / 1000.0    # Convert from msec to sec
+                values = values[1:]
+                for indx in range(len(values)):
+                    try:
+                        value = float(values[indx])
+                        # Conserve space by outputting only changes for Digital channels
+                        if channels[indx].num_knots() > 0 and channels[indx].type == Channel.DIGITAL:
+                            currvalue = channels[indx].getValueAtTime(time)
+                            if currvalue is None or currvalue != value:
+                                channels[indx].add_knot(time, value)
+                        else:
+                            channels[indx].add_knot(time, value)
+                        if value < mins[indx]: mins[indx] = value
+                        if value > maxes[indx]: maxes[indx] = value
+                    except:
+                        # Ignore failures to allow for empty columns
+                        pass
+                line = f.readline()
+                # Just in case this is the last line, set the end time
+                animation.end = time
+
+            # Set the channel limits to the min and max values found
+            for indx in range(len(values)):
+                if mins[indx] < maxes[indx]:
+                    channels[indx].minLimit = mins[indx]
+                    channels[indx].maxLimit = maxes[indx]
+
+            return animation
+
+
+    def importCSVFile(self):
+        """
+        The method eimportCSVFileopens a file dialog to query the user for
+        a filename and then opens the comma-separated values (CSV) file,
+        importing it as a new animation.  Column headers will be used as
+        the channel names and possibly the channel port numbers.
+        """
+        if self.handle_unsaved_changes():
+            """Get filename and open as active animatronics"""
+            fileName, _ = QFileDialog.getOpenFileName(self,"Get Open Filename", "",
+                                "Anim Files (*.csv);;All Files (*)",
+                                options=QFileDialog.DontUseNativeDialog)
+
+            if fileName:
+                # Push current state for undo
+                pushState()
+
+                try:
+                    newAnim = self.readCSVFile(fileName)
+                    self.setAnimatronics(newAnim)
+                    # Clear out Redo history
+                    self.pendingStates = []
+                    self.unsavedChanges = False
+
+                except Exception as e:
+                    self.undo_action()
+                    sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
+                    sys.stderr.write("Message: %s\n" % e)
+                    return
+
+
     def exportCSVFile(self):
         """
         The method exportCSVFile opens a file dialog to query the user for
@@ -6206,7 +6317,15 @@ class MainWindow(QMainWindow):
                 self, shortcut=QKeySequence.SaveAs, triggered=self.saveAsFile)
         self.file_menu.addAction(self._save_as_file_action)
 
-        # Export action
+        # Import Actions
+        self._import_file_menu = self.file_menu.addMenu("Import")
+        self._import_file_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
+        self._import_csv_file_action = QAction("&Import from CSV",
+                self, triggered=self.importCSVFile)
+        self._import_csv_file_action.setToolTip('Import CSV file into New Animation')
+        self._import_file_menu.addAction(self._import_csv_file_action)
+
+        # Export actions
         self._export_file_menu = self.file_menu.addMenu("Export")
         self._export_file_menu.setToolTipsVisible(SystemPreferences['ShowTips'])
         self._export_csv_file_action = QAction("&Export to CSV/Binary",
