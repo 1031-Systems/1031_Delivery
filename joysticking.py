@@ -492,9 +492,9 @@ class MainWindow(QMainWindow):
             sys.stderr.write('\nWHOOPS - Must have at least one (1) joystick attached\n')
             msgBox = QMessageBox(parent=self)
             msgBox.setText('WHOOPS - Must have at least one (1) joystick attached')
-            msgBox.setStandardButtons(QMessageBox.Ok)
-            msgBox.setIcon(QMessageBox.Warning)
-            msgBox.exec_()
+            msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
+            msgBox.exec()
             sys.exit(10)
 
         # Create wrappers for each joystick
