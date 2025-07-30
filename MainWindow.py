@@ -3355,7 +3355,9 @@ class MainWindow(QMainWindow):
         """
         super().__init__(parent)
 
+        # Catch SIGINT (Ctrl-C) and SIGTERM (from kill command)
         signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
 
         global main_win
         main_win = self

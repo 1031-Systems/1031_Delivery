@@ -13,6 +13,7 @@ import re
 import sys
 import time
 import pygame
+import signal
 
 import Animatronics
 
@@ -55,7 +56,11 @@ except:
         usedPyQt = 6
     except:
         sys.stderr.write('WHOOPS - Unable to find PyQt5 or PyQt6 - Quitting\n')
-        exit(10)
+        try:
+            commlib.cleanup()
+        except:
+            pass
+        sys.exit(10)
 
 import Widgets
 
@@ -461,6 +466,10 @@ class MainWindow(QMainWindow):
             a bigger application someday
         """
         super().__init__(parent)
+ 
+        # Catch SIGINT (Ctrl-C) and SIGTERM (from kill command)
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
 
         self.unsavedChanges = False
         self.time = 0.0
@@ -644,6 +653,18 @@ class MainWindow(QMainWindow):
         timer = QTimer(self)
         timer.timeout.connect(self.eventHandler)
         timer.start(10) # Call eventHandler every 10msec
+
+    def signal_handler(self, signum, frame):
+        # Handle the Interrupt signal (Ctrl-C, etc.)
+        if self.handle_unsaved_changes():
+            signal.signal(signum, signal.SIG_IGN) # ignore additional signals
+            try:
+                commlib.cleanup()
+            except:
+                pass
+            sys.stdout.write('\n')
+            sys.stdout.flush()
+            sys.exit(0)
 
     def leaveRecordTab(self, event):
         # Disable recording and playback
@@ -1427,6 +1448,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """ Catch main close event and pass it to our handler """
         if self.handle_unsaved_changes():
+            try:
+                commlib.cleanup()
+            except:
+                pass
             event.accept()
         else:
             event.ignore()
