@@ -1,0 +1,52 @@
+# This software is made available for use under the GNU General Public License (GPL).
+# A copy of this license is available within the repository for this software and is
+# included herein by reference.
+
+############## tabledefs ###############################################################
+#   This tabledefs file is for defining the available sets of Digital and PWM ports
+# that may be used in your system.  In general, ports should be defined in blocks
+# via convenience functions.
+#
+#
+#   Since it is quite possible to make mistakes here, there is a test function available
+# in main in tables.py.  Simply running "python tables.py -r" will run all the checks to
+# validate the configuration herein.  Adding the "-v" option will output all the port
+# assignments for additional verification.
+############## Define your configuration here ##########################################
+#
+# These examples show how to specify four PWM ports, two digital ports, the three
+# primary inputs, and four special trigger inputs on a Maestro board.  Note that the
+# Maestro board must have a minimum of 13 available channels.  Inputs attached to
+# channels that do not exist on the board produce unspecified results.
+
+# PWM Port Definitions
+# Example - 4 servos on Maestro channels 2-5 on board 12 assigned to ports 21-24
+configureMaestroPWM(boardid=12, firstport=21, count=4, firstchannel=2)
+
+# Digital Port Definitions
+# Example - 2 digital outputs on Maestro channels 0-1 on board 12 assigned to ports 0-1
+configureMaestroDigital(boardid=12, firstport=0, firstchannel=0, count=2)
+
+# Digital Input Definitions
+# Example - 4 trigger inputs indexed 0-3 on Maestro channels 9-12 on board 12
+configureMaestroDigitalInputs(boardid=12, firstindex=0, firstchannel=9, count=4)
+
+# Example - Reset Input on Maestro channel 6 of board 12
+configureMaestroRunInput(boardid=12, firstchannel=6)
+
+# Example - Main Input on Maestro channel 7 of board 12
+configureMaestroMainInput(boardid=12, firstchannel=7)
+
+# Example - Trigger Input on Maestro channel 8 of board 12
+configureMaestroTriggerInput(boardid=12, firstchannel=8)
+
+
+setPreferBinary(False)      # Leave False for standalone Maestro applications
+
+
+
+
+
+
+
+
