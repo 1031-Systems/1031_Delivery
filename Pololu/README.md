@@ -62,7 +62,7 @@ the Maestro.  Instead, a separate application will perform the functions provide
 the Pico on Animator-I.  These include identifying the animations to be played, the
 idle animation if any, handling the audio, providing the reset, main, and
 trigger functions, file I/O, and other capabilities.  A custom version
-of commlib.py will provide Hauntimator with the basic interface to the Maestro.
+of commlib.py will provide Hauntimator with the basic interface to this application.
 
 The Trigger on the Pico serves a different purpose than the
 Main input and has different behavior.  The Main input is a master control
@@ -79,7 +79,7 @@ maintained with the Maestros.
 The standalone application is named control_emulator.py.  This Python program uses
 pygame to handle keyboard input and audio output.  Additional code sends and receives
 data to and from the Maestro controller via USB.  Chained Maestro controllers add
-more input and out channels and communicate via the Tx/Rx pins on the Maestros.
+more input and output channels and communicate via the Tx/Rx pins on the Maestros.
 
 ### control_emulator.py
 
@@ -160,7 +160,7 @@ relatively straightforward.
 The tabledefs file is used to map logical port numbers used in Hauntimator to
 physical ports on the hardware.  The Maestro controllers support servo (PWM) and
 digital outputs and analog and digital inputs.  Currently, analog inputs are not
-supported.
+supported in software.
 
 The tabledefs file is executable Python code that calls functions to specify
 the mapping of ports to inputs and outputs.  Each function maps 1 or more port
@@ -189,7 +189,7 @@ call can handle one contiguous block of channels on one board.
 ### Mapping Digital Output Ports
 
 Animatronics systems often control lights and other props controlled by digital
-outputs usualy through relays.  Here is an example of how to define a block of
+outputs usually through relays.  Here is an example of how to define a block of
 contiguous digital output channels on a Maestro board:
 
 ```
