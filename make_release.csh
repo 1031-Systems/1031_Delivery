@@ -264,7 +264,7 @@ zip -qry Hauntimator_${vnum}.zip \
 if($verbosity) then
     echo Cleaning up build areas
 endif
-exit
+
 rm -rf dist
 rm -rf build
 rm -rf $DeliveryRepo
