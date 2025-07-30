@@ -1,0 +1,57 @@
+#!/bin/bash -f
+#set echo
+
+function usage() {
+
+echo
+echo 'Usage:'$0' [-/-h/-help] [-v/-verbose]'
+echo '    This tool does the minor setup required for Pololu support'
+echo '-/-h/-help          :Print this helpful info'
+echo '-v/-verbose         :Run more verbosely'
+echo
+
+}
+
+# Set initial/default values
+out=/dev/null
+
+# Parse arguments
+i=1
+j=$#
+
+while [ $i -le $j ]
+do
+    echo Processing arg:$1
+    if [[ "-" == "$1" || "-h" == "$1" || "-help" == "$1" ]]; then
+        usage
+    elif [[ "$1" == "-v" || "-verbose" == "$1" ]]; then
+        out=/dev/stdout
+    else
+        echo
+        echo "Whoops - Unrecognized argument:$1"
+        usage
+    fi
+
+    shift
+    ((i++))
+done
+
+# Do the right thing
+
+# Check to make sure tabledefs has been created
+echo Validating local tabledefs
+../.venv/bin/python3 lib/tables.py -r >& /dev/null
+CODE=$?
+if [ $CODE -gt 1 ]; then
+    echo
+    echo Whoops - problems with tabledefs file - aborting
+    echo Results of check are:
+    ../.venv/bin/python3 lib/tables.py -r -v
+    exit
+fi
+
+# Make the link to commlib in the root directory
+rm -f ../src/commlib.py
+ln -s ../Pololu/commlib.py ../src/commlib.py
+
+exit
