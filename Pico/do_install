@@ -40,13 +40,13 @@ done
 
 # Check to make sure tabledefs has been created
 echo Validating local tabledefs
-python3 lib/tables.py  >& /dev/null
+../.venv/bin/python3 lib/tables.py  >& /dev/null
 CODE=$?
 if [ $CODE -ne 0 ]; then
     echo
     echo Whoops - problems with tabledefs file - aborting
     echo Results of check are:
-    python3 lib/tables.py -r -v
+    ../.venv/bin/python3 lib/tables.py -r -v
     exit
 fi
 
@@ -131,7 +131,7 @@ echo
 if [ -f ./verifyload ]; then
     ./verifyload -p $port
 else
-    python3 verifyload.py -p $port
+    ../.venv/bin/python3 verifyload.py -p $port
 fi
 
 CODE=$?
