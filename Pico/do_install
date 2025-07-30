@@ -40,7 +40,7 @@ done
 
 # Check to make sure tabledefs has been created
 echo Validating local tabledefs
-python3 lib/tables.py -r >& /dev/null
+python3 lib/tables.py  >& /dev/null
 CODE=$?
 if [ $CODE -ne 0 ]; then
     echo
@@ -86,6 +86,9 @@ ${rshell} --quiet cp lib/servo.py \
           lib/tables.py \
           lib/tabledefs \
           lib/helpers.py \
+          lib/maestro.py \
+          lib/upath.py \
+          lib/ustat.py \
           /pyboard/lib
 echo Installing main.py
 ${rshell} --quiet cp main.py /pyboard
@@ -100,8 +103,12 @@ echo Installing boot.py
 ${rshell} --quiet cp boot.py /pyboard
 
 # Make the link to commlib in the root directory
-rm -f ../src/commlib.py
-ln -s ../Pico/commlib.py ../src/commlib.py
+rm -f ../src/commlib.py ../commlib.py
+if [ -d ../src ]; then
+    ln -s commlib.py ../src/commlib.py
+else
+    ln -s commlib.py ../commlib.py
+fi
 if [ -d ../_internal ]; then
     rm -f _internal
     ln -s ../_internal .

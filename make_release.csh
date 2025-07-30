@@ -142,7 +142,7 @@ foreach f (*.dist-info)
 end
 
 # Build the single directory tools for each hardware type
-foreach hw (Pico)
+foreach hw (Pico Pololu)
     if($verbosity) then
         echo Working on hardware package $hw
     endif
@@ -190,6 +190,9 @@ foreach f (`find . -name '__pycache__'`)
     rm -rf $f
 end
 
+# Clean up Pololu directory
+rm -rf $DeliveryRepo/Pololu Pololu/*~ Pololu/lib/*~
+
 mkdir -p $DeliveryRepo/src
 cp  Animatronics.py \
     Hauntimator.py \
@@ -208,12 +211,16 @@ cp -r COPYING \
     $DeliveryRepo/LICENSE
 
 cp -r Pico \
+    Pololu \
     install \
     uninstall \
     $DeliveryRepo
 
+cp  Pololu/control_emulator.py \
+    $DeliveryRepo/src
+
 # Update all the versions in the code and help files and dist info
-if($verbosity) echo Updating all the version IDs in the release files
+if($verbosity) echo Updating all the version IDs in the README files
 foreach f (`find ${DeliveryRepo} -name '*.md'`)
     if ( ${OSTYPE} == 'darwin' ) then
         sed -i '' "s/__VERSION__/$vnum/g" $f
@@ -249,6 +256,7 @@ zip -qry Hauntimator_${vnum}.zip \
     $DeliveryRepo/LICENSE \
     $DeliveryRepo/README.* \
     $DeliveryRepo/Pico \
+    $DeliveryRepo/Pololu \
     $DeliveryRepo/install \
     $DeliveryRepo/uninstall
 
@@ -256,6 +264,7 @@ zip -qry Hauntimator_${vnum}.zip \
 if($verbosity) then
     echo Cleaning up build areas
 endif
+exit
 rm -rf dist
 rm -rf build
 rm -rf $DeliveryRepo

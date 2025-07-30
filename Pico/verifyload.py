@@ -62,6 +62,7 @@ def main():
         'lib/tables.py',
         'lib/tabledefs',
         'lib/helpers.py',
+        'lib/maestro.py',
         'boot.py',
         'main.py',
     ]

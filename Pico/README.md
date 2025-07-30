@@ -90,6 +90,50 @@ decoupling Hauntimator from the hardware specifics.
 
 ***
 
+## Pololu Maestro Support
+
+The Animator-I board was originally designed to interface with 74HC595 chips for digital
+output and PCA9685 boards for PWM output.  Input/feedback was limited to the three
+control inputs Run (Reset), Main, and Trigger.  New code in the Pico libraries now
+supports the use of one or more Pololu Maestro boards for PWM and/or digital output
+without any interface hardware.  Additionally, some level-shifters on the I2C pins
+allows them to be repurposed to UART pins to communicate with the Maestro board(s) to
+provide for both output and input.
+
+For output only, the Maestro board(s) should be attached to one of the UART outputs
+in the buffered GPIO output block.  The available UART outputs are on GPIO pins 8 and 12.
+One of these should be connected to the Rx pin on the Maestro board.  These go through
+existing level-shifters to provide +5v signals to the Maestro.
+
+For two-way communication, with output and input, the Maestro board should be connected
+to a pair of UART pins.  If not using PCA9685 PWM boards, then GPIO pins 0 and 1 are
+available.  The code does not currently support using both Maestro and PCA9685 boards
+but it would be possible to connect the PCA9685s to GPIO pins 20 and 21 and the Maestro
+to GPIO pins 0 and 1 with software changes.  In either case, level-shifters are required
+to convert the 3.3v Pico signals to +5v for the Maestro and back to 3.3v on the inputs.
+
+Maestro boards are designed to be daisy-chained.  The wiring is described at on the
+[Pololu website](https://www.pololu.com/docs/0J40/5.g).  The code does not currently
+support using multiple UARTs for Maestro boards but they can be easily daisy-chained
+off of a single UART port.
+
+As described above, the Pico/lib/tabledefs file is the key configuration file needed
+to specify the hardware that the Animator board communicates with.  This file sets up
+the specific Maestro communications over UART and what inputs and outputs are utilized.
+The following functions used in the tabledefs file configure Maestro usage:
+
+~~~
+configureMaestroUART - Specify the UART port for all Maestro(s)
+configureMaestroPWM - Specify a block of PWM output ports on a single Maestro board
+configureMaestroDigital - Specify a block of digital output ports on a single Maestro board
+configureMaestroDigitalInputs - Specify a block of digital inputs on a single Maestro board
+~~~
+
+More documentation on these functions may be found in the Pico/lib/tabledefs_template
+file, which should be used as a starting point for creating your own tabledefs file.
+
+***
+
 ## Top-level Code
 
 ### boot.py

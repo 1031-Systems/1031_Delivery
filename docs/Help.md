@@ -438,6 +438,7 @@ The Channels menu is used for operations on channels.  The options are:
 + Deselect All - Deselect all channels
 + New PWM Channel - Add an empty servo channel to the animation
 + New Digital Channel - Add an empty on/off channel to the animation
++ New Label - Add/Modify/Delete a Label
 + Delete Dialog - Bring up a channel selector to select and delete multiple channels
 + Delete - Delete all selected channels after confirmation
 + Amplitudize - Fill all selected channels with data points that follow the amplitude of the audio
@@ -454,6 +455,24 @@ not contain port numbers that have already been used.
 New channels are generally appended to the bottom of the display.  However, if a channel is explicitly
 selected, new channels will be inserted at that position, pushing the selected channel and others
 down the display.
+
+Labels are an optional way to separate logical groupings of channels or to identify a key channel.
+The Labels are displayed as a white bar containing text between data channels.  To properly 
+group channels, the Label name must be alphabetically equal to or less than the first channel name
+in the group and greater than any preceding channels.  The names are used for displaying and
+grouping.  Thus, channels that should be logically grouped should have names that start with the
+same letter and the Label for that group should be named with just that letter.  Also, Label
+positions and groupings will not work unless the user uses the View->Sort->By Name feature.
+Then the ordering and grouping will be useful.
+
+To simplify, Labels will be inserted at the location of the first explicitly selected channel or
+at the implicitly selected channel and will be initialized with the first character of that
+selected channel's name.  Users then enter the text for the label and save it to insert the Label.
+Double-clicking on the Label brings up the dialog to modify the Label.  If the label text is
+empty, the Label will be deleted.  Label names may have additional characters to more precisely
+position them in alphabetical order.  In particular, appending a tilde ('~') character to a name
+will generally move it to the end of the group and may be used to separate other channels that
+come after the group.
 
 The Delete function requests confirmation prior to deleting.  This is because it is difficult but
 possible to select and then delete a channel that is hidden such that the user is not immediately

@@ -276,6 +276,27 @@ class AudioChannel:
         pass
 
 
+
+#####################################################################
+# The Label class represents an optional label for  grouping
+# channels.
+#####################################################################
+class Label:
+    def __init__(self, name='', labelstring=''):
+        self.name = name
+        self.labelstring = labelstring
+
+    def toXML(self):
+        outXML = '<Label name="%s" label="%s"/>\n' % (self.name, self.labelstring)
+        return outXML
+
+    def parseXML(self, inXML):
+        if inXML.tag == 'Label':
+            if 'name' in inXML.attrib:
+                self.name = inXML.attrib['name']
+            if 'label' in inXML.attrib:
+                self.labelstring = inXML.attrib['label']
+
 #####################################################################
 # The Channel class represents the information needed for doing
 # animatronics with a single control channel.
@@ -852,6 +873,7 @@ class Animatronics:
         self.newAudio = None
         self.tags = {}
         self.channels = {}
+        self.labels = {}
         self.start = 0.0
         self.end = -1.0
         self.sample_rate = 50.0
@@ -884,6 +906,14 @@ class Animatronics:
 
     def addTag(self, name, time):
         self.tags[time] = name
+
+    def addLabel(self, name, label):
+        newLabel = Label(name=name, labelstring=label)
+        self.labels[name] = newLabel
+
+    def deleteLabel(self, name):
+        if name in self.labels:
+            del self.labels[name]
 
     def addChannel(self, inXML):
         tchannel = Channel()
@@ -950,6 +980,7 @@ class Animatronics:
         # Clean up existing stuff
         self.newAudio = None
         self.channels = {}
+        self.labels = {}
         self.clearTags()
         self.sample_rate = 50.0
         self.csvUploadFile = None
@@ -977,6 +1008,10 @@ class Animatronics:
                 tchannel = Channel()
                 tchannel.parseXML(child)
                 self.channels[tchannel.name] = tchannel
+            elif child.tag == 'Label':
+                tlabel = Label()
+                tlabel.parseXML(child)
+                self.labels[tlabel.name] = tlabel
             elif child.tag == 'Control':
                 if 'rate' in child.attrib:
                     self.sample_rate = float(child.attrib['rate'])
@@ -1018,6 +1053,8 @@ class Animatronics:
                 output.write(self.tags[tag] + '\n')
                 output.write('    </Tag>\n')
             output.write('</Tags>\n')
+        for label in self.labels.values():
+            output.write(label.toXML())
         for channel in self.channels.values():
             output.write(channel.toXML())
         output.write('</Animatronics>\n')

@@ -20,6 +20,7 @@
 - Ctrl-D - Insert a New Digital channel
 - Ctrl-F - Fit all data to display
 - Ctrl-I - Insert at
+- Ctrl-L - Add a Label (may be used to change or delete a label also)
 - Ctrl-N - New animation
 - Ctrl-O - Open animation file
 - Ctrl-P - Insert a New PWM channel
@@ -71,6 +72,9 @@ keys work in all windows.  This will be confusing.
 - Left Drag - Continue setting current playback to drag position
 - Ctrl-Left Drag Up and Down - Zoom time range
 - Ctrl-Left Drag Side to Side - Pan time range left and right
+
+### On a Label
+- Double-click - Edit the label
 
 ---
 ## General Mouse Usage

@@ -18,6 +18,7 @@ import gc
 import sys
 import servo
 import pca9685
+import maestro
 import time
 import struct
 from machine import Pin, I2C, PWM
@@ -38,12 +39,63 @@ class TableServos(servo.Servos):
         self.firstport = firstport
         self.numbytes = numports * 4
 
+    def jambytes(self, thebytes, start=-1):
+        if start < 0:
+            start = self.firstport
+        if self.pca9685 is not None:
+            self.pca9685.jambytes(thebytes, start)
+
+    def address(self):
+        if self.pca9685 is not None:
+            return self.pca9685.address
+        else:
+            return None
+
+class TableMaestros():
+    '''
+        The TableMaestros class copies the structure and methods of TableServos
+    so they can be interchanged for binary mode operation.  One of these is created
+    by each call to configureMaestroPWM and corresponds to a contiguous block of
+    channels on a Maestro that controls servos.
+    '''
+    def __init__(self, address=0x0c, firstport=0, numports=6):
+        self.firstport = firstport
+        self.numbytes = numports * 2
+        self.address = address
+
+    def jambytes(self, thebytes, start=0):
+        '''
+            The jambytes method takes a block of bytes representing PWM values and
+        streams them out to a Maestro board.
+
+        What's the format?
+            Could be 6 bytes containing entire command.
+            Could be 4 bytes containing command, channel, and value
+            Could be 2 bytes containing just value
+            Assume just 2 for now
+        '''
+        makePControl()
+        if pControl is not None:
+            pControl.setBoard(self.address)
+            cmds = []
+            for indx in range(0,len(thebytes),2):
+                cmds.append(chr(0x04) + chr(start) + chr(int.from_bytes(thebytes[indx+1])) + chr(int.from_bytes(thebytes[indx])))
+                start += 1
+            pControl.sendCmds(cmds)
+
+    def address(self):
+        return self.address
+
+
 # Servo/PWM functions
 
 # PWM Definitions
 _i2c = None
 _PWMBoards = {}         # Dictionary of Servos objects, one for each pca9685 board
 _PWMGPIOs = {}          # Dictionary of GPIO pins set up for direct PWM control
+
+# Maestro definitions
+pControl = None
 
 def dogpio(porttableentry, value, push=False):
     # Handle a PWM signal via a Pico GPIO pin
@@ -94,7 +146,7 @@ def dopca9685(porttableentry, value, push=False):
                 id = 0
                 _i2c = I2C(id=id, sda=sda, scl=scl, freq=1048576)   # Use 1MHz as that is max for pca9685
             _PWMBoards[board] = servo.TableServos(i2c=_i2c, address=0x40+board)
-            print('Ticks to nstantiate board if needed:', time.ticks_diff(time.ticks_us(), ticks))
+            #print('Ticks to nstantiate board if needed:', time.ticks_diff(time.ticks_us(), ticks))
 
         # Normally should be a shift of 4 for pca9685
         if verbosity: print('Pushing value:', value, 'to pwm board:',board,'port:',pwmout,'push:',push)
@@ -179,6 +231,10 @@ def pushPWMs():
     # Push any PWMvalues to pca boards
     for board in _PWMBoards:
         _PWMBoards[board].pushValues()
+    # Now push any saved values to Maestro boards
+    makePControl()
+    if pControl:
+        pControl.sendCmds()
     # Don't need to push to GPIO pins??
 
 def configurepca9685(firstport=0, boardid=0):
@@ -204,6 +260,50 @@ def configurepca9685(firstport=0, boardid=0):
 
     global _ExpectedPWMPorts
     _ExpectedPWMPorts += 16
+
+def domaestroPWM(porttableentry, value, push=False):
+    # Handle a PWM signal via Maestro board
+    makePControl()
+
+    if verbosity: print('Doing domaestroPWM with port:', porttableentry)
+    try:
+        board = porttableentry['board']
+        pwmout = porttableentry['pwmout']
+        mult = porttableentry['multiplier']
+
+        # Normally should be a multiply of 1.22 for Maestros
+        if verbosity: print('Pushing value:', value, 'to pwm board:',board,'port:',pwmout,'multiplier:',mult)
+        value = int(value * mult)
+        if pControl is not None:
+            pControl.setBoard(board)
+            pControl.setTarget(pwmout, value)
+            if push: pControl.sendCmds()
+    except:
+        if verbosity: print('Whoops - Wrong port table entry for domaestroPWM')
+        return False
+
+def makePControl(TxPin=None):
+    global pControl
+    if pControl is None:
+        if TxPin is None:
+            pControl = maestro.Controller()
+        else:
+            pControl = maestro.Controller(TxPin=TxPin)
+
+def configureMaestroUART(TxPin=None):
+    if TxPin is not None:
+        makePControl(TxPin=TxPin)
+
+def configureMaestroPWM(firstport=0, boardid=0, count=1, firstchannel=0):
+    global PWMPortTable
+
+    # Generate count PWM entries for this Maestro board
+    for i in range(count):
+        PWMPortTable[firstport+i] = {'func':domaestroPWM, 'board':boardid, 'pwmout':i+firstchannel, 'multiplier':1.2207}
+
+    global _ExpectedPWMPorts
+    _ExpectedPWMPorts += count
+
 
 def boardList():
     theList = []
@@ -238,6 +338,38 @@ _ExpectedPWMPorts = 0
 ##############################################################################################
 # Digital IO Functions
 
+def doMaestroDigital(porttableentry, value, push=False):
+    # Handle a Digital signal via Maestro board
+    makePControl()
+
+    if verbosity: print('Doing doMaestroDigital with port:', porttableentry)
+    try:
+        board = porttableentry['board']
+        pwmout = porttableentry['pwmout']
+
+        if verbosity: print('Pushing value:', value, 'to pwm board:',board,'port:',pwmout)
+        value = int(value * 7000)
+        if pControl is not None:
+            pControl.setBoard(board)
+            pControl.setTarget(pwmout, value)
+            if push: pControl.sendCmds()
+    except:
+        if verbosity: print('Whoops - Wrong port table entry for domaestroPWM')
+        return False
+
+def configureMaestroDigital(boardid=12, firstport=0, firstchannel=0, count=1):
+    # Configure a block of count ports supported by a Maestro
+    global DigitalPortTable
+
+    # Populate the port table
+    for indx in range(count):
+        DigitalPortTable[indx+firstport] = { 'func':doMaestroDigital, 'board':boardid, 'pwmout':indx+firstchannel }
+
+    global _ExpectedDigitalPorts
+    _ExpectedDigitalPorts += count
+
+
+
 # Digital Definitions
 _DigitalGPIOs = {}          # Dictionary of GPIO pins set up for Digital control
 _digitalCurrentState = None # Array of values prior to being shifted out to 595s
@@ -247,7 +379,7 @@ _RclkPin = None
 _ClearPin = None
 
 def configure595s(firstport=0, portcount=24, datapin=26, clockpin=27, rclkpin=21, clearpin=20):
-    # Configure a block of portcount ports supproted by 595s at 8 ports per board
+    # Configure a block of portcount ports supported by 595s at 8 ports per board
     global _digitalCurrentState
     global _DataPin
     global _ClockPin
@@ -379,6 +511,7 @@ def setAllDigital(value):
 
 def outputDigital():
     output595s()
+    pushPWMs()      # Flushes out all the commands to the Maestros
     # Don't need to output GPIOs
 
 def intToDigital(bits):
@@ -401,6 +534,112 @@ DigitalPortTable = { }
 # Field used for consistency checking
 _ExpectedDigitalPorts = 0
 
+########################################################
+
+# Digital Input Functions
+def configureMaestroTriggerInput(boardid=None, firstchannel=None):
+    global _ExpectedDigitalinputPorts
+    global TriggerInputPort
+    if boardid is not None and firstchannel is not None:
+        TriggerInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroTriggerInput}
+        _ExpectedDigitalinputPorts += 1
+
+def configureMaestroRunInput(boardid=None, firstchannel=None):
+    global _ExpectedDigitalinputPorts
+    global RunInputPort
+    if boardid is not None and firstchannel is not None:
+        RunInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroRunInput}
+        _ExpectedDigitalinputPorts += 1
+
+def configureMaestroOptoInput(boardid=None, firstchannel=None):
+    global _ExpectedDigitalinputPorts
+    global OptoInputPort
+    if boardid is not None and firstchannel is not None:
+        OptoInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroOptoInput}
+        _ExpectedDigitalinputPorts += 1
+
+def configureMaestroDigitalInputs(boardid=None, firstchannel=None, firstindex=None, count=0):
+    global _ExpectedDigitalinputPorts
+    global DigitalInputPortTable
+    if boardid is not None and firstchannel is not None and firstindex is not None:
+        for indx in range(count):
+            DigitalInputPortTable[firstindex+indx] = {'boardid':boardid, 'channel':firstchannel+indx, 'func':getMaestroInput}
+        _ExpectedDigitalinputPorts += count
+
+def getMaestroInput(InputPort=None):
+    if InputPort is None:
+        return False
+    makePControl()
+    pControl.setBoard(InputPort['boardid'])
+    return pControl.getPosition(InputPort['channel']) < 512
+
+def getMaestroRunInput(RunInputPort=None):
+    if RunInputPort is None:
+        return False
+    makePControl()
+    pControl.setBoard(RunInputPort['boardid'])
+    return pControl.getPosition(RunInputPort['firstchannel']) < 512
+
+def getMaestroTriggerInput(TriggerInputPort=None):
+    if TriggerInputPort is None:
+        return False
+    makePControl()
+    pControl.setBoard(TriggerInputPort['boardid'])
+    return pControl.getPosition(TriggerInputPort['firstchannel']) < 512
+
+def getMaestroOptoInput(OptoInputPort=None):
+    if OptoInputPort is None:
+        return False
+    makePControl()
+    pControl.setBoard(OptoInputPort['boardid'])
+    return pControl.getPosition(OptoInputPort['firstchannel']) < 512
+
+
+# Generic Input functions
+def getRunInput():
+    if RunInputPort is None or 'func' not in RunInputPort:
+        return None
+    return RunInputPort['func'](RunInputPort)
+
+def getTriggerInput():
+    if TriggerInputPort is None or 'func' not in TriggerInputPort:
+        return None
+    return TriggerInputPort['func'](TriggerInputPort)
+
+def getOptoInput():
+    if OptoInputPort is None or 'func' not in OptoInputPort:
+        return None
+    return OptoInputPort['func'](OptoInputPort)
+
+def getInputs():
+    # Returns a list of all port numbers that are currently triggered
+    if len(DigitalInputPortTable) == 0:
+        return None
+    inputs = []
+    for port in DigitalInputPortTable:
+        InputPort = DigitalInputPortTable[port]
+        if 'func' in InputPort:
+            if InputPort['func'](InputPort):
+                inputs.append(port)
+    return inputs
+
+def getInput(portid):
+    if portid in DigitalInputPortTable:
+        InputPort = DigitalInputPortTable[portid]
+        if 'func' in InputPort:
+            return InputPort['func'](InputPort)
+
+########################################################
+
+# Digital Input Definitions
+DigitalInputPortTable = { }
+RunInputPort = None
+TriggerInputPort = None
+OptoInputPort = None
+
+# Field used for consistency checking
+_ExpectedDigitalinputPorts = 0
+
 ############## Method to process an external file for table definition #################
 
 def setPreferBinary(flag):
@@ -415,6 +654,7 @@ def parsefile():
             with open(path + '/tabledefs', 'r') as f:
                 line = f.readline()
                 while len(line) > 0:
+                    if verbosity: print('Executing line:', line)
                     exec(line)
                     line = f.readline()
             break   # Quit if we successfully found and processed the file
@@ -572,6 +812,7 @@ def self_test():
     lastport = None
     dgports = 0
     d5ports = 0
+    dmports = 0
     if regular and len(DigitalPortTable) > 0 and min(DigitalPortTable) != 0:
         print('  Alert >>> Regularity test fails due to not starting with Digital port 0')
         checkflag = True
@@ -579,6 +820,18 @@ def self_test():
         if 'func' not in DigitalPortTable[port]:
             print('Whoops - Digital port %d is not configured correctly' % port)
             checkflag = True
+        elif DigitalPortTable[port]['func'] == doMaestroDigital:
+            dmports += 1
+            if verbosity:
+                print('Digital Port %2d via Maestro board %2d channel %2d' %
+                    (port, DigitalPortTable[port]['board'], DigitalPortTable[port]['pwmout']))
+            if regular:
+                if lastport is not None and port != lastport+1:
+                    print('  Alert >>> Regularity test fails for noncontiguous ports %d and %d' % (lastport, port))
+                    checkflag = True
+                    if verbosity:
+                        for i in range(lastport+1, port):
+                            print('    Missing digital port %2d' % i)
         elif DigitalPortTable[port]['func'] == do595:
             d5ports += 1
             if verbosity:
@@ -606,7 +859,7 @@ def self_test():
         else:
             print('Whoops - Digital port %d is not configured correctly' % port)
         lastport = port
-    print('\nConfiguration has %d 595 ports and %d GPIO ports configured for digital signals\n' % (d5ports, dgports))
+    print('\nConfiguration has %d 595 ports, %d Maestro ports, and %d GPIO ports configured for digital signals\n' % (d5ports, dmports, dgports))
 
     # Run overwrite tests
     if _ExpectedDigitalPorts != len(DigitalPortTable):
@@ -619,6 +872,7 @@ def self_test():
     lastport = None
     dgports = 0
     d5ports = 0
+    dmports = 0
     if regular and len(PWMPortTable) > 0 and min(PWMPortTable) != 0:
         print('Alert >>> Regularity test fails due to not starting with PWM port 0')
         checkflag = True
@@ -649,11 +903,32 @@ def self_test():
                     if verbosity:
                         for i in range(lastport+1, port):
                             print('    Missing PWM port %2d' % i)
+        elif PWMPortTable[port]['func'] == domaestroPWM:
+            dmports += 1
+            if verbosity:
+                print('PWM Port %2d via Maestro board %2d channel %2d' %
+                    (port, PWMPortTable[port]['board'], PWMPortTable[port]['pwmout']))
+            if regular:
+                if lastport is not None and port != lastport+1:
+                    print('  Alert >>> Regularity test fails for noncontiguous ports %d and %d' % (lastport, port))
+                    checkflag = True
+                    if verbosity:
+                        for i in range(lastport+1, port):
+                            print('    Missing PWM port %2d' % i)
         else:
             print('Whoops - PWM port %d is not configured correctly' % port)
             checkflag = True
         lastport = port
-    print('\nConfiguration has %d pca9685 ports and %d GPIO ports configured for PWM signals\n' % (d5ports, dgports))
+    print('\nConfiguration has %d pca9685 ports, %d Maestro ports, and %d GPIO ports configured for PWM signals\n' % (d5ports, dmports, dgports))
+
+    # Run input specification tests
+    numPorts = len(DigitalInputPortTable)
+    if RunInputPort is not None: numPorts += 1
+    if TriggerInputPort is not None: numPorts += 1
+    if OptoInputPort is not None: numPorts += 1
+    if _ExpectedDigitalinputPorts != numPorts:
+        print('  WARNING - Number of digital input ports requested (%d) does not match number configured (%d)!' % 
+            (_ExpectedDigitalinputPorts, numPorts))
 
     # Run overwrite tests
     if _ExpectedPWMPorts != len(PWMPortTable):

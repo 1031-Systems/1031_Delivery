@@ -42,7 +42,7 @@ cat << EOF > ${SCRIPTPATH}/Hauntimator
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/Hauntimator.py "\$@"
 EOF
 
-chmod +x Hauntimator
+chmod +x ${SCRIPTPATH}/Hauntimator
 
 cat << EOF > ${SCRIPTPATH}/joysticking
 #!$SHELL
@@ -50,7 +50,7 @@ cat << EOF > ${SCRIPTPATH}/joysticking
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/joysticking.py "\$@"
 EOF
 
-chmod +x joysticking
+chmod +x ${SCRIPTPATH}/joysticking
 
 cat << EOF > ${SCRIPTPATH}/Pico/rshell
 #!$SHELL
@@ -58,7 +58,7 @@ cat << EOF > ${SCRIPTPATH}/Pico/rshell
 ${VIRTUAL_ENV}/bin/rshell "\$@"
 EOF
 
-chmod +x Pico/rshell
+chmod +x ${SCRIPTPATH}/Pico/rshell
 
 cat << EOF > ${SCRIPTPATH}/Pico/verifyload
 #!$SHELL
@@ -66,7 +66,17 @@ cat << EOF > ${SCRIPTPATH}/Pico/verifyload
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/Pico/verifyload.py "\$@"
 EOF
 
-chmod +x Pico/verifyload
+chmod +x ${SCRIPTPATH}/Pico/verifyload
+
+cat << EOF > ${SCRIPTPATH}/control_emulator
+#!$SHELL
+
+export PYTHONPATH=${SCRIPTPATH}/Pololu:${SCRIPTPATH}/Pololu/lib
+
+${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/control_emulator.py "\$@"
+EOF
+
+chmod +x ${SCRIPTPATH}/control_emulator
 
 # Create desktop links to run Hauntimator and joysticking
 if [ -d ~/Desktop ]; then

@@ -12,8 +12,48 @@ import os
 import sys
 import subprocess
 import serial
+from serial.tools import list_ports
 import binascii
 import time
+
+#######################################################################
+'''
+commlib provides the following set of functions as a layer between the
+Hauntimator applications and the controller and hardware:
+
+isReady()
+    Returns True if commlib can talk tot he hardware and False otherwise
+getPort()
+    Returns the name of the port commlib is using to talk to the hardware
+    Must be called AFTER isReady()
+setDigitalChannel(port, state)
+    Sets the specified digital channel to the specified state (1 or 0)
+setServo(port, state)
+    Sets the specified PWM/servo channel to the specified state
+    May be shifted and scaled prior to going to the output
+getConfiguredDigitalPorts()
+    Returns a list of port numbers that are assigned to digital ports
+getConfiguredPWMPorts()
+    Returns a list of port numbers that are assigned to PWM/servo ports
+playOnce()
+    Initiates a animatronics playback on the hardware.  Which animation
+    will be played depends on the set available.  If called while a
+    playback is running it is queued and run after the previous is done.
+csvToBin(fileName)
+    Converts the specified file, whose name must end in .csv, to the
+    binary format in a file of the same name but an extension of .bin.
+xferCSVToController(filename, dest='', progressbar=None)
+    If the system wants binary control files, it converts the specified
+    csv file to binary form and installs it on the controller.  Else,
+    it installs the csv file on the controller.
+    dest specifies the destination file and path and must be specified.
+xferFileToController(filename, dest='', progressbar=None)
+    Transfers a file of any type to the controller with the same name.
+    dest specifies the destination file and path and must be specified.
+
+All these functions must be implemented for all hardware types.
+'''
+######################################################################
 
 # Get path to actual commlib.py file and add path/lib to search path
 _Path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib')
@@ -23,11 +63,7 @@ import tables
 from helpers import filecrc16
 
 # Read port id from local cache file
-portRoot = '/dev/ttyACM'    # May be set by Hauntimator prior to comms
-cachefile = os.path.join(os.path.dirname(os.path.realpath(__file__)), '.portid')
-if os.path.exists(cachefile):
-    with open(cachefile, 'r') as file:
-        portRoot = file.read()
+portRoot = None    # May be set by Hauntimator prior to comms
 
 # Remove path so other code can't accidentally get to it
 sys.path.remove(_Path)
@@ -36,18 +72,19 @@ sys.path.remove(_Path)
 ################# Serial Comm Code #########################
 def openPort():
     global portRoot
+
+    ser = None
     # Try a whole bunch of port options
-    for suffix in ['', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
-        try:
-            ser = serial.Serial(portRoot + suffix, 115200, timeout=5)
-            # Save the good port
-            portRoot = portRoot + suffix
-            break   # Found a good one
-        except:
-            if suffix == '9':
-                sys.stderr.write('Whoops - Unable to open usb comm port with root:' + portRoot + '\n')
-                return None
-            pass
+    for port in serial.tools.list_ports.comports():
+        if port.manufacturer.find('MicroPython') >= 0:
+            try:
+                ser = serial.Serial(port.device, 115200, timeout=5)
+                # Save the good port
+                portRoot = port.device
+                break   # Found a good one
+            except:
+                ser = None
+                pass
     return ser
 
 def getPort():
@@ -73,6 +110,17 @@ def lineFromPico():
     return line
 
 #################### Status Request Functions #################
+def isReady():
+    ser = openPort()
+    if ser is not None:
+        ser.close()
+        return True
+    else:
+        return False
+
+def cleanup():
+    pass
+
 def getBinarySizes():
     line = ''
     # Status requires round trip so port cannot be closed in between

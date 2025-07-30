@@ -20,6 +20,7 @@ import random
 import sys
 import importlib
 import pkgutil
+import signal
 
 from Animatronics import *
 from Widgets import *
@@ -78,12 +79,7 @@ sys.path.append(application_path)
 # Import commlib for my board
 try:
     import commlib
-    ser = commlib.openPort()
-    if ser is not None:
-        COMMLIB_ENABLED = True
-        ser.close()
-    else:
-        COMMLIB_ENABLED = False
+    COMMLIB_ENABLED = commlib.isReady()
 except:
     COMMLIB_ENABLED = False
 
@@ -111,7 +107,11 @@ except:
         usedPyQt = 6
     except:
         sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
-        exit(10)
+        try:
+            commlib.cleanup()
+        except:
+            pass
+        sys.exit(10)
 import qwt
 from qwt import plot_layout
 
@@ -169,6 +169,22 @@ def fromHMS(string):
         seconds = seconds * 60.0 + abs(float(value))
     if flag: seconds = -seconds
     return seconds
+
+#####################################################################
+# The GroupLabel implements a label field that can be inserted to
+# separate and group channels by channel name.
+#####################################################################
+class GroupLabel(QLabel):
+    def __init__(self, parent, labelname, labelstring):
+        super().__init__(parent)
+        self.setObjectName(labelname)
+        self.setText(labelstring)
+        self.setAlignment(Qt.AlignCenter)
+        self.setFont(QFont('Arial', 15))
+
+    def mouseDoubleClickEvent(self, event):
+        lw = LabelMetadataWidget(labelname=self.objectName(), labelstring=self.text(), parent=self)
+        code = lw.exec()
 
 #####################################################################
 class AmpingWidget(QDialog):
@@ -329,11 +345,11 @@ class SetDigitalWidget(QDialog):
         vbox = QVBoxLayout(self)
 
         group = QButtonGroup(self)
-        self.onButton = QRadioButton('On', self)
+        self.onButton = QRadioButton('1', self)
         group.addButton(self.onButton)
         vbox.addWidget(self.onButton)
         self.onButton.toggled.connect(self.update)
-        self.offButton = QRadioButton('Off', self)
+        self.offButton = QRadioButton('0', self)
         group.addButton(self.offButton)
         vbox.addWidget(self.offButton)
         self.offButton.toggled.connect(self.update)
@@ -1899,6 +1915,64 @@ class ChannelNameValidator(QValidator):
 
 
 #####################################################################
+# The LabelMetadataWidget is used to view and edit the metadata
+# for an individual grouping label.
+#####################################################################
+class LabelMetadataWidget(QDialog):
+    def __init__(self, labelname=None, labelstring=None, parent=None):
+        super().__init__(parent)
+
+        self.title = 'Label MetaData Editor'
+        widget = QWidget()
+        layout = QFormLayout()
+
+        self.okButton = QPushButton('Save')
+        self.okButton.setDefault(True)
+        self.cancelButton = QPushButton('Cancel')
+
+        self._nameedit = QLineEdit()
+        self._nameedit.setText(labelname)
+        #self._nameedit.textChanged.connect(self.theTextChanged)
+        layout.addRow(QLabel('Name:'), self._nameedit)
+
+        self._labeledit = QLineEdit()
+        self._labeledit.setText(labelstring)
+        layout.addRow(QLabel('Label:'), self._labeledit)
+
+        widget.setLayout(layout)
+
+        hbox = QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addWidget(self.okButton)
+        hbox.addWidget(self.cancelButton)
+
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(widget)
+        vbox.addStretch(1)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+        self.okButton.clicked.connect(self.onAccepted)
+        self.cancelButton.clicked.connect(self.reject)
+
+        self._labeledit.setFocus()
+        self._labeledit.setToolTip('Setting text to empty string will delete label')
+
+    def onAccepted(self):
+        """
+        The method onAccepted handles the user acceptance of the changes.
+            member of class: LabelMetadataWidget
+        Parameters
+        ----------
+        self : ChannelMetadataWidget
+        """
+        newname = self._nameedit.text()
+        newlabelstring = self._labeledit.text()
+        self.accept()
+        if main_win is not None:
+            main_win.setLabel(newname, newlabelstring)
+
+#####################################################################
 # The ChannelMetadataWidget is used to view and edit the metadata
 # for an individual channel
 #####################################################################
@@ -3281,6 +3355,8 @@ class MainWindow(QMainWindow):
         """
         super().__init__(parent)
 
+        signal.signal(signal.SIGINT, self.signal_handler)
+
         global main_win
         main_win = self
 
@@ -3349,6 +3425,28 @@ class MainWindow(QMainWindow):
         # Create the TimeRangeDialog
         self.timerangedialog = self.TimeRangeDialog(parent=self)
 
+        # Create a timer to trigger I/O check
+        self.timer = QTimer(self)
+        self.timer.setInterval(100)
+        self.timer.timeout.connect(self.ioCheck)
+        self.timer.start()
+
+    def signal_handler(self, signum, frame):
+        if self.handle_unsaved_changes():
+            signal.signal(signum, signal.SIG_IGN) # ignore additional signals
+            try:
+                commlib.cleanup()
+            except:
+                pass
+            sys.stdout.write('\n')
+            sys.stdout.flush()
+            sys.exit(0)
+
+    def ioCheck(self):
+        # Check to see if controller is online
+        global COMMLIB_ENABLED
+        COMMLIB_ENABLED = commlib.isReady()
+        self._playwidget.liveCheck.setEnabled(COMMLIB_ENABLED)
 
     def setAnimatronics(self, inanim):
         """
@@ -3583,7 +3681,19 @@ class MainWindow(QMainWindow):
         # Add panes for all the channels
         channelList = self.animatronics.channels
 
+        # If current list of channels is alphabetical, enable grouping labels
+        labelIndex = 0
+        glist = []
+        presortList = list(channelList)
+        tlist = sorted(channelList)
+        if tlist == presortList or True:
+            glist = sorted(list(self.animatronics.labels))
+
         for channel in channelList:
+            while labelIndex < len(glist) and channel >= glist[labelIndex]:
+                label = GroupLabel(self, glist[labelIndex], self.animatronics.labels[glist[labelIndex]].labelstring)
+                layout.addWidget(label)
+                labelIndex += 1
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(tframe, chan, mainwindow=self)
             if chan.type == Channel.DIGITAL:
@@ -3596,6 +3706,11 @@ class MainWindow(QMainWindow):
                 if SystemPreferences['ShowTips']: newplot.setToolTip('Use Shift-LeftMouseButton to add control points')
             layout.addWidget(newplot)
             self.plots[chan.name] = newplot
+
+        while labelIndex < len(glist):
+            label = GroupLabel(self, glist[labelIndex], self.animatronics.labels[glist[labelIndex]].labelstring)
+            layout.addWidget(label)
+            labelIndex += 1
 
         # Improve layout by sticking audio to the top
         layout.addStretch()
@@ -4058,9 +4173,7 @@ class MainWindow(QMainWindow):
 
     def readCSVFile(self, filename):
         if filename is None:
-            sys.stderr.write("\nWHOOPS - No CSV filename specified.\n")
-            print_usage(sys.argv[0]);
-            sys.exit(10);
+            return
 
         with open(filename, 'r') as f:
             # Create a new Animatronics object to populate
@@ -4422,6 +4535,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """ Catch main close event and pass it to our handler """
         if self.handle_unsaved_changes():
+            try:
+                commlib.cleanup()
+            except:
+                pass
             event.accept()
         else:
             event.ignore()
@@ -4609,6 +4726,35 @@ class MainWindow(QMainWindow):
         # Keep XML display pane up to date with latest
         self.XMLPane.setText(self.animatronics.toXML())
         self.tagSelectUpdate()
+
+    def newlabel_action(self):
+        selection = self.getSelectedChannelNames()
+        labelname = ''
+        if len(selection) > 0:
+            labelname = selection[0][0]
+        else:
+            channame = self.getFocusChannel()
+            if channame is not None:
+                labelname = channame[0]
+        lw = LabelMetadataWidget(labelname=labelname, parent=self)
+        code = lw.exec()
+
+    def setLabel(self, name, label):
+        # Push current state for undo
+        pushState()
+        if len(label) == 0:
+            self.animatronics.deleteLabel(name)
+        else:
+            self.animatronics.addLabel(name, label)
+        self.redraw()
+        self.updateXMLPane()
+
+    def removeLabel(self, name):
+        # Push current state for undo
+        pushState()
+        self.animatronics.deleteLabel(name)
+        self.redraw()
+        self.updateXMLPane()
 
     def newdigital_action(self):
         """
@@ -6529,6 +6675,11 @@ class MainWindow(QMainWindow):
             shortcut="Ctrl+D",
             triggered=self.newdigital_action)
         self.channel_menu.addAction(self._newdigital_action)
+
+        self._newlabel_action = QAction("New Label", self,
+            shortcut="Ctrl+L",
+            triggered=self.newlabel_action)
+        self.channel_menu.addAction(self._newlabel_action)
 
         self._deletechannel_action = QAction("Delete Dialog", self,
             triggered=self.deletechannel_action)

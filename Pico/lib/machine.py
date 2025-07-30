@@ -99,4 +99,6 @@ class I2C:
     def readfrom_mem(self, address, add2, count):
         return [0]*count
 
-    
+class UART:
+    def __init__(self, id, baudrate=115200, tx=None, rx=None):
+        pass
