@@ -20,20 +20,16 @@ PY2 = version_info[0] == 2   #Running Python 2.x?
 #
 class Controller:
     # When connected via USB, the Maestro creates two virtual serial ports
-    # /dev/ttyACM0 for commands and /dev/ttyACM1 for communications.
-    # Be sure the Maestro is configured for "USB Dual Port" serial mode.
-    # "USB Chained Mode" may work as well, but hasn't been tested.
+    # usually /dev/ttyACM0 for commands and /dev/ttyACM1 for communications.
+    # Be sure the Maestro is configured for "USB Chained Port" serial mode.
+    # "USB Dual Mode" will work as well, but only for a single Maestro, not a chain.
     #
     # Pololu protocol allows for multiple Maestros to be connected to a single
     # serial port. Each connected device is then indexed by number.
-    # This device number defaults to 0x0C (or 12 in decimal), which this module
-    # assumes.  If two or more controllers are connected to different serial
-    # ports, or you are using a Windows OS, you can provide the tty port.  For
-    # example, '/dev/ttyACM2' or for Windows, something like 'COM3'.
     def __init__(self,ttyStr=None,device=0x0c):
         if ttyStr is None:
             for port in serial.tools.list_ports.comports():
-                if port.manufacturer.find('Pololu') >= 0:
+                if port.manufacturer is not None and port.manufacturer.find('Pololu') >= 0:
                     if ttyStr is None or port.device < ttyStr:
                         ttyStr = port.device
         if ttyStr is None:
