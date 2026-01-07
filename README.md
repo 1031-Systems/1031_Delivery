@@ -1,6 +1,15 @@
 <!-- john Fri Dec 17 17:35:16 PDT 2023 -->
 # Animatronics
 
+Apologies for a lack of recent updates.  I was working on support
+for the Pololu Maestro controllers, then I got injured and had to
+stop for awhile, then it was time to roll out the first Halloween
+animatronics, and then it was time for Christmas animatronics.  Now
+that's over I will be incorporating some of the lessons I learned
+working with Christmas music.  Thus, eventually there will be more
+new stuff.  Demos of the Halloween animatronics are available at
+our Youtube channel listed below.
+
 This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
 board designs created by Bill Douglas and available for
@@ -15,6 +24,10 @@ Arduino or other Raspberry Pi versions.
 
 It also contains a utility application, joysticking.py, for recording
 joystick actions into Hauntimator channels.
+
+A Youtube channel is available that contains some 
+[introductory videos](https://www.youtube.com/@1031-Systems-v7u)
+on how to use the software.
 
 This software is made available for use under the GNU General Public License (GPL).
 A copy of this license is available within the repository for this software and is
@@ -44,13 +57,17 @@ the audio.
 
 Note that I am
 a code developer but not, by any stretch of the imagination, a
-repo manager.  Sure hope everything works for you.
+repo manager.  Sure hope everything works for you.  If it doesn't,
+you are welcome to volunteer to fix it.  Drop me a line at:
+SW dot 1031 dot Systems at gmail dot com.
 
 ## If You Are a User
 
 These tools have been built and tested on Mint 22.1 and Rocky 9,
 two distributions of linux, and on MacOS Sonoma 14.9, another
-variant of linux.  It has not been tested at all under Windows.
+variant of linux.  It has had minimal testing under Windows.  It
+ran.  However, none of the installation scripts work under Windows
+so it will be necessary to follow the scripted steps manually.
 
 To have a readily runnable version of the tools, download the zipped
 release file of your choice from https://github.com/1031-Systems/1031_Delivery/releases,
