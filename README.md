@@ -26,7 +26,7 @@ It also contains a utility application, joysticking.py, for recording
 joystick actions into Hauntimator channels.
 
 A Youtube channel is available that contains some 
-[introductory videos](https://www.youtube.com/@1031-Systems-v7u)
+[introductory videos](https://www.youtube.com/@1031-Systems-Animatronics)
 on how to use the software.
 
 This software is made available for use under the GNU General Public License (GPL).
