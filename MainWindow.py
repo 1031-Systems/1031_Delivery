@@ -210,11 +210,13 @@ class AmpingWidget(QDialog):
         layout.addRow(QLabel('End Time:'), self._endedit)
 
         self._cutoffedit = QLineEdit()
-        self._cutoffedit.setText('%.3f' % cutoff)
-        layout.addRow(QLabel('Cutoff:'), self._cutoffedit)
+        if type(cutoff) is not bool or cutoff:
+            self._cutoffedit.setText('%.3f' % cutoff)
+            layout.addRow(QLabel('Cutoff:'), self._cutoffedit)
 
         self._rateedit = QLineEdit()
         self._rateedit.setText('%.3f' % popRate)
+        self._rateedit.setToolTip('Samples per second')
         layout.addRow(QLabel('Sample Rate:'), self._rateedit)
 
         widget.setLayout(layout)
@@ -964,7 +966,7 @@ class ChannelMenu(QMenu):
         """
         # Open randomize widget to get values from user
         twidget = AmpingWidget(parent=main_win, startTime=self.parent.minTime, endTime=self.parent.maxTime,
-                    popRate=1.0)
+                    cutoff=False, popRate=1.0)
         twidget.setWindowTitle('Randomizer Control')
         code = twidget.exec_()
         if code != QDialog.Accepted: return # Cancel the operation
@@ -3083,7 +3085,10 @@ class Player(QWidget):
         self.playing = False
         self._playbutton.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        if self.mediaPlayer is not None: self.mediaPlayer.stop()
+        if self.mediaPlayer is not None:
+            # Calling pause prior to stop seems to make more robust
+            self.mediaPlayer.pause()
+            self.mediaPlayer.stop()
         self.timer.stop()
         self.wasPlaying = False
 
@@ -3182,7 +3187,7 @@ class MainWindow(QMainWindow):
         The plot data for the right stereo channel subsampled from
         the full audio data
     plots : dictionary
-        Set of ChannePane objects for displaying the individual channels
+        Set of ChannelPane objects for displaying the individual channels
         indexed by the channel name.
     previousStates : array
         Stack of XML and more of prechange states for Undo
@@ -3814,6 +3819,9 @@ class MainWindow(QMainWindow):
         """
         if COMMLIB_ENABLED: commlib.playOnce()
 
+    # Dictionary of previously sent values
+    previous_values = {}
+
     def livePlay(self, currTime):
         if self._playwidget.livePlay():
             channellist = self.getSelectedChannelNames()
@@ -3823,11 +3831,14 @@ class MainWindow(QMainWindow):
                     value = self.animatronics.channels[channel].getValuesAtTimeSteps(currTime, currTime+1.0, 0.5)
                     if value is not None:
                         value = value[0]
-                        port = self.animatronics.channels[channel].port
-                        if self.animatronics.channels[channel].type == Channel.DIGITAL:
-                            commlib.setDigitalChannel(port, value)
-                        else:   # For now must be servo type channel
-                            commlib.setServo(port, value)
+                        # Avoid sending same value over and over
+                        if channel in self.previous_values and value != self.previous_values[channel]:
+                            port = self.animatronics.channels[channel].port
+                            if self.animatronics.channels[channel].type == Channel.DIGITAL:
+                                commlib.setDigitalChannel(port, value)
+                            else:   # For now must be servo type channel
+                                commlib.setServo(port, value)
+                        self.previous_values[channel] = value
 
     def openAnimFile(self):
         """
@@ -4347,7 +4358,8 @@ class MainWindow(QMainWindow):
         # Get the data points for each column
         for plot in self.plots:
             values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep)
-            if values is not None:
+            print('Doing column:', plot,'at port:', self.plots[plot].channel.port)
+            if values is not None and self.plots[plot].channel.port >= 0:
                 columns[plot] = values
 
         with open(fileName, 'w') as outfile:
@@ -4597,7 +4609,8 @@ class MainWindow(QMainWindow):
                 self.pendingStates.append((currState,
                     self.animatronics.filename,
                     self.lastXmin, self.lastXmax,
-                    self.unsavedChanges, chanStates))
+                    self.unsavedChanges, chanStates,
+                    self._playwidget.isHidden()))
                 # Pop last previous state
                 currState = self.previousStates.pop()
                 self.animatronics.fromXML(currState[0])
@@ -4605,9 +4618,17 @@ class MainWindow(QMainWindow):
                 self.animatronics.filename = currState[1]
                 # setTimeRange does the redraw so restore the state prior to that
                 for plot in currState[5]:
-                    self.plots[plot].setState(currState[5][plot])
+                    if plot in self.plots:
+                        # This only works if the name has not been changed
+                        self.plots[plot].setState(currState[5][plot])
+                    else:
+                        # Find it another way???
+                        pass
                 self.setTimeRange(currState[2], currState[3])
                 self.unsavedChanges = currState[4]
+                if not currState[6]:
+                    # Restore visibility of playback widget
+                    self._playwidget.show()
                 #print('Number of undos left:', len(self.previousStates))
         else:
             msgBox = QMessageBox(parent=self)
@@ -4663,7 +4684,8 @@ class MainWindow(QMainWindow):
             self.previousStates.append((currState,
                 self.animatronics.filename,
                 self.lastXmin, self.lastXmax,
-                self.unsavedChanges, chanStates))
+                self.unsavedChanges, chanStates,
+                self._playwidget.isHidden()))
             # Taking a new path so clear out pending states
             self.pendingStates = []
             self.unsavedChanges = True
@@ -4706,7 +4728,8 @@ class MainWindow(QMainWindow):
                 self.previousStates.append((currState,
                     self.animatronics.filename,
                     self.lastXmin, self.lastXmax,
-                    self.unsavedChanges, chanStates))
+                    self.unsavedChanges, chanStates,
+                    self._playwidget.isHidden()))
                 # Pop next pending state
                 currState = self.pendingStates.pop()
                 self.animatronics.fromXML(currState[0])
@@ -4714,9 +4737,18 @@ class MainWindow(QMainWindow):
                 self.animatronics.filename = currState[1]
                 # setTimeRange does the redraw so restore the state prior to that
                 for plot in currState[5]:
-                    self.plots[plot].setState(currState[5][plot])
+                    # If channel name has been changed we can't find it this way
+                    if plot in self.plots:
+                        # This only works if the name has not been changed
+                        self.plots[plot].setState(currState[5][plot])
+                    else:
+                        # Find it another way???
+                        pass
                 self.setTimeRange(currState[2], currState[3])
                 self.unsavedChanges = currState[4]
+                if not currState[6]:
+                    # Restore visibility of playback widget
+                    self._playwidget.show()
                 #print('Number of redos left:', len(self.pendingStates))
         else:
             msgBox = QMessageBox(parent=self)
