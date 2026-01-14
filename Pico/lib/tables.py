@@ -232,7 +232,6 @@ def pushPWMs():
     for board in _PWMBoards:
         _PWMBoards[board].pushValues()
     # Now push any saved values to Maestro boards
-    makePControl()
     if pControl:
         pControl.sendCmds()
     # Don't need to push to GPIO pins??
