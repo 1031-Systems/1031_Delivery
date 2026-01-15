@@ -21,6 +21,7 @@ import sys
 import importlib
 import pkgutil
 import signal
+import time
 
 from Animatronics import *
 from Widgets import *
@@ -1169,10 +1170,12 @@ class ChannelPane(qwt.QwtPlot):
         self.curve = None
         self.curve2 = None
         self.curve3 = None
+        self.timeSlider = None
 
         # Set initial values to avoid data race
         self.minTime = 0.0
         self.maxTime = 1.0
+        self.currTime = 0.0
         self.minVal = -1.0
         self.maxVal = 1.0
         self.xoffset = 0
@@ -1393,12 +1396,7 @@ class ChannelPane(qwt.QwtPlot):
         self.resetDataRange()
 
         # Create green bar for audio sync
-        self.timeSlider = qwt.QwtPlotCurve()
-        self.timeSlider.setStyle(qwt.QwtPlotCurve.Sticks)
-        self.timeSlider.setData([0.0], [70000.0])
-        self.timeSlider.setPen(Qt.green, 3.0, Qt.SolidLine)
-        self.timeSlider.setBaseline(-30000.0)
-        self.timeSlider.attach(self)
+        self.timeSlider = QLabel(self)
 
         # Optionally create red line for upper and lower limits
         if self.channel.type != Channel.DIGITAL:
@@ -1838,8 +1836,17 @@ class ChannelPane(qwt.QwtPlot):
             The time at which the time bar should be set
         """
         if self.timeSlider is not None:
-            self.timeSlider.setData([timeVal], [70000.0])
-            self.replot()
+            pnti = self.transform(qwt.QwtPlot.xBottom, timeVal) + self.xoffset
+            if pnti > 0:
+                # Get the rectangle containing the stuff to left of plot
+                rect = self.plotLayout().scaleRect(qwt.QwtPlot.yLeft)
+                # Get the width of that rectangle to use as offset in X
+                pnti += rect.width()
+                self.timeSlider.move(QPoint(pnti, 0))
+                self.timeSlider.show()
+            else:
+                self.timeSlider.hide()
+        self.currTime = timeVal
 
     def redrawme(self):
         """
@@ -1883,10 +1890,17 @@ class ChannelPane(qwt.QwtPlot):
             ydata = [self.channel.knots[key] for key in xdata]
             self.curve3.setData(xdata, ydata)
 
+        if self.timeSlider is not None:
+            pntj = self.transform(qwt.QwtPlot.yLeft, self.minVal) + self.yoffset
+            pixmap = QPixmap(3, pntj+4)
+            pixmap.fill(Qt.green)
+            self.timeSlider.setPixmap(pixmap)
+
         if xdata is not None:
             self.setToolTip('Use Left Mouse Button to drag individual points or select multiple points to drag')
         self.redrawLimits()
         self.replot()
+        self.setSlider(self.currTime)
 
 #####################################################################
 # The ChannelNameValidator is used to check and validate channel
@@ -3007,6 +3021,7 @@ class Player(QWidget):
         callback : function
         """
         self.timeChangedCallbacks.append(callback)
+        self.lasttime = 0.0
 
     # Slots
     def stepFunction(self):
@@ -3038,6 +3053,8 @@ class Player(QWidget):
                 self.currPosition = self.mediaPlayer.position()
                 for cb in self.timeChangedCallbacks:
                     cb(float(self.currPosition) / 1000.0)
+            #print('Last step duration:', time.monotonic() - self.lasttime)
+            #self.lasttime = time.monotonic()
 
     def rewind(self):
         """
@@ -3742,6 +3759,7 @@ class MainWindow(QMainWindow):
             # Enable wheel in channel pane iff no scrollbar is present
             sb = self.scrollArea.verticalScrollBar()
             self.paneScrollable = not sb.isVisible()
+            self.setSlider(self._slideTime)
         return True
 
     def getUsedNumericPorts(self):
