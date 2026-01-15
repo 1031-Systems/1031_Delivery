@@ -40,13 +40,13 @@ done
 
 # Check to make sure tabledefs has been created
 echo Validating local tabledefs
-../.venv/bin/python3 lib/tables.py  >& /dev/null
+python3 lib/tables.py  >& /dev/null
 CODE=$?
 if [ $CODE -ne 0 ]; then
     echo
     echo Whoops - problems with tabledefs file - aborting
     echo Results of check are:
-    ../.venv/bin/python3 lib/tables.py -r -v
+    python3 lib/tables.py -r -v
     exit
 fi
 
@@ -94,6 +94,13 @@ echo Installing main.py
 ${rshell} --quiet cp main.py /pyboard
 
 echo ''
+echo ''
+echo -n 'Install demo/diagnostic animations (y/N):'
+read reply
+if [ $reply = 'y' ] || [ $reply = 'Y' ]; then
+    echo ''
+    ${rshell} --quiet cp anims/* /pyboard/anims
+fi
 
 # Check on the results
 ${rshell} --quiet repl '~ import memstats ~' >& $out
@@ -131,7 +138,7 @@ echo
 if [ -f ./verifyload ]; then
     ./verifyload -p $port
 else
-    ../.venv/bin/python3 verifyload.py -p $port
+    python3 verifyload.py -p $port
 fi
 
 CODE=$?
