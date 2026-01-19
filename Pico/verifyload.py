@@ -42,9 +42,10 @@ def print_usage(name):
     sys.stderr.write("    It uses a 16-bit CRC to test for identicalness.  Note that the Pico\n");
     sys.stderr.write("must be running the standard animatronics installation.\n");
     sys.stderr.write("\n");
-    sys.stderr.write("-/-h/-help        :show this information\n");
-    sys.stderr.write("-v/-verbose       :run more verbosely\n");
-    sys.stderr.write("-f/-file filename :a file to validate (Default: all in standard installation)\n")
+    sys.stderr.write("-/-h/-help              :show this information\n");
+    sys.stderr.write("-v/-verbose             :run more verbosely\n");
+    sys.stderr.write("-f/-file filename       :a file to validate (Default: all in standard installation)\n")
+    sys.stderr.write("-fl/-filelist filenames :validate all files on command line\n")
     sys.stderr.write("\n\n");
 
 #/* Main */
@@ -80,6 +81,11 @@ def main():
             i += 1
             if i < len(sys.argv):
                 filenames.append(sys.argv[i])
+        elif sys.argv[i] == '-fl' or sys.argv[i] == '-filelist':
+            i += 1
+            while i < len(sys.argv):
+                filenames.append(sys.argv[i])
+                i += 1
         elif sys.argv[i] == '-p' or sys.argv[i] == '-port':
             i += 1
             if i < len(sys.argv):
@@ -103,7 +109,7 @@ def main():
         if verbosity: print('Local file checksum:', lsum)
 
         # Get the Pico's reported checksum
-        rsum = commlib.getFileChecksum(fname)
+        rsum = commlib.getFileChecksum('/' + fname)
         if verbosity: print('Installed file checksum:', rsum)
 
         # And compare them, outputting appropriate reporting verbiage

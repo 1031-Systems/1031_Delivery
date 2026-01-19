@@ -79,7 +79,8 @@ Pico (currently the only supported controller):
 - cd to the Pico/lib directory
 - copy tabledefs_template to tabledefs and edit it as needed (see Pico/lib/README)
 - cd to the Pico directory
-- run "do_install" to install all the embedded software on the Pico
+- run "do_install" to install all the embedded software on the Pico (see Pico/README)
+
 
 Note that it is not necessary for Hauntimator and joysticking to
 communicate with the Pico.  It is perfectly possible to create

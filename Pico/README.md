@@ -170,6 +170,12 @@ do_install is a shell script that installs all the Micropython code on
 the Pico as well as the tabledefs file defining the hardware setup.  It
 also validates the install.
 
+do_install also optionally installs some demo/diagnostic animations.
+These are simple left/right audio, to help get the audio channels hooked
+up as expected, and toggling digital channels 0-7 to get those signals
+hooked up right.  These go into the Pico's onboard flash memory and will
+be executed when the SD card is not in the slot.
+
 ### dumpBinary.py
 
 dumpBinary.py is a small program to dump out the contents of a binary
