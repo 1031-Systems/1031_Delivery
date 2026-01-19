@@ -1838,10 +1838,12 @@ class ChannelPane(qwt.QwtPlot):
         if self.timeSlider is not None:
             pnti = self.transform(qwt.QwtPlot.xBottom, timeVal) + self.xoffset
             if pnti > 0:
-                # Get the rectangle containing the stuff to left of plot
-                rect = self.plotLayout().scaleRect(qwt.QwtPlot.yLeft)
-                # Get the width of that rectangle to use as offset in X
-                pnti += rect.width()
+                if self.xoffset == 0:   # If we haven't previously found the offset, do it here
+                    # Get the rectangle containing the stuff to left of plot
+                    rect = self.plotLayout().scaleRect(qwt.QwtPlot.yLeft)
+                    # Get the width of that rectangle to use as offset in X
+                    pnti += rect.width()
+                    self.xoffset = rect.width()
                 self.timeSlider.move(QPoint(pnti, 0))
                 self.timeSlider.show()
             else:
