@@ -166,11 +166,8 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
     set bname = `echo $f | sed 's/md$/txt/'`
     pandoc -f markdown -t plain $f -o $bname
 end
-if ( ${OSTYPE} == 'darwin' ) then
-    sed -i '' "s/__VERSION__/$vnum/g" ${DeliveryRepo}/install
-else if ( ${OSTYPE} == 'linux' ) then
-    sed -i "s/__VERSION__/$vnum/g" ${DeliveryRepo}/install
-endif
+sed "s/__VERSION__/$vnum/g" install > ${DeliveryRepo}/install
+chmod +x ${DeliveryRepo}/install
 
 
 # Zip up the delivery
@@ -212,7 +209,6 @@ cp -r COPYING \
 
 cp -r Pico \
     Pololu \
-    install \
     uninstall \
     $DeliveryRepo
 
@@ -233,11 +229,6 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
         pandoc -f markdown -t plain $f -o $bname
     endif
 end
-if ( ${OSTYPE} == 'darwin' ) then
-    sed -i '' "s/__VERSION__/$vnum/g" ${DeliveryRepo}/install
-else if ( ${OSTYPE} == 'linux' ) then
-    sed -i "s/__VERSION__/$vnum/g" ${DeliveryRepo}/install
-endif
 
 
 # Clean up leftover vi backup files
@@ -246,6 +237,7 @@ foreach f (`find ${DeliveryRepo} -name '*~'`)
 end
 # Clean up some other unwanted files
 rm -f ${DeliveryRepo}/Pico/installtable*
+rm -f ${DeliveryRepo}/Pico/lib/tabledefs
 rm -f ${DeliveryRepo}/Pico/dumpBinary.py
 rm -f ${DeliveryRepo}/Pico/.portid
 rm -f ${DeliveryRepo}/docs/images/*.xcf
