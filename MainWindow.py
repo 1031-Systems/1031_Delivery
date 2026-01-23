@@ -4186,6 +4186,8 @@ class MainWindow(QMainWindow):
             if len(channellist) > 0:
                 # Push current state for undo
                 pushState()
+                self.save_visual_state()
+
                 # Pass selected channels to the plugin function in the data field
                 starttime = self.lastXmin
                 endtime = self.lastXmax
@@ -4193,16 +4195,10 @@ class MainWindow(QMainWindow):
                 if value:
                     # Redraw everything in case channels were added
                     self.setAnimatronics(self.animatronics)
-                    return
-                    # Redraw the modified channels
-                    for name in self.plots:
-                        if self.plots[name].selected:
-                            self.plots[name].redrawme()
-                    self.updateXMLPane()
-                    self.tagPlot.setTags(self.animatronics.tags)
                 else:
                     # Nothing was done so clean up
                     self.undo_action()
+                self.restore_visual_state()
 
     def readCSVFile(self, filename):
         if filename is None:
@@ -4593,11 +4589,16 @@ class MainWindow(QMainWindow):
         self.chanStates = {}
         for plot in self.plots:
             self.chanStates[plot] = self.plots[plot].getState()
+        self.visualSelectionState = self.getSelectedChannelNames()
+        self.visuallastXmin = self.lastXmin
+        self.visuallastXmax = self.lastXmax
 
     def restore_visual_state(self):
         for plot in self.plots:
             if plot in self.chanStates:
                 self.plots[plot].setState(self.chanStates[plot])
+        self.selectChannels(self.visualSelectionState)
+        self.setTimeRange(self.visuallastXmin, self.visuallastXmax)
 
     def undo_action(self):
         """
@@ -5813,8 +5814,9 @@ class MainWindow(QMainWindow):
 
     def Cut_action(self):
         """
-        The method Cut_action cuts the content of a single channel to
-        the clipboard to be pasted elsewhere.
+        The method Cut_action cuts one or more selected channels to
+        the clipboard to be pasted elsewhere.  This method removes the
+        entire channel, not just its content.
 
             member of class: MainWindow
         Parameters
@@ -5882,8 +5884,9 @@ class MainWindow(QMainWindow):
 
     def Copy_action(self):
         """
-        The method Copy_action copies the content of a single channel to
-        the clipboard to be pasted elsewhere.
+        The method Copy_action copies the content of one or more selected channels to
+        the clipboard to be pasted elsewhere.  This method copies the entire
+        channel with all knots and metadata.
 
             member of class: MainWindow
         Parameters
@@ -6148,6 +6151,136 @@ class MainWindow(QMainWindow):
                 tempChannel.port = -1
                 break
         self.animatronics.insertChannel(tempChannel, placename=placename)
+
+    # Functions for Block Actions (Copy/Paste)
+    # These are intended to support copying musical measures and such not
+    # These methods are designed to act on rectangular regions of knots
+    # within the same time range in one or more specified channels.
+
+    # These methods are designed to be called from all over, including plugins,
+    # so supporting Undo/Redo is left to the caller
+
+    def blockPasteAt(self, inXML, insertionPoint, firstChannel=None):
+        # Convert insertionPoint, a time value, to an offset from the first
+        # knot in the data to be pasted.
+        # First find first data point in data to be pasted
+        try:
+            root = ET.fromstring(inXML)
+            if root.tag == 'Block':
+                firstTime = 1.0e34
+                # Clipboard is a set of channels with points to be inserted
+                for child in root:
+                    # Make sure it is a channel and has some knots in it
+                    if child.tag == 'Channel' and len(child) > 0:
+                        # Parse the XML into a Channel object
+                        fromChannel = Channel()
+                        fromChannel.parseXML(child)
+                        xdata,ydata = fromChannel.getKnotData(-1.0e34, 1.0e34, 1000000)
+                        if min(xdata) < firstTime: firstTime = min(xdata)
+                offset = insertionPoint - firstTime
+                # Don't need to save state as that is done in blockPaste
+                self.blockPaste(inXML, offset, firstChannel)
+        except Exception as e:
+            sys.stderr.write("\nWhoops - Error parsing XML in block paste\n")
+            sys.stderr.write("Message: %s\n" % e)
+            return
+
+    def blockPaste(self, inXML, offset, firstChannel=None):
+        # Paste the XML from the Clipboard, which MUST be a Block containing
+        # 0 or more channels (named?) containing 0 or more points
+        # The points are shifted in time by the offset and inserted into the
+        # sequential set of channels beginning with firstChannel.  If firstChannel
+        # is None then the points are pasted into the channels with the same
+        # names.
+        try:
+            root = ET.fromstring(inXML)
+            if root.tag == 'Block':
+                # Clipboard is a set of channels with points to be inserted
+                if len(root) > 0:
+                    # Make list of destination channels that may be same as source
+                    destinations = {}
+                    if firstChannel is None:
+                        # Make list from names in block
+                        for child in root:
+                            # Make sure it is a channel and has some knots in it
+                            if child.tag == 'Channel' and len(child) > 0:
+                                if 'name' in child.attrib:
+                                    destinations[child.attrib['name']] = child.attrib['name']
+                    else:
+                        # Make list from known channels beginning at firstChannel
+                        destNames = []
+                        for channel in self.animatronics.channels:
+                            if channel == firstChannel:
+                                destNames.append(channel)
+                            elif len(destNames) < len(root) and len(destNames) > 0:
+                                destNames.append(channel)
+                        for child in root:
+                            # Make sure it is a channel and has some knots in it
+                            if child.tag == 'Channel' and len(child) > 0:
+                                if 'name' in child.attrib and len(destNames) > 0:
+                                    destinations[child.attrib['name']] = destNames.pop(0)
+                        
+                if len(destinations) > 0:
+                    # Do the actual appending of common channels
+                    if True: #try:
+                        for child in root:
+                            if child.tag == 'Channel':
+                                if 'name' in child.attrib:
+                                    fromName = child.attrib['name']
+                                    if fromName in destinations:
+                                        toName = destinations[fromName]
+                                        # Parse the XML into a Channel object
+                                        fromChannel = Channel()
+                                        fromChannel.parseXML(child)
+                                        xdata,ydata = fromChannel.getKnotData(-1.0e34, 1.0e34, 1000000)
+                                        for i in range(len(xdata)):
+                                            self.animatronics.channels[toName].add_knot(xdata[i]+offset, ydata[i])
+
+                        # Make sure everything gets redrawn
+                        self.setAnimatronics(self.animatronics)
+
+                    else: #except Exception as e:
+                        sys.stderr.write("\nWhoops - Error in block paste\n")
+                        sys.stderr.write("Message: %s\n" % e)
+                        return
+
+        except Exception as e:
+            sys.stderr.write("\nWhoops - Error parsing XML in block paste\n")
+            sys.stderr.write("Message: %s\n" % e)
+            return
+
+    def B_action(self):
+        print('Running B_action')
+        #self.blockPasteAt(self.clipboard.text(), 300, firstChannel='Beats 7')
+        #self.blockCopy(['Beats 0', 'Beats 1'],  minTime=20.0, maxTime=30.0)
+        self.blockCut(['Beats 1'],  minTime=20.0, maxTime=30.0)
+
+    def blockCopy(self, selection, minTime=-1.0e34, maxTime=1.0e34):
+        if len(selection) > 0:
+            xmlText = '<Block>'
+            for channel in selection:
+                if type(channel) is str:
+                    channel = self.animatronics.channels[channel]
+                ttext = channel.toXML(minTime=minTime, maxTime=maxTime)
+                xmlText += '\n' + ttext
+            xmlText += '\n</Block>\n'
+            self.clipboard.setText(xmlText)
+
+    def blockClear(self, selection, minTime=-1.0e34, maxTime=1.0e34):
+        if len(selection) > 0:
+            for channel in selection:
+                if type(channel) is str:
+                    channel = self.animatronics.channels[channel]
+                channel.delete_knot_range(minTime, maxTime)
+                self.plots[channel.name].redrawme()
+
+    def blockCut(self, selection, minTime=-1.0e34, maxTime=1.0e34):
+        # Cuts a block of knots, along with channel metadata, to the clipboard.
+        # Does NOT remove the channel itself unlike Cut action below.
+        self.blockCopy(selection, minTime, maxTime)
+        self.blockClear(selection, minTime, maxTime)
+
+    # End of Block methods
 
     def getSelectedChannels(self):
         # Get a list of all the currently selected channels
@@ -6697,6 +6830,11 @@ class MainWindow(QMainWindow):
             shortcut=QKeySequence("P"),
             triggered=self.playbackcontrols_action)
         self.view_menu.addAction(self._playbackcontrols_action)
+
+        self._B_action = QAction("Test", self,
+            triggered=self.B_action, shortcut=QKeySequence("Ctrl+B"))
+        self.addAction(self._B_action)
+
 
 
         # Create the Tools dropdown menu #################################

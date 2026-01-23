@@ -723,10 +723,11 @@ class Channel:
 
         return values
 
-    def toXML(self):
+    def toXML(self, minTime=-1.0e34, maxTime=1.0e34):
         """
         The method toXML builds a block of XML from the data within the
-        Channel and returns a string.
+        Channel and returns a string.  minTime and maxTime may be specified to
+        select a subset of the channel for copy/cut operations.
             member of class: Channel
         Parameters
         ----------
@@ -753,12 +754,13 @@ class Channel:
         elif self.type == self.DIGITAL:
             output.write(' type="Digital">\n')
         for ttime in sorted(self.knots.keys()):
-            if ttime not in self.knottitles:
-                output.write('    <Point time="%f">\n' % ttime)
-            else:
-                output.write('    <Point time="%f" name="%s">\n' % (ttime, self.knottitles[ttime]))
-            output.write('        %f\n' % self.knots[ttime])
-            output.write('    </Point>\n')
+            if ttime >= minTime and ttime <= maxTime:
+                if ttime not in self.knottitles:
+                    output.write('    <Point time="%f">\n' % ttime)
+                else:
+                    output.write('    <Point time="%f" name="%s">\n' % (ttime, self.knottitles[ttime]))
+                output.write('        %f\n' % self.knots[ttime])
+                output.write('    </Point>\n')
         output.write('</Channel>\n')
         return output.getvalue()
 
