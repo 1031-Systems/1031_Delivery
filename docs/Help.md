@@ -219,9 +219,9 @@ The Edit menu contains the following options:
 
 + Undo - Undo the last editing action
 + Redo - Redo the last editing action that was undone
-+ Cut - Copy selected channel(s) to the Clipboard
-+ Copy - Copy selected channel(s) to the Clipboard
-+ Paste - Paste the clipboard into a single selected channel(s) or insert at first selected channel
++ Cut - Copy selected knots or channel(s) to the Clipboard and delete
++ Copy - Copy selected knots or channel(s) to the Clipboard
++ Paste - Paste the clipboard into selected channel(s) or insert at first selected channel
 + Insert - Insert the clipboard at first selected channel
 + Edit Metadata - Edit some numeric data for the animation
 + Edit Servo Data - Edit table of available known servo types and associated data
@@ -238,58 +238,132 @@ not become too annoying.
 
 Cut/Copy/Paste/Insert are not quite as simple as they might seem.  In general they do what you
 might expect.  However, what you Cut or Copy depends on what is selected and how you can Paste
-or Insert that data depends on what is on the clipboard.  Specifically, the user can Copy either
-one or more entire channels or selected points within a single channel.  The user may Cut
-one or more entire channels but not points within a channel.  Users may Paste or Insert a set
-of points copied from a single channel into one or more selected channels as new points within
-those channels.  Users may Paste a single channel into one or more selected channels, replacing
-all data within those channels except name and port number.  When Pasting, the user will be given
-choice between Pasting or Inserting the copied channel.  If Insert is selected, the channel
-will be inserted at the selected channel with a modified name and the port number cleared if
-they are already present in the animation.  If multiple channels have been Cut or Copied, they
-may only be inserted at the current selection.  Note that Insert always Inserts and does not
-give the option of overwriting the current content of a channel.  Otherwise, it behaves like
-Paste.
+or Insert that data depends on what is on the clipboard.  In fact, this is really complicated
+so I hope you can figure it out.  There are also likely bugs due to the convoluted implementation
+so feel free to report them at sw.1031.systems@gmail.com or at
+https://github.com/1031-Systems/1031_Delivery/issues and they might get fixed.
 
-The editing features also support copying channels from one animation file to another either
-within a single instance of Hauntimator or between multiple instances of Hauntimator.
+There are at least three (count 'em 3) selection mechanisms for supporting Cut, Copy, Paste,
+and Insert operations.  In order of precedence they are:
 
-A note on selection.  To select a channel, the user clicks on the area to the left of the main
++ Selecting a rectangular region that selects all knots within the region
++ Selecting one or more channels explicitly
++ Selecting a single channel implicitly
+
+In addition, the user can click on a single knot and move it around or on any knot is a group
+of selected knots and move them around.  This selection is temporary and only lasts as long
+as the user is dragging the knots.  Thus, it does not support Copy, Cut, or Paste.
+
+To select all knots within a rectangular region, press the left mouse button with the cursor
+at one corner of the rectangle and drag the rectangle to the diagonal corner.  The knots within
+the dragged region will turn red and the background will be highlighted (NOTE - the current
+background highlighting is a bit flaky so use the cursor position as the actual bounds of the
+rectangle, not the highlight edges).  The rectangular region will only include visible channels,
+not hidden ones, so you don't have to worry about hidden things being affected.
+
+Once you have selected a rectangular region, you may Copy it to the clipboard, Cut it which
+does a Copy and then deletes all the highlighted knots, or click and drag all the selected
+knots left or right using the mouse.  You can also move them with the arrow keys optionally
+using the Shift and Ctrl modifiers.
+
+If the user selects a rectangular region and does a Cut or Copy, the clipboard will contain
+the highlighted knots as well as all the information about the channels the knots came from.
+This is defined as a Block and the user can see the Block identifier by viewing the content 
+of the clipboard.  The Block also contains the times associated with the left and right
+edges of the selected region.
+
+If no rectangular region has been selected, the next relevant selection mechanism is channel
+selection.  Note that due to precedence mechanisms, it is possible to explicitly select channels
+and a rectangular region at the same time.  The Cut, Copy, Paste, and Insert operations will
+select the appropriate action in order of precedence.
+
+To select a channel, the user clicks on the area to the left of the main
 data display window in a manner similar to Excel when selecting an entire row.  The user may
 use the Control key to toggle selection and may use Shift to select a range of channels.
 Clicking within the blue data display does not provide any channel selection capability.  When
 a channel is explicitly selected in this manner, the background turns green to identify its
-selection status.  Explicitly selected channels take priority in Cut, Copy, Paste, and Insert
-operations.  In addition, for quick operation, there is a concept of implicit selection.  If
-no channels are explicitly selected, then a channel may be implicitly selected by hovering the
-cursor anywhere in its display area.
+selection status.
 
-If individual knots within an implicitly selected channel have been selected, those and only those
-points will be copied to the clipboard (they may not be Cut but the user may delete them with the
-Del key).  Then those individual points may be Pasted/Inserted into either all explicitly
-selected channels or an implicitly selected channel.  Remember that if any channels are explicitly
-selected then no channels are implicitly selected.
+If two or more channels are explicitly selected then the Copy and Cut actions will copy the
+entire content of all explicitly selected channels to the clipboard as a ChannelList.  Again,
+the keyword ChannelList will be visible in the clipboard. However, if only a single channel
+is explicitly selected, the entire content of that channel will be copied to the clipboard
+without the ChannelList designation.  This allows the Paste and Insert operations to provide
+additional operations of interest to be discussed later.
 
-To select points within a channel, click the left mouse button and drag the mouse left or right,
-while continuing to hold down the left mouse button, to select all points within the dragged range.  The
-points will turn red to signify their status as being selected.  Points may be similarly selected
-within other channels as well and points will remain selected until a single left mouse click 
-within the channel pane.  Selected points within a channel may be dragged en masse by left-clicking
-on any of the selected points and then dragging it left/right/up/down.  If the clicked point is
-within a Digital channel, it can only be dragged left/right.
+If no channels are explicitly selected, the next relevant selection mechanism is implicit
+channel selection.  If using hot keys for the editing actions, then the actions are applied
+to the channel in which the cursor is located.  If the cursor is not within a channel then
+there is no action.  Clearly, the menu items for editing operations cannot be used with
+implicit channel selection since the cursor is in the menu and not in a channel.
 
-Power users will note that if the selected, dragged point is within an explicitly selected
-channel, then all selected points within all explicitly selected channels will be similarly dragged.
+As only a single channel can be implicitly selected, performing a Cut or Copy operation
+will do the same action as for a single explicitly selected channel.
+
+The Paste and Insert functional behaviors are dependent on the content of the clipboard.
+Hopefully, the workflow will keep things sensible and it will not be necessary to actually
+see what is in the clipboard very often to know what to do.  We'll see.
+
+The Paste function is designed to perform most operations.  Let's see what it will do
+with what data.
+
+If the clipboard contains a Block, then the Paste will attempt to paste those knots into
+existing channels.  If a rectangular region has been selected, Paste will delete all the
+knots in the selected region and then insert the knots from the clipboard into that region.
+This can be a bit iffy as the size of the paste region may not match the size of the
+copied region.  However, the user only need designate a small region and that will mark
+the upper left corner of the destination region.  If the copied region is three channels
+then it will paste into the next three channels from the mark.  If the marked destination
+is too close to the bottom, the last channels may not be pasted.
+
+If a rectangular region has not been selected, then the region is pasted at the first
+explicitly or the implicitly selected channel at the current cursor position within a
+channel.  If the cursor is not within a channel but a channel is explicitly selected,
+then the points are pasted at the start time of the Block on the clipboard.
+
+In the specific case of a rectangular region that consists of knots in a single channel, 
+the Paste provides an offset mechanism.  If the user pastes the region into another
+channel when no regions or channels are selected (use ctrl-shift-A to deselect all) 
+and then slides the points left or right after pasting, the movement is
+remembered and applied to the next paste.  This allows rapid generation of cascading
+actions like Larsen scanners.  (Note this feature was present prior to recent updates.
+The updates were crafted to continue to support this feature.  However, likely not all
+bits of code were properly adjusted so caveat emptor.)
+
+If the clipboard contains a ChannelList, the Paste does an Insert by inserting all the
+channels in the ChannelList at the first explicitly or the implicitly selected channel.
+If no channel is selected then no channels get inserted.  Upon insertion, the selected
+channel is moved down and the inserted channels go into its previous position.  If the
+inserted channel names match those already in the animation, a "_2" is appended to the
+channel name to make it unique.
+
+When the clipboard contains a single channel, then Paste has options.  If all the selected
+channels (explicit or implicit) are empty then the clipboard content is pasted into all
+selected channels.  If one or more selected destination channels has data in it then the
+user is prompted whether to Overwrite that data or to Insert the channel as a new channel.
+
+The Insert function allows the user to avoid the prompt and Insert any channels from the
+clipboard at the first selected channel position.
+
+The editing features also support copying channels from one animation file to another either
+within a single instance of Hauntimator or between multiple instances of Hauntimator.
+
+Power users will note that when a rectangular region has been selected and a point within
+the rectangular region is clicked and dragged within the
+channel, then all selected points will be similarly dragged.
 Since the most common use of this feature will be better alignment of activities with audio, left/right
-dragging will be most common.  Limiting the mouse movement to left/right only is challenging so two
-tricks come into play.  The simplest is to use the left/right arrows to move the selected points
+dragging will be most common.  Mouse movement is limited to left/right only in most cases.
+It is also possible to use the left/right arrows to move the selected points
 left and right.  Clicking the arrow key once moves the selected points 0.1 seconds.  Holding down
 the shift key multiplies by 10 so the movement is 1.0 seconds.  Holding down the control key
 divides by 10 and moves 0.01 seconds.  Unfortunately, each arrow click becomes an undoable action
-so many undoes may be necessary to undo the motion.  A trick is to create a Digital channel with a
-single point in it that is selected and the channel is selected along with any other channels the
-user wishes to drag.  Then dragging the single point within the Digital channel allows flexible
-dragging limited to left/right that can be undone with a single Undo.
+so many undoes may be necessary to undo the motion.
+
+Iff a rectangular region has been selected with a single PWM channel, then the user is allowed
+to drag knots up and down.  This can be done with the mouse or with the up and down arrow keys.
+The shift and ctrl modifiers apply to the  up and down arrows but basic arrow move is a function
+of the data range of the channel to try to keep it safe.  Once you have messed it up a few times
+you will get the hang of it, or more likely decide you don't ever need to do that again.
 
 ![Animation Metadata Popup](images/animmetadata.png)
 

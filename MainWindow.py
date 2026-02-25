@@ -1564,7 +1564,6 @@ class ChannelPane(qwt.QwtPlot):
         self.setDataRange(minval, maxval)
 
     def keyReleaseEvent(self, event):
-        print('In ChannelPane:keyReleaseEvent')
         modifiers = QApplication.keyboardModifiers()
         if event.key() == Qt.Key_R and modifiers == Qt.ControlModifier:
             self.resetDataRange()
@@ -1710,7 +1709,6 @@ class ChannelPane(qwt.QwtPlot):
         self : ChannelPane
         event : type
         """
-        print('Mouse release event in channel pane:', self.channel.name)
         if self.selectedKey is not None:
             self.selectedKey = None
             self.redrawme() # Redraw the knot with its fill color
@@ -1812,7 +1810,6 @@ class ChannelPane(qwt.QwtPlot):
         self.selectKnots(startTime, endTime)
 
     def setSelectionOverlay(self, startTime, endTime):
-        print('Setting drag overlay in channel:', self.channel.name, 'from:', startTime, 'to:', endTime)
         dragFlag = startTime < endTime
         if self.selected:
             palette = self._selectedPalette
@@ -1826,7 +1823,6 @@ class ChannelPane(qwt.QwtPlot):
             # Modify the unselected gradient
             # Get the width of the widget
             width = self.timeToPixel(self.maxTime) - self.xoffset + 6
-            print('Width:', width)
             # Set up multicolor background for drag selection
             gradient = QLinearGradient(0, 0, width, 0)
             minfrac = min(1.0, max(0.0, (startTime-self.minTime)/(self.maxTime-self.minTime)))
@@ -1848,7 +1844,6 @@ class ChannelPane(qwt.QwtPlot):
             gradient.setColorAt(maxfrac-0.0000001, QColor('lightcoral'))
             gradient.setColorAt(maxfrac, color)
             gradient.setColorAt(1.0, color)
-            print('Drawing drag color from:', minfrac, 'to:', maxfrac)
             brush = QBrush(gradient)
             palette = QPalette()
             palette.setBrush(self.backgroundRole(), brush)
@@ -1867,7 +1862,6 @@ class ChannelPane(qwt.QwtPlot):
         timeVal : float
             The time at which the time bar should be set
         """
-        print('In channelpane setSlider setting slider to:', timeVal)
         if self.timeSlider is not None:
             pnti = self.transform(qwt.QwtPlot.xBottom, timeVal) + self.xoffset
             if pnti > 0:
@@ -1956,7 +1950,6 @@ class ChannelPane(qwt.QwtPlot):
         self.redrawLimits()
         self.replot()
         self.setSlider(self.currTime)
-        print('Set slider in redraw to:', self.currTime)
 
 #####################################################################
 # The ChannelNameValidator is used to check and validate channel
@@ -3869,7 +3862,6 @@ class MainWindow(QMainWindow):
         if len(channellist) != 1 or self.plots[channellist[0]].channel.type == Channel.DIGITAL:
             ydelta = 0
         for name in channellist:
-            print('Moving selected points in channel:', name)
             pane = self.plots[name]
             pane.moveMyPoints(xdelta, ydelta)
             pane.redrawme()
@@ -4454,7 +4446,6 @@ class MainWindow(QMainWindow):
         # Get the data points for each column
         for plot in self.plots:
             values = self.plots[plot].channel.getValuesAtTimeSteps(starttime, endtime, samplestep)
-            print('Doing column:', plot,'at port:', self.plots[plot].channel.port)
             if values is not None and self.plots[plot].channel.port >= 0:
                 columns[plot] = values
 
@@ -4942,7 +4933,7 @@ class MainWindow(QMainWindow):
 
                 placename = None
                 # If any channels are selected, use first one as insertion point
-                selection = self.getAnySelectedChannelNames()
+                selection = self.getSelectedChannelNames()
                 if len(selection) > 0: placename = selection[0]
                 self.animatronics.insertChannel(tempChannel, placename=placename)
                 self.save_visual_state()
@@ -4997,7 +4988,7 @@ class MainWindow(QMainWindow):
 
                 placename = None
                 # If any channels are selected, use first one as insertion point
-                selection = self.getAnySelectedChannelNames()
+                selection = self.getSelectedChannelNames()
                 if len(selection) > 0: placename = selection[0]
                 self.animatronics.insertChannel(tempChannel, placename=placename)
                 self.save_visual_state()
@@ -6029,13 +6020,11 @@ class MainWindow(QMainWindow):
                         # If Block contains a single channel
                         if len(root) == 1:
                             # Paste with offset applied
-                            print('Pasting with offset:', self.lastDeltaX*self.repCount)
                             self.blockPaste(self.clipboard.text(),  self.lastDeltaX*self.repCount, firstChannel=selectList[0])
                             self.repCount += 1
                         else:
                             # Do a block paste without offset
                             self.resetSlide()
-                            print('Pasting without offset')
                             chan, time = self.getFocusChannelTime()
                             if time is None:
                                 self.blockPaste(self.clipboard.text(),  0, firstChannel=selectList[0])
@@ -6048,7 +6037,6 @@ class MainWindow(QMainWindow):
                 if len(selectList) > 0 and len(root) > 0:
                     # Insert all channels at selected channel location
                     # Update names of any that are already in animation
-                    print('Inserting ChannelList')
                     # Clipboard is a set of full channels to be inserted at first selected
                     if len(root) > 0:
                         placename = selectList[0]
@@ -6065,7 +6053,6 @@ class MainWindow(QMainWindow):
                 # If any channels are selected (explicit or implicit)
                 if len(selection) > 0 and len(root) > 0:
                     # Query for insert or overwrite
-                    print('Query for insert or overwrite')
                     # Clipboard is a full, named channel to overwrite all selected or be inserted at first selected
                     # See if any of the selected channels contain knots already that might be overwritten
                     sum = 0
@@ -6291,7 +6278,6 @@ class MainWindow(QMainWindow):
                                         fromChannel.parseXML(child)
                                         xdata,ydata = fromChannel.getKnotData(-1.0e34, 1.0e34, 1000000)
                                         for i in range(len(xdata)):
-                                            print('Adding knot to channel:', toName, 'at time:', xdata[i]+offset)
                                             self.animatronics.channels[toName].add_knot(xdata[i]+offset, ydata[i])
                                             if select: self.plots[toName].selectKnot(xdata[i]+offset)
                                         self.plots[toName].redrawme()
@@ -6306,7 +6292,7 @@ class MainWindow(QMainWindow):
         print('Running B_action')
         #self.blockPasteAt(self.clipboard.text(), 300, firstChannel='Beats 7')
         #self.blockCopy(['Beats 0', 'Beats 1'],  minTime=20.0, maxTime=30.0)
-        self.blockCut(['Beats 1'],  minTime=20.0, maxTime=30.0)
+        #self.blockCut(['Beats 1'],  minTime=20.0, maxTime=30.0)
 
     def blockCopy(self, selection, minTime=-1.0e34, maxTime=1.0e34):
         if len(selection) > 0:
@@ -6907,9 +6893,12 @@ class MainWindow(QMainWindow):
             triggered=self.playbackcontrols_action)
         self.view_menu.addAction(self._playbackcontrols_action)
 
+        '''
+        # This a temporary action for doing tests
         self._B_action = QAction("Test", self,
             triggered=self.B_action, shortcut=QKeySequence("Ctrl+B"))
         self.addAction(self._B_action)
+        '''
 
 
 
