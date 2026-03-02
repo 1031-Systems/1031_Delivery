@@ -1,41 +1,41 @@
-Phoneme,Example,Translation,Jaw
-AA,odd,"AA D",100
-AE,at,"AE T",80
-AH,hut,"HH AH T",50
-AO,ought,"AO T",60
-AW,cow,"K AW",30
-AY,hide,"HH AY D",80
-B,be,"B IY",0
-CH,cheese,"CH IY Z",0
-D,dee,"D IY",10
-DH,thee,"DH IY",15
-EH,Ed,"EH D",55
-ER,hurt,"HH ER T",10
-EY,ate,"EY T",55
-F,fee,"F IY",0
-G,green,"G R IY N",30
-HH,he,"HH IY",20
-IH,it,"IH T",25
-IY,eat,"IY T",20
-JH,gee,"JH IY",0
-K,key,"K IY",15
-L,lee,"L IY",15
-M,me,"M IY",0
-N,knee,"N IY",25
-NG,ping,"P IH NG",0
-OW,oat,"OW T",10
-OY,toy,"T OY",20
-P,pee,"P IY",0
-R,read,"R IY D",10
-S,sea,"S IY",10
-SH,she,"SH IY",10
-T,tea,"T IY",15
-TH,theta,"TH EY T AH",45
-UH,hood,"HH UH D",30
-UW,two,"T UW",20
-V,vee,"V IY",0
-W,we,"W IY",10
-Y,yield,"Y IY L D",20
-Z,zee,"Z IY",0
-ZH,seizure,"S IY ZH ER",0
-SIL,silence,"",40
+Phoneme,Example,Translation,Jaw,Set_1,Set_2,Set_3,Set_4,Set_5,Set_6,Set_7,Set_8
+AA,odd,AA D,100,100,0,0,0,0,0,0,0
+AE,at,AE T,80,100,0,0,0,0,0,0,0
+AH,hut,HH AH T,50,0,100,0,0,0,0,0,0
+AO,ought,AO T,60,100,0,0,0,0,0,0,0
+AW,cow,K AW,30,0,0,0,0,0,0,0,0
+AY,hide,HH AY D,80,100,0,0,0,0,0,0,0
+B,be,B IY,0,0,0,100,0,0,0,0,0
+CH,cheese,CH IY Z,0,0,0,0,100,0,0,0,0
+D,dee,D IY,10,0,0,0,100,0,0,0,0
+DH,thee,DH IY,15,0,0,0,100,0,0,0,0
+EH,Ed,EH D,55,0,0,0,0,0,0,100,0
+ER,hurt,HH ER T,10,0,0,0,100,0,0,0,0
+EY,ate,EY T,55,0,0,0,0,0,100,0,0
+F,fee,F IY,0,0,0,100,0,0,0,0,0
+G,green,G R IY N,30,0,0,0,100,0,0,0,0
+HH,he,HH IY,20,0,0,0,100,0,0,0,0
+IH,it,IH T,25,0,0,0,100,0,0,0,0
+IY,eat,IY T,20,0,0,0,0,0,0,0,100
+JH,gee,JH IY,0,0,0,0,100,0,0,0,0
+K,key,K IY,15,0,0,0,100,0,0,0,0
+L,lee,L IY,15,0,0,0,100,0,0,0,0
+M,me,M IY,0,0,0,100,0,0,0,0,0
+N,knee,N IY,25,0,0,0,100,0,0,0,0
+NG,ping,P IH NG,0,0,0,0,100,0,0,0,0
+OW,oat,OW T,10,0,0,0,0,100,0,0,0
+OY,toy,T OY,20,0,0,0,0,100,0,0,0
+P,pee,P IY,0,0,0,100,0,0,0,0,0
+R,read,R IY D,10,0,0,0,100,0,0,0,0
+S,sea,S IY,10,0,0,0,100,0,0,0,0
+SH,she,SH IY,10,0,0,0,100,0,0,0,0
+T,tea,T IY,15,0,0,0,100,0,0,0,0
+TH,theta,TH EY T AH,45,0,0,0,100,0,0,0,0
+UH,hood,HH UH D,30,0,0,0,0,100,0,0,0
+UW,two,T UW,20,0,0,0,0,100,0,0,0
+V,vee,V IY,0,0,0,100,0,0,0,0,0
+W,we,W IY,10,0,0,100,0,0,0,0,0
+Y,yield,Y IY L D,20,0,0,0,100,0,0,0,0
+Z,zee,Z IY,0,0,0,0,100,0,0,0,0
+ZH,seizure,S IY ZH ER,0,0,0,0,100,0,0,0,0
+SIL,silence,,40,0,100,0,0,0,0,0,0
