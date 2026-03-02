@@ -415,7 +415,7 @@ def handleInput():
             checksum = filecrc16(filename)
             print(checksum)
         except:
-            print -1
+            print(-1)
     return 0
 
 ################################### File Utilities ############################

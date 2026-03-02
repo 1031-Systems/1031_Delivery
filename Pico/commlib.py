@@ -70,7 +70,7 @@ sys.path.remove(_Path)
 
 
 ################# Serial Comm Code #########################
-def openPort():
+def openPort(timeout=5):
     global portRoot
 
     ser = None
@@ -78,7 +78,7 @@ def openPort():
     for port in serial.tools.list_ports.comports():
         if port.manufacturer.find('MicroPython') >= 0:
             try:
-                ser = serial.Serial(port.device, 115200, timeout=5)
+                ser = serial.Serial(port.device, 115200, timeout=timeout)
                 # Save the good port
                 portRoot = port.device
                 break   # Found a good one
@@ -140,7 +140,8 @@ def getBinarySizes():
 def getFileChecksum(filename):
     line = ''
     # Status requires round trip so port cannot be closed in between
-    ser = openPort()
+    # Have to specify no timeout as big files take a long time to check
+    ser = openPort(timeout=None)
     if ser is not None:
         toPico(ser, 'c %s\n' % filename)
         line = ser.readline().decode('utf-8')
