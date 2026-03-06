@@ -145,18 +145,18 @@ if [ $CODE -eq 0 ]; then
 fi
 
 # Validate installed diagnostic animations
-#if [ $reply = 'y' ] || [ $reply = 'Y' ]; then
+if [ $reply = 'y' ] || [ $reply = 'Y' ]; then
     echo ''
-    # Fails for the .wav files FIXME
+    # Used to fail for .wav files due to short timeout but now fixed
     if [ -f ./verifyload ]; then
-        ./verifyload -p $port -fl `ls anims/*.csv`
+        ./verifyload -p $port -fl `ls anims/*`
     else
-        python3 verifyload.py -p $port -fl `ls anims/*.csv`
+        python3 verifyload.py -p $port -fl `ls anims/*`
     fi
     CODE=$?
     if [ $CODE -eq 0 ]; then
         echo Diagnostic anim files validate
     fi
-#fi
+fi
 
 exit

@@ -4,6 +4,7 @@
 # Set initial/default values
 set verbosity = 0
 set DeliveryRepo = 1031_Hauntimator
+set HW_MODULES = Pico Pololu
 
 # Parse arguments
 set i = 1
@@ -142,7 +143,7 @@ foreach f (*.dist-info)
 end
 
 # Build the single directory tools for each hardware type
-foreach hw (Pico Pololu)
+foreach hw ($HW_MODULES)
     if($verbosity) then
         echo Working on hardware package $hw
     endif
@@ -174,21 +175,24 @@ chmod +x ${DeliveryRepo}/install
 if($verbosity) then
     echo Zipping up the executables for delivery
 endif
-zip -qry ${vnum}_${OSTYPE}.zip $DeliveryRepo
-tar czf ${vnum}_${OSTYPE}.tar.gz $DeliveryRepo
+# Commented out as we don't need these products anymore
+# due to inability to get PyInstaller to work correctly
+# zip -qry ${vnum}_${OSTYPE}.zip $DeliveryRepo
+# tar czf ${vnum}_${OSTYPE}.tar.gz $DeliveryRepo
 
 # Copy over everything needed for the basics delivery
 if($verbosity) then
     echo Building basics delivery
 endif
-# Clean up Pico directory
-rm -rf $DeliveryRepo/Pico Pico/*~ Pico/lib/*~
+# Clean up all python compilation byproducts
 foreach f (`find . -name '__pycache__'`)
     rm -rf $f
 end
 
-# Clean up Pololu directory
-rm -rf $DeliveryRepo/Pololu Pololu/*~ Pololu/lib/*~
+# Clean up system directory
+foreach hw ($HW_MODULES)
+    rm -rf $DeliveryRepo/${hw} ${hw}/*~ ${hw}/lib/*~
+end
 
 mkdir -p $DeliveryRepo/src
 cp  Animatronics.py \
@@ -207,8 +211,7 @@ cp -r docs \
 cp -r COPYING \
     $DeliveryRepo/LICENSE
 
-cp -r Pico \
-    Pololu \
+cp -r ${HW_MODULES} \
     uninstall \
     $DeliveryRepo
 
@@ -242,6 +245,7 @@ rm -f ${DeliveryRepo}/Pico/dumpBinary.py
 rm -f ${DeliveryRepo}/Pico/.portid
 rm -f ${DeliveryRepo}/docs/images/*.xcf
 
+# Zip up the delivery files
 rm -f Hauntimator_${vnum}.zip
 zip -qry Hauntimator_${vnum}.zip \
     $DeliveryRepo/src \
@@ -272,6 +276,13 @@ if ( ! $?local ) then
     endif
 else
     if($verbosity) echo Would tag release as $vnum in remote repo
+endif
+
+if (-e Hauntimator_${vnum}.zip) then
+    echo Built release file: Hauntimator_${vnum}.zip
+    ls -l Hauntimator_${vnum}.zip
+else
+    echo Failed to build release file: Hauntimator_${vnum}.zip
 endif
 
 exit
