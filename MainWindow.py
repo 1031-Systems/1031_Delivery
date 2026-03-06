@@ -81,8 +81,12 @@ sys.path.append(application_path)
 try:
     import commlib
     COMMLIB_ENABLED = commlib.isReady()
+    # COMMLIB_AVAILABLE True indicates that commlib loaded even if the board is not attached
+    COMMLIB_AVAILABLE = True
 except:
     COMMLIB_ENABLED = False
+    # COMMLIB_AVAILABLE False indicates that commlib did not load and cannot be called
+    COMMLIB_AVAILABLE = False
 
 if 'TTYPortRoot' in SystemPreferences and COMMLIB_ENABLED:
     SystemPreferences['TTYPortRoot'] = commlib.getPort()
@@ -2139,7 +2143,6 @@ class ChannelMetadataWidget(QDialog):
         currentText = 'Unassigned'
         if self._channel.type != Channel.DIGITAL:
             usedNumericPorts = main_win.getUsedNumericPorts()
-            chancount = SystemPreferences['MaxServoChannels']
             for i in self.PWMPorts:
                 if i not in usedNumericPorts or i == self._channel.port:
                     text = 'S' + str(i)
@@ -2148,7 +2151,6 @@ class ChannelMetadataWidget(QDialog):
                         currentText = text
         else:
             usedDigitalPorts = main_win.getUsedDigitalPorts()
-            chancount = SystemPreferences['MaxDigitalChannels']
             for i in self.DigitalPorts:
                 if i not in usedDigitalPorts or i == self._channel.port:
                     text = 'D' + str(i)
@@ -2194,7 +2196,7 @@ class ChannelMetadataWidget(QDialog):
 
     @staticmethod
     def setPortLists():
-        if COMMLIB_ENABLED:
+        if COMMLIB_AVAILABLE:
             ChannelMetadataWidget.DigitalPorts = commlib.getConfiguredDigitalPorts()
             ChannelMetadataWidget.PWMPorts = commlib.getConfiguredPWMPorts()
         if ChannelMetadataWidget.DigitalPorts is None:
@@ -3526,9 +3528,10 @@ class MainWindow(QMainWindow):
 
     def ioCheck(self):
         # Check to see if controller is online
-        global COMMLIB_ENABLED
-        COMMLIB_ENABLED = commlib.isReady()
-        self._playwidget.liveCheck.setEnabled(COMMLIB_ENABLED)
+        if COMMLIB_AVAILABLE:   # Make sure commlib loaded
+            global COMMLIB_ENABLED
+            COMMLIB_ENABLED = commlib.isReady()
+            self._playwidget.liveCheck.setEnabled(COMMLIB_ENABLED)
 
     def setAnimatronics(self, inanim):
         """
