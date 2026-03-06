@@ -76,15 +76,16 @@ def openPort(timeout=5):
     ser = None
     # Try a whole bunch of port options
     for port in serial.tools.list_ports.comports():
-        if port.manufacturer.find('MicroPython') >= 0:
-            try:
-                ser = serial.Serial(port.device, 115200, timeout=timeout)
-                # Save the good port
-                portRoot = port.device
-                break   # Found a good one
-            except:
-                ser = None
-                pass
+        if port.manufacturer is not None and isinstance(port.manufacturer, str):
+            # Find the first com port whose vendor contains MicroPython
+            if port.manufacturer.find('MicroPython') >= 0:
+                try:
+                    ser = serial.Serial(port.device, 115200, timeout=timeout)
+                    # Save the good port
+                    portRoot = port.device
+                    break   # Found a good one
+                except:
+                    ser = None
     return ser
 
 def getPort():
