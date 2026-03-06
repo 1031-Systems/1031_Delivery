@@ -4557,6 +4557,13 @@ class MainWindow(QMainWindow):
                 msgBox.setStandardButtons(QMessageBox.Ok)
                 msgBox.setIcon(QMessageBox.Information)
                 msgBox.exec_()
+            elif code >= 0:
+                # Bring up message box to tell user
+                msgBox = QMessageBox(parent=self)
+                msgBox.setText('Upload CSV file to controller complete.\n')
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setIcon(QMessageBox.Information)
+                ret = msgBox.exec_()
         else:
             # no commlib.py in current directory
             msgBox = QMessageBox(parent=self)
@@ -4610,6 +4617,13 @@ class MainWindow(QMainWindow):
             msgBox.setIcon(QMessageBox.Information)
             ret = msgBox.exec_()
             pass
+        else:
+            # Bring up message box to tell user
+            msgBox = QMessageBox(parent=self)
+            msgBox.setText('Upload WAV file to controller complete.\n')
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Information)
+            ret = msgBox.exec_()
 
     def handle_unsaved_changes(self):
         """
