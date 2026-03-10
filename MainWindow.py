@@ -1943,7 +1943,7 @@ class ChannelPane(qwt.QwtPlot):
 
         if self.timeSlider is not None:
             pntj = self.transform(qwt.QwtPlot.yLeft, self.minVal) + self.yoffset
-            pixmap = QPixmap(3, pntj+4)
+            pixmap = QPixmap(3, int(pntj)+4)
             pixmap.fill(Qt.green)
             self.timeSlider.setPixmap(pixmap)
 
