@@ -1875,7 +1875,7 @@ class ChannelPane(qwt.QwtPlot):
                     # Get the width of that rectangle to use as offset in X
                     pnti += rect.width()
                     self.xoffset = rect.width()
-                self.timeSlider.move(QPoint(pnti, 0))
+                self.timeSlider.move(QPoint(int(pnti), 0))
                 self.timeSlider.show()
             else:
                 self.timeSlider.hide()
