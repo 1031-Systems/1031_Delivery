@@ -3086,14 +3086,18 @@ class Player(QWidget):
         ----------
         self : Player
         """
-        if self.currPosition >= self._endPosition or (not self.is_media_playing() and self.wasPlaying):
-            # If we reached the end of the media, make sure everything is stopped and go to the beginning
-            self.stopplaying()
+        if self.currPosition >= self._endPosition:
+            # If we reached the end of the displayed time range, make sure everything is stopped and go to the beginning
+            self.stopplaying()  # This stops the timer so this function stops being called
             self.rewind()
         else:
-            # If player not already playing
+            # Make the default update to the position in case media is not playing
+            self.currPosition += int(self.interval * self.speedfactors[self._speedselect.currentIndex()])
+
+            # If player exists (meaning we loaded audio)
             if self.mediaPlayer is not None:
                 self.mediaPlayer.setPlaybackRate(self.speedfactors[self._speedselect.currentIndex()])
+                # If player not already playing
                 if not self.is_media_playing():
                     # Check to see if it should be
                     desiredPosn = self.currPosition - self._offset
@@ -3101,11 +3105,12 @@ class Player(QWidget):
                         self.mediaPlayer.setPosition(desiredPosn)
                         self.mediaPlayer.play()
                         self.wasPlaying = True
-                self.currPosition = self.mediaPlayer.position()
-                for cb in self.timeChangedCallbacks:
-                    cb(float(self.currPosition) / 1000.0)
-            #print('Last step duration:', time.monotonic() - self.lasttime)
-            #self.lasttime = time.monotonic()
+                if self.is_media_playing():
+                    self.currPosition = self.mediaPlayer.position()
+
+            # Send the updated position (time) to all the callbacks
+            for cb in self.timeChangedCallbacks:
+                cb(float(self.currPosition) / 1000.0)
 
     def rewind(self):
         """
@@ -3139,6 +3144,7 @@ class Player(QWidget):
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
         self.playing = True
         self.timer.start()
+        self.wasPlaying = True
         self.stepFunction()   # Call the timer function for time=0
 
     def stopplaying(self):
