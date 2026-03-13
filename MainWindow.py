@@ -6105,6 +6105,7 @@ class MainWindow(QMainWindow):
                             self.animatronics.channels[name].port = -1
                         self.animatronics.channels[name].name = name
                         self.plots[name].create()
+                        self.plots[name].settimerange(self.lastXmin, self.lastXmax)
         except:
             self.undo_action()
             msgBox = QMessageBox(parent=self)
