@@ -57,7 +57,7 @@ The Hauntimator GUI consists of, from top to bottom, a menubar, audio channel di
 and control channel displays called panes.  When the user loads an audio file into Hauntimator
 it is displayed using one pane for mono or two panes for left and right stereo.  It is not
 necessary for there to be an audio file in use and none will be displayed in that case.
-However, without an audio file playback will not function.
+Playback will still function with no audio or outside the range of the audio.
 
 ![Image of User Interface](images/image1.png)
 
@@ -96,15 +96,15 @@ current channel under construction and any other channels that may be relevant o
 Channels are generally inserted and displayed from top to bottom but new channels may be
 inserted anywhere and the channels may be reordered as desired.
 
-The length of the audio generally determines the length of the animation.  (Although it is
-possible to circumvent this limitation, most of this discussion will assume such.)  In
-general, particularly once the user is working on the full audio, it will be challenging
+The length of the audio generally determines the length of the animation.  However,
+Hauntimator supports playback outside the audio time range or with no audio.  In
+general, particularly once the user is working on the full audio, it may be challenging
 to distinguish the synchronization of the knots with the audio.  Thus, the user will
 want to zoom in to a smaller subrange of the overall duration to construct, visualize,
-and modify the control channels.  Users may do this manually by clicking and dragging
+and modify the control channels.  Users may do this manually by ctrl-clicking and dragging
 within an audio pane, by setting limits by current playback position within the audio,
-by using the Zoom In (Ctrl-+) or Zoom Out (Ctrl--) hot keys, or by selecting a range1s
- from a markdown entry.  [See here for zoom details.](#zooming)
+by using the Zoom In (Ctrl-+) or Zoom Out (Ctrl--) hot keys, or by specifying a range
+via the View menu.  [See here for zoom details.](#zooming)
 
 Once the user has completed some or all of the channels, they may output the control
 information to a hardware controller.  This may be done by exporting a CSV file that
@@ -115,11 +115,23 @@ assigned port numbers will not be written to the CSV file.
 
 For larger systems with more control channels, it may be helpful to preprocess the
 control file to a binary format for faster updates on the controller.  This may be
-done within Hauntimator or in the controller when the CSV file is installed.
+done within Hauntimator or in the controller when the CSV file is installed.  Animator
+is capable of controlling hundreds of digital channels and tens of PWM channels at 50Hz.
+However, to do so certain measures must be taken.  To allow the data input thread to
+keep up, the control data must be written in binary format and the audio data should
+be at a lower sampling rate.  Since phoneme processing requires 16kHz, that is a good
+sampling rate to use generally.  Going down to 8kHz or even 4kHz is doable if needed.
+If you hear clicks and dropouts in the audio then you are exceeding the Pico's
+capabilities and need to reduce the audio sampling rate, the number of channels in use, or
+use binary data mode, or some combination thereof.  As a last resort, the animation
+sampling rate specified in the animation's metadata (Edit->Edit Metadata) may be
+reduced from the default 50Hz to 25Hz or less.  This will cut the data transfer rate
+needed in half.  The playback will not follow the control as closely but may be good enough.
 
 Hauntimator is intended to be agnostic to the specific hardware controller the user
 chooses.  It has been tested with a Raspberry Pi Pico and a Pico clone running
-MicroPython but not with any other devices.  Details of how Hauntimator communicates with
+MicroPython.  It has also been tested with a couple of interfaces to Pololu Maestro
+animation controllers.  Details of how Hauntimator communicates with
 the controller is bundled within a commlib.py file specific to the controller and
 compatible with the python code running on the controller.  For users with other
 types of controllers, they can use the Pico-specific examples included with Hauntimator
@@ -367,7 +379,7 @@ you will get the hang of it, or more likely decide you don't ever need to do tha
 
 ![Animation Metadata Popup](images/animmetadata.png)
 
-Each animation comes with some simple metadata that includes the start time (usually 0.0),
+Each animation comes with some simple metadata that includes the start time (always 0.0),
 the end time (usually unspecified), and the sample rate (usually 50Hz).  Usually, the
 animation playback will begin at time 0, which is when the audio will begin to play.
 The metadata can be used to change some behaviors but has not been well-tested so
@@ -483,8 +495,8 @@ that, by entering a negative number for the end time and saving the metadata.
 Playback within Hauntimator is constrained by the time range displayed.  Playback will commence
 at the left edge of the displayed audio pane and continue to the right unless stopped by the user.
 When playback reaches the right edge of the display, it automatically rewinds to the beginning
-of the displayed range.  However, if the left edge of the display is a time prior to the start
-of the audio, playback will jump to the start of the audio and proceed from there.
+of the displayed range.  However, if the green timebar is within the audio pane, playback will
+start at that point.
 
 ![Playback Controls](images/playback_controls.png)
 
@@ -497,6 +509,11 @@ Note that this can be very slow so it cannot play back motions very fast and smo
 for visual correlation.  WARNING - Using this live playback may damage your mechanisms if it is not
 set up properly and the initial conditions not set properly.  I wouldn't use it for anything other
 than lighting controls.
+
+At all times, the Current Time box will display the current playback time.  Usually this will be
+a value that is in the visible range in the display.  However, if the user has zoomed in or out
+or scrolled left or right, then the current playback time may not be visible.  It should match
+the position of the green bar at all times.
 
 <a name="channels">
 &nbsp;
@@ -789,7 +806,7 @@ on the controller can support either CSV or binary.
 
 ### Binary Control Files (.bin)
 
-Control files installed on the controller board in binary format are specialy formatted to contain entries
+Control files installed on the controller board in binary format are specially formatted to contain entries
 for every port defined in the tabledefs file.  Thus, they may be much larger than a simple CSV file.
 However, on playback they are slammed out to the hardware without reformatting so they perform much faster.
 

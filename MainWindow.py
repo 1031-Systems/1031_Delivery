@@ -2420,6 +2420,7 @@ class MetadataWidget(QDialog):
         self._audioedit = None
         if self._animatronics.newAudio is not None:
             self._audioedit = QLineEdit(str(self._animatronics.newAudio.audiostart))
+            self._audioedit.setReadOnly(True)
             layout.addRow(QLabel('Audio Start Time:'), self._audioedit)
             layout.addRow(QLabel('Audio File:'))
             self._audiofile = QLineEdit('')
@@ -3028,7 +3029,19 @@ class Player(QWidget):
         self.liveCheck.setToolTip('Enables real-time output to control animation')
         layout.addWidget(self.liveCheck)
 
+        tlabel = QLabel('Current Time:')
+        layout.addWidget(tlabel)
+        self._currTime = QLineEdit()
+        self._currTime.setAlignment(Qt.AlignRight)
+        self._currTime.setMaxLength(9)
+        self._currTime.setText('0.000')
+        self._currTime.setMinimumWidth(60)
+        self._currTime.setMaximumWidth(60)
+        self._currTime.setReadOnly(True)    # Read only for now but may want to be able to type here to set time
+        layout.addWidget(self._currTime)
+
         layout.addStretch()
+        layout.setContentsMargins(11,1,11,1)
 
         self.setLayout(layout)
 
@@ -3055,6 +3068,7 @@ class Player(QWidget):
         self._endPosition = int(maxTime * 1000)
 
     def setCurrentPosition(self, newTime):
+        self._currTime.setText('%.3f' % newTime)
         newTime = int(newTime * 1000)
         if self.mediaPlayer is not None:
             self.mediaPlayer.setPosition(newTime)
@@ -3111,6 +3125,7 @@ class Player(QWidget):
             # Send the updated position (time) to all the callbacks
             for cb in self.timeChangedCallbacks:
                 cb(float(self.currPosition) / 1000.0)
+        self._currTime.setText('%.3f' % (float(self.currPosition) / 1000.0))
 
     def rewind(self):
         """
@@ -3126,6 +3141,7 @@ class Player(QWidget):
         self.stopplaying()
         for cb in self.timeChangedCallbacks:
             cb(float(self.currPosition) / 1000.0)
+        self._currTime.setText('%.3f' % (float(self.currPosition) / 1000.0))
         pass
 
     def startplaying(self):
