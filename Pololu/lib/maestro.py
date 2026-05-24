@@ -39,6 +39,7 @@ class Controller:
         # Open the command port
         self.usb = serial.Serial(ttyStr, baudrate=115200)
         # Command lead-in and device number are sent for each Pololu serial command.
+        self.boardID = device
         self.PololuCmd = chr(0xaa) + chr(device)
         # Track target position for each servo. The function isMoving() will
         # use the Target vs Current servo position to determine if movement is
@@ -49,7 +50,7 @@ class Controller:
         self.Maxs = [0] * 24
         self.usb.close()
         self.commands = []
-        
+
     # Cleanup by closing USB serial port
     def close(self):
         self.usb.close()
@@ -58,17 +59,30 @@ class Controller:
     def open(self):
         self.usb.open()
 
-    # Set the board id
+    # Set the board id for the current device
     def setBoard(self, device):
-        self.PololuCmd = chr(0xaa) + chr(device)
+        if device != self.boardID:
+            self.boardID = device
+            self.PololuCmd = chr(0xaa) + chr(device)
 
-    # Send a Pololu command out the serial port
+    # Do everything to send a single command to current device
+    def sendOneCmd(self, cmd):
+        cmdStr = self.PololuCmd + cmd
+        self.open()
+        if PY2:
+            self.usb.write(cmdStr)
+        else:
+            # print('Sending:', bytes(cmdStr,'latin-1'))
+            self.usb.write(bytes(cmdStr,'latin-1'))
+        self.close()
+
+    # Send a Pololu command out the serial port to current device
     def sendCmd(self, cmd):
         cmdStr = self.PololuCmd + cmd
         if PY2:
             self.usb.write(cmdStr)
         else:
-            #print('Sending:', bytes(cmdStr,'latin-1'))
+            # print('Sending:', bytes(cmdStr,'latin-1'))
             self.usb.write(bytes(cmdStr,'latin-1'))
 
     # Send a stream of commands while holding the port open
@@ -77,8 +91,10 @@ class Controller:
         if cmds is None:
             cmds = self.commands
         self.open()
-        for cmd in cmds:
+        for brd,cmd in cmds:
+            self.setBoard(brd)
             cmdStr = self.PololuCmd + cmd
+            # print('Sending from cmd list:', bytes(cmdStr,'latin-1'))
             self.usb.write(bytes(cmdStr,'latin-1'))
         self.close()
         self.clearCmds()
@@ -89,7 +105,7 @@ class Controller:
 
     # Add a command to the command list
     def addCmd(self, cmd):
-        self.commands.append(cmd)
+        self.commands.append((self.boardID, cmd))
 
     # Set channels min and max value range.  Use this as a safety to protect
     # from accidentally moving outside known safe parameters. A setting of 0
@@ -109,7 +125,7 @@ class Controller:
     # Return Maximum channel range value
     def getMax(self, chan):
         return self.Maxs[chan]
-        
+
     # Set channel to a specified target value.  Servo will begin moving based
     # on Speed and Acceleration parameters previously set.
     # Target values will be constrained within Min and Max range, if set.
@@ -124,14 +140,14 @@ class Controller:
         # if Max is defined and Target is above, force to Max
         if self.Maxs[chan] > 0 and target > self.Maxs[chan]:
             target = self.Maxs[chan]
-        #    
+        #
         lsb = target & 0x7f #7 bits for least significant byte
         msb = (target >> 7) & 0x7f #shift 7 and take next 7 bits for msb
         cmd = chr(0x04) + chr(chan) + chr(lsb) + chr(msb)
         self.addCmd(cmd)
         # Record Target value
         self.Targets[chan] = target
-        
+
     # Set speed of channel
     # Speed is measured as 0.25microseconds/10milliseconds
     # For the standard 1ms pulse width change to move a servo between extremes, a speed
@@ -152,7 +168,7 @@ class Controller:
         msb = (accel >> 7) & 0x7f #shift 7 and take next 7 bits for msb
         cmd = chr(0x09) + chr(chan) + chr(lsb) + chr(msb)
         self.addCmd(cmd)
-    
+
     # Get the current position of the device on the specified channel
     # The result is returned in a measure of quarter-microseconds, which mirrors
     # the Target parameter of setTarget.
@@ -175,13 +191,13 @@ class Controller:
     #
     # ***Note if target position goes outside of Maestro's allowable range for the
     # channel, then the target can never be reached, so it will appear to always be
-    # moving to the target.  
+    # moving to the target.
     def isMoving(self, chan):
         if self.Targets[chan] > 0:
             if self.getPosition(chan) != self.Targets[chan]:
                 return True
         return False
-    
+
     # Have all servo outputs reached their targets? This is useful only if Speed and/or
     # Acceleration have been set on one or more of the channels. Returns True or False.
     # Not available with Micro Maestro.
