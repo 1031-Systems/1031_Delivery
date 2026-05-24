@@ -9,7 +9,7 @@ echo Path:$SCRIPTPATH
 
 # Set up the virtual environment
 cd $SCRIPTPATH
-python3 -m venv .venv
+python3 -m venv --system-site-packages .venv
 CODE=$?
 if [ $CODE -ne 0 ]; then
     echo WHOOPS - Need to install venv tools
