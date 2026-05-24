@@ -23,7 +23,9 @@ commlib provides the following set of functions as a layer between the
 Hauntimator applications and the controller and hardware:
 
 isReady()
-    Returns True if commlib can talk tot he hardware and False otherwise
+    Returns True if commlib can talk to the hardware and False otherwise
+cleanup()
+    Cleans up ports, fifos, and other comm related structures
 getPort()
     Returns the name of the port commlib is using to talk to the hardware
     Must be called AFTER isReady()
@@ -130,6 +132,7 @@ def isReady():
     return commdev.isReady()
 
 def cleanup():
+    # Pololu uses FIFOs to communicate with Hauntimator so careful cleanup is needed
     commdev.cleanup()
 
 def getBinarySizes():
