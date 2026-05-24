@@ -201,11 +201,11 @@ def configurepca9685(firstport=0, boardid=0):
     global _ExpectedPWMPorts
     _ExpectedPWMPorts += 16
 
-def domaestroPWM(porttableentry, value, push=False):
+def doMaestroPWM(porttableentry, value, push=False):
     # Handle a PWM signal via Maestro board
     makePControl()
 
-    if verbosity: print('Doing domaestroPWM with port:', porttableentry)
+    if verbosity: print('Doing doMaestroPWM with port:', porttableentry)
     try:
         board = porttableentry['board']
         pwmout = porttableentry['pwmout']
@@ -219,7 +219,7 @@ def domaestroPWM(porttableentry, value, push=False):
             pControl.setTarget(pwmout, value)
             if push: pControl.sendCmds()
     except:
-        if verbosity: print('Whoops - Wrong port table entry for domaestroPWM')
+        if verbosity: print('Whoops - Wrong port table entry for doMaestroPWM')
         return False
 
 def makePControl():
@@ -232,7 +232,7 @@ def configureMaestroPWM(firstport=0, boardid=0, count=1, firstchannel=0):
 
     # Generate count PWM entries for this Maestro board
     for i in range(count):
-        PWMPortTable[firstport+i] = {'func':domaestroPWM, 'board':boardid, 'pwmout':i+firstchannel, 'multiplier':1.2207}
+        PWMPortTable[firstport+i] = {'func':doMaestroPWM, 'board':boardid, 'pwmout':i+firstchannel, 'multiplier':1.2207}
 
     global _ExpectedPWMPorts
     _ExpectedPWMPorts += count
@@ -287,7 +287,7 @@ def doMaestroDigital(porttableentry, value, push=False):
             pControl.setTarget(pwmout, value)
             if push: pControl.sendCmds()
     except:
-        if verbosity: print('Whoops - Wrong port table entry for domaestroPWM')
+        if verbosity: print('Whoops - Wrong port table entry for doMaestroPWM')
         return False
 
 def configureMaestroDigital(boardid=12, firstport=0, firstchannel=0, count=1):
@@ -470,33 +470,33 @@ _ExpectedDigitalPorts = 0
 ########################################################
 
 # Digital Input Functions
-def configureMaestroMainInput(boardid=None, firstchannel=None):
+def configureMaestroMainInput(boardid=None, firstchannel=None, level=False):
     global _ExpectedDigitalinputPorts
     global MainInputPort
     if boardid is not None and firstchannel is not None:
-        MainInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroMainInput}
+        MainInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroMainInput, 'level':level}
         _ExpectedDigitalinputPorts += 1
 
-def configureMaestroRunInput(boardid=None, firstchannel=None):
+def configureMaestroRunInput(boardid=None, firstchannel=None, level=False):
     global _ExpectedDigitalinputPorts
     global RunInputPort
     if boardid is not None and firstchannel is not None:
-        RunInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroRunInput}
+        RunInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroRunInput, 'level':level}
         _ExpectedDigitalinputPorts += 1
 
-def configureMaestroTriggerInput(boardid=None, firstchannel=None):
+def configureMaestroTriggerInput(boardid=None, firstchannel=None, level=False):
     global _ExpectedDigitalinputPorts
     global TriggerInputPort
     if boardid is not None and firstchannel is not None:
-        TriggerInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroTriggerInput}
+        TriggerInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroTriggerInput, 'level':level}
         _ExpectedDigitalinputPorts += 1
 
-def configureMaestroDigitalInputs(boardid=None, firstchannel=None, firstindex=None, count=0):
+def configureMaestroDigitalInputs(boardid=None, firstchannel=None, firstindex=None, count=0, level=False):
     global _ExpectedDigitalinputPorts
     global DigitalInputPortTable
     if boardid is not None and firstchannel is not None and firstindex is not None:
         for indx in range(count):
-            DigitalInputPortTable[firstindex+indx] = {'boardid':boardid, 'channel':firstchannel+indx, 'func':getMaestroInput}
+            DigitalInputPortTable[firstindex+indx] = {'boardid':boardid, 'channel':firstchannel+indx, 'func':getMaestroInput, 'level':level}
         _ExpectedDigitalinputPorts += count
 
 def getMaestroInput(InputPort=None):
@@ -504,28 +504,29 @@ def getMaestroInput(InputPort=None):
         return False
     makePControl()
     pControl.setBoard(InputPort['boardid'])
-    return pControl.getPosition(InputPort['channel']) < 512
+    return not ((pControl.getPosition(InputPort['channel']) > 512) ^ InputPort['level'])
 
 def getMaestroRunInput(RunInputPort=None):
     if RunInputPort is None:
         return False
     makePControl()
     pControl.setBoard(RunInputPort['boardid'])
-    return pControl.getPosition(RunInputPort['firstchannel']) < 512
+    signal = not ((pControl.getPosition(RunInputPort['firstchannel']) > 512) ^ RunInputPort['level'])
+    return signal
 
 def getMaestroMainInput(MainInputPort=None):
     if MainInputPort is None:
         return False
     makePControl()
     pControl.setBoard(MainInputPort['boardid'])
-    return pControl.getPosition(MainInputPort['firstchannel']) < 512
+    return not ((pControl.getPosition(MainInputPort['firstchannel']) > 512) ^ MainInputPort['level'])
 
 def getMaestroTriggerInput(TriggerInputPort=None):
     if TriggerInputPort is None:
         return False
     makePControl()
     pControl.setBoard(TriggerInputPort['boardid'])
-    return pControl.getPosition(TriggerInputPort['firstchannel']) < 512
+    return not ((pControl.getPosition(TriggerInputPort['firstchannel']) > 512) ^ TriggerInputPort['level'])
 
 
 # Generic Input functions
@@ -551,7 +552,7 @@ def getInputs():
     inputs = []
     for port in DigitalInputPortTable:
         InputPort = DigitalInputPortTable[port]
-        if 'func' in InputPort:
+        if InputPort is not None and 'func' in InputPort:
             if InputPort['func'](InputPort):
                 inputs.append(port)
     return inputs
@@ -559,8 +560,9 @@ def getInputs():
 def getInput(portid):
     if portid in DigitalInputPortTable:
         InputPort = DigitalInputPortTable[portid]
-        if 'func' in InputPort:
+        if InputPort is not None and 'func' in InputPort:
             return InputPort['func'](InputPort)
+    return None
 
 ########################################################
 
@@ -836,7 +838,7 @@ def self_test():
                     if verbosity:
                         for i in range(lastport+1, port):
                             print('    Missing PWM port %2d' % i)
-        elif PWMPortTable[port]['func'] == domaestroPWM:
+        elif PWMPortTable[port]['func'] == doMaestroPWM:
             dmports += 1
             if verbosity:
                 print('PWM Port %2d via Maestro board %2d channel %2d' %
