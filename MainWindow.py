@@ -3804,9 +3804,9 @@ class MainWindow(QMainWindow):
             chan = self.animatronics.channels[channel]
             newplot = ChannelPane(tframe, chan, mainwindow=self)
             if chan.type == Channel.DIGITAL:
-                newplot.setFixedHeight(75)
+                newplot.setFixedHeight(max(75, 12*len(chan.name)))
             else:
-                newplot.setFixedHeight(200)
+                newplot.setFixedHeight(max(200, 12*len(chan.name)))
             newplot.setPlotLayout(LeftAlignLayout())
             newplot.settimerange(self.lastXmin, self.lastXmax)
             if len(chan.knots) == 0:
