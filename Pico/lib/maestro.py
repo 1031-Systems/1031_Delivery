@@ -75,6 +75,7 @@ class Controller:
             self.closable = False
 
         # Command lead-in and device number are sent for each Pololu serial command.
+        self.boardID = device
         self.PololuCmd = chr(0xaa) + chr(device)
         # Track target position for each servo. The function isMoving() will
         # use the Target vs Current servo position to determine if movement is
@@ -98,7 +99,9 @@ class Controller:
 
     # Set the board id
     def setBoard(self, device):
-        self.PololuCmd = chr(0xaa) + chr(device)
+        if device != self.boardID:
+            self.boardID = device
+            self.PololuCmd = chr(0xaa) + chr(device)
 
     # Send a Pololu command out the serial port
     def sendCmd(self, cmd):
@@ -107,7 +110,10 @@ class Controller:
             self.usb.write(cmdStr)
         else:
             #print('Sending:', bytes(cmdStr,'latin-1'))
-            self.usb.write(bytes(cmdStr,'latin-1'))
+            # Apparently MicroPython's bytes conversion sucks and only supports utf-8 encoding.
+            # In utf-8, any byte bigger than 0x7f gets a leading byte so there is junk at the start
+            # before the 0xaa.  We skip that junk byte when sending the command string
+            self.usb.write(bytes(cmdStr,'latin-1')[1:])
 
     # Send a stream of commands while holding the port open
     # Defaults to sending the internal command list
@@ -115,9 +121,10 @@ class Controller:
         if cmds is None:
             cmds = self.commands
         self.open()
-        for cmd in cmds:
+        for brd,cmd in cmds:
+            self.setBoard(brd)
             cmdStr = self.PololuCmd + cmd
-            self.usb.write(bytes(cmdStr,'latin-1'))
+            self.usb.write(bytes(cmdStr,'latin-1')[1:])
         self.close()
         self.clearCmds()
 
@@ -127,7 +134,7 @@ class Controller:
 
     # Add a command to the command list
     def addCmd(self, cmd):
-        self.commands.append(cmd)
+        self.commands.append((self.boardID, cmd))
 
     # Set channels min and max value range.  Use this as a safety to protect
     # from accidentally moving outside known safe parameters. A setting of 0
