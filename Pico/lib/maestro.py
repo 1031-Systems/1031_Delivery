@@ -90,7 +90,7 @@ class Controller:
         self.Maxs = [0] * 24
         self.close()
         self.commands = []
-        
+
     # Cleanup by closing USB serial port
     def close(self):
         if self.closable:
@@ -158,7 +158,7 @@ class Controller:
     # Return Maximum channel range value
     def getMax(self, chan):
         return self.Maxs[chan]
-        
+
     # Set channel to a specified target value.  Servo will begin moving based
     # on Speed and Acceleration parameters previously set.
     # Target values will be constrained within Min and Max range, if set.
@@ -180,7 +180,7 @@ class Controller:
         self.addCmd(cmd)
         # Record Target value
         self.Targets[chan] = target
-        
+
     # Set speed of channel
     # Speed is measured as 0.25microseconds/10milliseconds
     # For the standard 1ms pulse width change to move a servo between extremes, a speed
@@ -201,7 +201,7 @@ class Controller:
         msb = (accel >> 7) & 0x7f #shift 7 and take next 7 bits for msb
         cmd = chr(0x09) + chr(chan) + chr(lsb) + chr(msb)
         self.addCmd(cmd)
-    
+
     # Get the current position of the device on the specified channel
     # The result is returned in a measure of quarter-microseconds, which mirrors
     # the Target parameter of setTarget.
@@ -230,7 +230,7 @@ class Controller:
             if self.getPosition(chan) != self.Targets[chan]:
                 return True
         return False
-    
+
     # Have all servo outputs reached their targets? This is useful only if Speed and/or
     # Acceleration have been set on one or more of the channels. Returns True or False.
     # Not available with Micro Maestro.
