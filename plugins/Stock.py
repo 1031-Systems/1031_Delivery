@@ -200,7 +200,7 @@ def replicate(channelList, theanim, starttime=None, endtime=None):
     vbox.addLayout(layout)
     vbox.addLayout(hbox)
     dialog.setLayout(vbox)
-    
+
     code = dialog.exec_()
     if code != QDialog.Accepted: return False
 

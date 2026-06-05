@@ -253,7 +253,7 @@ class WavePlayer:
                 if self.verbose > 1: print('Ticks to write block to i2s', totaluploadticks)
                 self.sumuploadticks += totaluploadticks
                 self.blocksplayed += 1
-    
+
                 # Fill the buffer while playing previous buffer
                 # Switch to other buffer
                 self.currbuffer = 1 - self.currbuffer

@@ -20,7 +20,7 @@ class Pin:
     pinID = -1  # ID of last pin to be set
 
     def __init__(self, pinNum, inorout, pull=None):
-    
+
         self.pinNumber = int(pinNum)
         self.inorout = inorout
         self.pull = pull

@@ -210,7 +210,7 @@ class AudioChannel:
                     minptr += 1
 
         return xdata, outleft, outright
-        
+
 
     def setAudioFile(self, infilename):
         """
@@ -573,7 +573,7 @@ class Channel:
         ----------
         self : Channel
         minTime : float
-            
+
         maxTime : type
         maxCount : type
         """

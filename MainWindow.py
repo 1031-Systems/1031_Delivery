@@ -6303,7 +6303,7 @@ class MainWindow(QMainWindow):
                             if child.tag == 'Channel' and len(child) > 0:
                                 if 'name' in child.attrib and len(destNames) > 0:
                                     destinations[child.attrib['name']] = destNames.pop(0)
-                        
+
                 if len(destinations) > 0:
                     # Do the actual appending of common channels
                     if True: #try:

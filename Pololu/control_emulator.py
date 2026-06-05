@@ -171,7 +171,7 @@ def setServo(channel, value, push=False):
 def setDigital(channel, value, push=False):
         tables.setDigital(channel, value, push)
 
-        
+
 def mainEventLoop():
     global animList
 
@@ -348,12 +348,12 @@ def mainEventLoop():
                             setServo(channel, value, push=True)
                         except:
                             pass
- 
+
             time.sleep(0.001)
             currTime = time.monotonic() - startTime
 
         prevTime = currTime
-        
+
         # Process an animation frame
         if playMode or idleMode:
             done = animPlayer.setState(currTime)
