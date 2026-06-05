@@ -4,7 +4,7 @@
 # Set initial/default values
 set verbosity = 0
 set DeliveryRepo = 1031_Hauntimator
-set HW_MODULES = Pico Pololu
+set HW_MODULES = "Pico Pololu"
 
 # Parse arguments
 set i = 1
