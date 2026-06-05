@@ -77,6 +77,10 @@ class Controller:
         # Command lead-in and device number are sent for each Pololu serial command.
         self.boardID = device
         self.PololuCmd = chr(0xaa) + chr(device)
+        # NOTE - MicroPython bytes conversion is flaky and adds extra byte before 0xaa
+        # but on PC there is no extra byte.  We check for extra byte and add offset if needed.
+        testbytes = bytes(self.PololuCmd, 'latin-1')
+        self.byteoffset = len(testbytes) - len(self.PololuCmd)
         # Track target position for each servo. The function isMoving() will
         # use the Target vs Current servo position to determine if movement is
         # occuring.  Upto 24 servos on a Maestro, (0-23). Targets start at 0.
@@ -113,7 +117,7 @@ class Controller:
             # Apparently MicroPython's bytes conversion sucks and only supports utf-8 encoding.
             # In utf-8, any byte bigger than 0x7f gets a leading byte so there is junk at the start
             # before the 0xaa.  We skip that junk byte when sending the command string
-            self.usb.write(bytes(cmdStr,'latin-1')[1:])
+            self.usb.write(bytes(cmdStr,'latin-1')[self.byteoffset:])
 
     # Send a stream of commands while holding the port open
     # Defaults to sending the internal command list
@@ -124,7 +128,7 @@ class Controller:
         for brd,cmd in cmds:
             self.setBoard(brd)
             cmdStr = self.PololuCmd + cmd
-            self.usb.write(bytes(cmdStr,'latin-1')[1:])
+            self.usb.write(bytes(cmdStr,'latin-1')[self.byteoffset:])
         self.close()
         self.clearCmds()
 

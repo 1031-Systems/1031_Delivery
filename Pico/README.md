@@ -96,7 +96,7 @@ The Animator-I board was originally designed to interface with 74HC595 chips for
 output and PCA9685 boards for PWM output.  Input/feedback was limited to the three
 control inputs Run (Reset), Main, and Trigger.  New code in the Pico libraries now
 supports the use of one or more Pololu Maestro boards for PWM and/or digital output
-without any interface hardware.  Additionally, some level-shifters on the I2C pins
+without any additional interface hardware.  Adding some level-shifters on the I2C pins
 allows them to be repurposed to UART pins to communicate with the Maestro board(s) to
 provide for both output and input.
 
@@ -111,8 +111,9 @@ available.  The code does not currently support using both Maestro and PCA9685 b
 but it would be possible to connect the PCA9685s to GPIO pins 20 and 21 and the Maestro
 to GPIO pins 0 and 1 with software changes.  In either case, level-shifters are required
 to convert the 3.3v Pico signals to +5v for the Maestro and back to 3.3v on the inputs.
+NOTE - this has not been tested so software updates are likely required.
 
-Maestro boards are designed to be daisy-chained.  The wiring is described at on the
+Maestro boards are designed to be daisy-chained.  The wiring is described on the
 [Pololu website](https://www.pololu.com/docs/0J40/5.g).  The code does not currently
 support using multiple UARTs for Maestro boards but they can be easily daisy-chained
 off of a single UART port.

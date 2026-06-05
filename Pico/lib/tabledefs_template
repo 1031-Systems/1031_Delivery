@@ -102,6 +102,37 @@ addDigitalPortTableEntry(16, {'func':dogpiodigital , 'pin':21})
 addDigitalPortTableEntry(17, {'func':dogpiodigital , 'pin':22})
 
 
+# Pololu Maestro controller usage examples
+
+# Prior to configuring prop attachments to the Maestros, set the UART to control them
+# In this case, we will use GPIO pin 8 as the UART output
+configureMaestroUART(TxPin=8)
+
+# PWM Port Definitions
+# Configure Jaw servo (5v) on pin 17 of Maestro Mini (12) as PWM port 16
+configureMaestroPWM(boardid=12, firstport=16, count=1, firstchannel=17)
+# Configure Door servo (12v) on pin 2 of Maestro Micro (13) as PWM port 17
+configureMaestroPWM(boardid=13, firstport=17, count=1, firstchannel=2)
+
+# Digital Port Definitions
+# Set up ports 0-2 for Lightning 1, Upper Lights, and Lightning 2
+configureMaestroDigital(boardid=12, firstport=0, firstchannel=6, count=3)
+# Set up ports 9 and 11 for the right and left eyes respectively
+configureMaestroDigital(boardid=12, firstport=9, firstchannel=10, count=1)
+configureMaestroDigital(boardid=12, firstport=11, firstchannel=9, count=1)
+
+# Digital Input Definitions
+# Example - Reset Input on Maestro channel 0 of board 12 activated with Low input
+configureMaestroRunInput(boardid=12, firstchannel=0)
+
+# Example - Main Input on Maestro channel 1 of board 12 activated with Low input
+configureMaestroMainInput(boardid=12, firstchannel=1)
+
+# Example - Trigger Input on Maestro channel 2 of board 12 activated with High input
+configureMaestroTriggerInput(boardid=12, firstchannel=2, level=True)
+
+
+
 setPreferBinary(False)      # Set to True for larger applications
 
 

@@ -31,14 +31,14 @@ configureMaestroDigital(boardid=12, firstport=0, firstchannel=0, count=2)
 # Example - 4 trigger inputs indexed 0-3 on Maestro channels 9-12 on board 12
 configureMaestroDigitalInputs(boardid=12, firstindex=0, firstchannel=9, count=4)
 
-# Example - Reset Input on Maestro channel 6 of board 12
+# Example - Reset Input on Maestro channel 6 of board 12 with active low signal
 configureMaestroRunInput(boardid=12, firstchannel=6)
 
-# Example - Main Input on Maestro channel 7 of board 12
+# Example - Main Input on Maestro channel 7 of board 12 with active low signal
 configureMaestroMainInput(boardid=12, firstchannel=7)
 
-# Example - Trigger Input on Maestro channel 8 of board 12
-configureMaestroTriggerInput(boardid=12, firstchannel=8)
+# Example - Trigger Input on Maestro channel 8 of board 12 with active high signal
+configureMaestroTriggerInput(boardid=12, firstchannel=8, level=True)
 
 
 setPreferBinary(False)      # Leave False for standalone Maestro applications

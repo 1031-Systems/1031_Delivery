@@ -33,7 +33,8 @@ The first is an output-only version where a single buffered GPIO pin from a UART
 Pico goes through a level shifter to provide a 5v signal and is then connected to
 the Maestro.  This can drive outputs but cannot be used to sample the inputs.
 GPIO pins 8 and 12 are UART TX pins and are available via buffering on a connector
-on Animator-I with no additional components.
+on Animator-I with no additional components.  For this setup, the inputs on the
+Animator board serve as the control inputs.
 
 The second configuration replaces the I2C connection mainly used for the PCA9685
 servo boards with a connection to the Maestro.  Essentially, the Maestro becomes a
@@ -41,7 +42,9 @@ drop-in replacement for the PCA9685.  In this configuration, inputs to the Maest
 are supported as well as feedback on servo position and other information.  This
 configuration does require additional level shifters to those present on the
 Animator-I board.  These level shifters will have to be mounted on a protoboard or
-other substrate and powered and connected appropriately.
+other substrate and powered and connected appropriately.  Note that this is a
+hardware capability that has not been tested and likely needs software updates for
+full functionality.
 
 In both of these configurations, Animator-I is responsible for the audio allowing
 a stand-alone system to be built that does not need a PC for operation.
@@ -211,7 +214,7 @@ inputs via the following:
 ```
 configureMaestroResetInput(boardid=14, firstchannel=1)
 configureMaestroMainInput(boardid=14, firstchannel=2)
-configureMaestroTriggerInput(boardid=14, firstchannel=3)
+configureMaestroTriggerInput(boardid=14, firstchannel=3, Level=True)
 ```
 
 Each of the above lines defines the Maestro channel to be mapped to a specific
@@ -221,6 +224,9 @@ of available animations, leaving the system in a Stopped state.  The second line
 maps the Main input to channel 2 of board 14.  The Main input initiates
 playback of the next animation if in Stopped or Idle mode and Stops playback of
 the current animation if in Play mode, switching to Idle or Stopped mode.  The
+third line maps channel 3 of board 14 to the Trigger input.  Additionally, it
+specifies that the active level is high (True) on the input line while low (False)
+is the default for all inputs. 
 Trigger input initiates playback of the next animation if in Idle
 or Stopped mode but does not interrupt playback if in Play mode.  This functionality
 matches that of the three inputs on Animator-I.
