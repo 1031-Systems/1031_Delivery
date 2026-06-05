@@ -9,6 +9,7 @@ try:
 except:
     pass
 
+import sys
 from sys import version_info
 
 PY2 = version_info[0] == 2   #Running Python 2.x?
