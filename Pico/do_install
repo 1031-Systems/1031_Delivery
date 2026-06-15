@@ -73,7 +73,7 @@ echo Using port: $port >& $out
 echo -n 'Do you want to remove all existing animations (y/N)? '
 read answer
 if [ $answer == 'y' ]; then
-    echo Removing existing animations
+    echo Removing existing animations '(Make take more than 1 minute)'
     ${rshell} --quiet rm '/pyboard/sd/anims/*'
     ${rshell} --quiet rm '/pyboard/anims/*'
 fi
