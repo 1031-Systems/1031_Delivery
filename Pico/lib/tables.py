@@ -703,7 +703,7 @@ def parsefile(tablefile=None):
                     if verbosity: print('Executing line:', line)
                     exec(line)
                     line = f.readline()
-            _parsedFile = tablefile
+                _parsedFile = tablefile
 
         except:
             pass
