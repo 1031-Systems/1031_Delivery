@@ -129,7 +129,7 @@ if [ -d ~/Desktop ]; then
                 cp -r ~/Desktop/Untitled.app appdir
                 rm -f appdir/Contents/Resources/ApplicationStub.icns
                 cp -f docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
-                sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Hauntimator<%g" appdir/Contents/document.wflow
+                sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Hauntimator -f \$1<%g" appdir/Contents/document.wflow
                 rm -rf ~/Desktop/Hauntimator.app
                 mv appdir ~/Desktop/Hauntimator.app
 
@@ -146,7 +146,7 @@ if [ -d ~/Desktop ]; then
 Version=__VERSION__
 Type=Application
 Terminal=true
-Exec=${SCRIPTPATH}/Hauntimator
+Exec=${SCRIPTPATH}/Hauntimator -f %f
 Name=Hauntimator
 Comment=Hauntimator Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/Hlogo.png
