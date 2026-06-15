@@ -518,6 +518,12 @@ def findAnimFiles(dir='/anims'):
             # Ignore problems
             pass
 
+    # Check for archived tabledefs
+    if len(animList) > 0:
+        tname = pathjoin(dir, 'tabledefs')
+        if isfile(tname):
+            tables.parsefile(tname)
+
     return animList,idler
 
 ################################### Test Code ########################################

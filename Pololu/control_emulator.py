@@ -456,8 +456,20 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     # Animations
-    animList = AnimClasses.AnimList(inDir=os.path.join(path, 'sd/anims'))
-    animList.addAnims(os.path.join(path, 'anims'))
+    inDir = os.path.join(path, 'sd/anims')
+    animList = AnimClasses.AnimList(inDir=inDir)
+    if len(animList.theAnims) > 0:
+        tablefile = os.path.join(inDir, 'tabledefs')
+        if os.path.isfile(tablefile):
+            tables.parsefile(tablefile=tablefile)
+    else:
+        inDir = os.path.join(path, 'anims')
+        animList.addAnims(inDir=inDir)
+        if len(animList.theAnims) > 0:
+            tablefile = os.path.join(inDir, 'tabledefs')
+            if os.path.isfile(tablefile):
+                tables.parsefile(tablefile=tablefile)
+
     animPlayer = AnimPlayer()
     if verbosity:
         print('Animation Playlist')
