@@ -110,6 +110,21 @@ tabledefs to allow Hauntimator to write binary files on the desktop.  This only 
 properly when the embedded and desktop tabledefs are in sync.  Users are required to
 make sure this is the case.
 
+### Archived tabledefs files
+
+Oftimes, the tabledefs file is specific to a selection of animations such as for
+Halloween or Christmas.  The user may copy the tabledefs file associated with a set
+of animations to the SD card or flash memory directory containing the animations.
+This preserves the specific table definitions associated with those animations.  When
+loading the animations, any file named tabledefs in the directory where the animations
+are located will override those in lib/tabledefs.  The point of this feature is to 
+allow switching of hardware and the associated SD card without having to attach to
+a computer to install the needed tabledefs changes.  It also allows the user to load
+the animations and tabledefs on the SD card from the PC and then popping it into the
+Pico for proper use.  However, because it does override the tabledefs in lib, the user
+should be aware that any changes should be applied to the tabledefs file that is
+actually currently in use.
+
 ### tables.py
 
 tables.py is a library that supports the use of the tabledefs file for specifying the

@@ -169,6 +169,21 @@ The tabledefs file is executable Python code that calls functions to specify
 the mapping of ports to inputs and outputs.  Each function maps 1 or more port
 numbers to channels on the Maestros.
 
+### Archived tabledefs files
+
+Oftimes, the tabledefs file is specific to a selection of animations such as for
+Halloween or Christmas.  The user may copy the tabledefs file associated with a set
+of animations to the SD card or flash memory directory containing the animations.
+This preserves the specific table definitions associated with those animations.  When
+loading the animations, any file named tabledefs in the directory where the animations
+are located will override those in lib/tabledefs.  The point of this feature is to 
+allow switching of hardware and the associated SD card without having to attach to
+a computer to install the needed tabledefs changes.  It also allows the user to load
+the animations and tabledefs on the SD card from the PC and then loading it into the
+Pico for proper use.  However, because it does override the tabledefs in lib, the user
+should be aware that any changes should be applied to the tabledefs file that is
+actually currently in use.
+
 ### Mapping Servo Ports
 
 Typically, most channels will be used to control servos and digital outputs in

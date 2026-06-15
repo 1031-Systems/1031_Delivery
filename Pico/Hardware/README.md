@@ -138,10 +138,30 @@ do_install or installtable command in the /Pico  directory.  Run the Python prog
 tables.py to verify the tabledefs file is correct. table.py -v will print the 
 configuration from the tabledefs file to the screen.
 
-- There can be only one tabledefs file.
+- There can be only one tabledefs file in use at a time.  However, multiple archived
+tabledefs files may be present.  It is up to the user to keep straight which tabledefs
+file is currently in use.  See section below for more information on archived tabledefs
+files.
 
 - You do not have to use an SD card.  Instead use a Pico clone with 16 megabytes and load
 the animations and audio to the onboard flash memory to run just a few short animations.
+
+### Archived tabledefs files
+
+Oftimes, the tabledefs file is specific to a selection of animations such as for
+Halloween or Christmas.  The user may copy the tabledefs file associated with a set
+of animations to the SD card or flash memory directory containing the animations.
+This preserves the specific table definitions associated with those animations.  When
+loading the animations, any file named tabledefs in the directory where the animations
+are located will override those in lib/tabledefs.  The point of this feature is to 
+allow switching of hardware and the associated SD card without having to attach to
+a computer to install the needed tabledefs changes.  It also allows the user to load
+the animations and tabledefs on the SD card from the PC and then loading it into the
+Pico for proper use.  However, because it does override the tabledefs in lib, the user
+should be aware that any changes should be applied to the tabledefs file that is
+actually currently in use.  Best practice is to work with the tabledefs in lib until the entire set of
+animations work correctly.  Then copy the tabledefs file to the animations directory
+for archiving.  Do not do this prematurely.
 
 ## 595 Expander
 

@@ -66,6 +66,21 @@ tabledefs and then install it, along with everything else, on the Pico.  Once ev
 is installed, it is only necessary to run installtable to validate tabledefs, copy
 it to the Pico, and validate the installation if further changes are made.
 
+### Archived tabledefs files
+
+Oftimes, the tabledefs file is specific to a selection of animations such as for
+Halloween or Christmas.  The user may copy the tabledefs file associated with a set
+of animations to the SD card or flash memory directory containing the animations.
+This preserves the specific table definitions associated with those animations.  When
+loading the animations, any file named tabledefs in the directory where the animations
+are located will override those in lib/tabledefs.  The point of this feature is to 
+allow switching of hardware and the associated SD card without having to attach to
+a computer to install the needed tabledefs changes.  It also allows the user to load
+the animations and tabledefs on the SD card from the PC and then loading it into the
+Pico for proper use.  However, because it does override the tabledefs in lib, the user
+should be aware that any changes should be applied to the tabledefs file that is
+actually currently in use.
+
 ***
 
 The same software runs on either the Pico or the clone and can use
@@ -190,7 +205,9 @@ README for more details on how the tables are defined and used.
 installtable is a shell script that validates the tabledefs file, installs it
 on the Pico, and validates the installation.  Run it whenever the tabledefs
 file is modified but only after do_install has installed the rest of the
-system.
+system.  Note that this process writes the tabledefs under lib and does NOT
+remove any tabledefs files associated with animation sets and these override
+the one under lib that is installed with this tool.
 
 ### verifyload.py
 

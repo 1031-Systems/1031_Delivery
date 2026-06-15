@@ -817,6 +817,10 @@ directly to an SD card mounted on the desktop machine to be transferred later to
 controller will always have the preferred type of control file available.  Note that commlib.py must be
 available to Hauntimator to support the conversion to binary.
 
+Note that the binary file write process uses the tabledefs file in lib to control the binarization process.
+Thus, it must be compatible with any archived tabledefs file on the hardware that will be used for playback.
+It is the responsibility of the user to keep these straight.
+
 ### Other types of file
 
 Hauntimator stores the system preferences in the user's login directory in a file named .animrc.  Normally,
