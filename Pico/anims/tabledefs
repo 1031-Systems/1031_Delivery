@@ -1,0 +1,17 @@
+# This software is made available for use under the GNU General Public License (GPL).
+# A copy of this license is available within the repository for this software and is
+# included herein by reference.
+
+# Example - Configure a contiguous block of 16 Digital ports on 2x595 chips
+# Note that this example is not commented out as it matches the standard board design
+configure595s(firstport=0, portcount=16, datapin=2, clockpin=4, rclkpin=3, clearpin=5)
+
+setPreferBinary(False)      # Set to True for larger applications
+
+
+
+
+
+
+
+
