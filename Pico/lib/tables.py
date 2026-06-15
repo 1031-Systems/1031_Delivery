@@ -536,25 +536,25 @@ _ExpectedDigitalPorts = 0
 ########################################################
 
 # Digital Input Functions
-def configureMaestroTriggerInput(boardid=None, firstchannel=None):
+def configureMaestroTriggerInput(boardid=None, firstchannel=None, level=False):
     global _ExpectedDigitalinputPorts
     global TriggerInputPort
     if boardid is not None and firstchannel is not None:
         TriggerInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroTriggerInput}
         _ExpectedDigitalinputPorts += 1
 
-def configureMaestroRunInput(boardid=None, firstchannel=None):
+def configureMaestroRunInput(boardid=None, firstchannel=None, level=False):
     global _ExpectedDigitalinputPorts
     global RunInputPort
     if boardid is not None and firstchannel is not None:
         RunInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroRunInput}
         _ExpectedDigitalinputPorts += 1
 
-def configureMaestroOptoInput(boardid=None, firstchannel=None):
+def configureMaestroMainInput(boardid=None, firstchannel=None, level=False):
     global _ExpectedDigitalinputPorts
-    global OptoInputPort
+    global MainInputPort
     if boardid is not None and firstchannel is not None:
-        OptoInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroOptoInput}
+        MainInputPort = {'boardid':boardid, 'firstchannel':firstchannel, 'func':getMaestroMainInput}
         _ExpectedDigitalinputPorts += 1
 
 def configureMaestroDigitalInputs(boardid=None, firstchannel=None, firstindex=None, count=0):
@@ -586,12 +586,12 @@ def getMaestroTriggerInput(TriggerInputPort=None):
     pControl.setBoard(TriggerInputPort['boardid'])
     return pControl.getPosition(TriggerInputPort['firstchannel']) < 512
 
-def getMaestroOptoInput(OptoInputPort=None):
-    if OptoInputPort is None:
+def getMaestroMainInput(MainInputPort=None):
+    if MainInputPort is None:
         return False
     makePControl()
-    pControl.setBoard(OptoInputPort['boardid'])
-    return pControl.getPosition(OptoInputPort['firstchannel']) < 512
+    pControl.setBoard(MainInputPort['boardid'])
+    return pControl.getPosition(MainInputPort['firstchannel']) < 512
 
 
 # Generic Input functions
@@ -605,10 +605,10 @@ def getTriggerInput():
         return None
     return TriggerInputPort['func'](TriggerInputPort)
 
-def getOptoInput():
-    if OptoInputPort is None or 'func' not in OptoInputPort:
+def getMainInput():
+    if MainInputPort is None or 'func' not in MainInputPort:
         return None
-    return OptoInputPort['func'](OptoInputPort)
+    return MainInputPort['func'](MainInputPort)
 
 def getInputs():
     # Returns a list of all port numbers that are currently triggered
@@ -634,35 +634,86 @@ def getInput(portid):
 DigitalInputPortTable = { }
 RunInputPort = None
 TriggerInputPort = None
-OptoInputPort = None
+MainInputPort = None
 
 # Field used for consistency checking
 _ExpectedDigitalinputPorts = 0
 
 ############## Method to process an external file for table definition #################
+_parsedFile = None
+
+def clearTables():
+    global _PWMBoards
+    _PWMBoards = {}         # Dictionary of Servos objects, one for each pca9685 board
+    global _PWMGPIOs
+    _PWMGPIOs = {}          # Dictionary of GPIO pins set up for direct PWM control
+    global PWMPortTable
+    PWMPortTable = { }
+    global _ExpectedPWMPorts
+    _ExpectedPWMPorts = 0
+    global _DigitalGPIOs
+    _DigitalGPIOs = {}          # Dictionary of GPIO pins set up for Digital control
+    global DigitalPortTable
+    DigitalPortTable = { }
+    global _ExpectedDigitalPorts
+    _ExpectedDigitalPorts = 0
+    global DigitalInputPortTable
+    DigitalInputPortTable = { }
+    global RunInputPort
+    RunInputPort = None
+    global TriggerInputPort
+    TriggerInputPort = None
+    global MainInputPort
+    MainInputPort = None
+    global _ExpectedDigitalinputPorts
+    _ExpectedDigitalinputPorts = 0
+    global _parsedFile
+    _parsedFile = None
+
 
 def setPreferBinary(flag):
     global PreferBinary
     PreferBinary = flag
 
-def parsefile():
-    # Look for the table definition file in PYTHONPATH
-    for path in sys.path:
-        if verbosity: print('Looking for tabledefs in:', path)
+def parsefile(tablefile=None):
+    global _parsedFile
+    clearTables()
+    if tablefile is None:
+        # Look for the table definition file in PYTHONPATH
+        for path in sys.path:
+            if verbosity: print('Looking for tabledefs in:', path)
+            try:
+                with open(path + '/tabledefs', 'r') as f:
+                    line = f.readline()
+                    while len(line) > 0:
+                        if verbosity: print('Executing line:', line)
+                        exec(line)
+                        line = f.readline()
+                _parsedFile = path + '/tabledefs'
+                break   # Quit if we successfully found and processed the file
+
+            except:
+                pass
+    else:
+        if verbosity: print('Looking for tabledefs in:', tablefile)
         try:
-            with open(path + '/tabledefs', 'r') as f:
+            with open(tablefile, 'r') as f:
                 line = f.readline()
                 while len(line) > 0:
                     if verbosity: print('Executing line:', line)
                     exec(line)
                     line = f.readline()
-            break   # Quit if we successfully found and processed the file
+            _parsedFile = tablefile
 
         except:
             pass
 
+    if _parsedFile is None:
+        print('Whoops - Unable to find and read tabledefs file\n\n')
+        return(True)
+
     if len(DigitalPortTable) == 0 and len(PWMPortTable) == 0:
-        print('Whoops - Unable to find and process tabledefs file\n\n')
+        print('Whoops - No ports found in tabledefs file\n\n')
         return(True)
 
     return(False)
@@ -764,10 +815,10 @@ def print_usage(name):
     """ Simple method to output usage when needed """
     sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose] [-r/-regular]\n" % name);
     sys.stderr.write("This tool runs various checks on the configuration tables.\n");
-    sys.stderr.write("-/-h/-help        :show this information\n");
-    sys.stderr.write("-v/-verbose       :run more verbosely\n");
-    sys.stderr.write("-r/-regular       :run regularity check\n");
-    sys.stderr.write("-i/-infilename inf:name of csv file to convert to binary\n");
+    sys.stderr.write("-/-h/-help           :show this information\n");
+    sys.stderr.write("-v/-verbose          :run more verbosely\n");
+    sys.stderr.write("-r/-regular          :run regularity check\n");
+    sys.stderr.write("-t/-testfilename inf :name of tabledefs file to analyze\n");
     sys.stderr.write("\n");
     sys.stderr.write("    Regularity is loosely defined as contiguous port numbering,\n");
     sys.stderr.write("order matching between ports and indices, etc.\n");
@@ -778,6 +829,26 @@ def print_usage(name):
 
 #/* Main */
 def self_test():
+    global verbosity
+
+    # Check to see if a tabledefs file was processed on import
+    if not _parseStatus:
+        flag = self_test()
+        if flag:
+            exit(flag)
+        parsedFile = _parsedFile
+        clearTables()
+        flag = self_test()
+        if flag:
+            exit(flag)
+        # Reparse original file
+        parsefile(tablefile=parsedFile)
+        flag = self_test()
+        exit(flag)
+
+    exit(1)
+
+def main():
     global verbosity
 
     regular = False
@@ -791,7 +862,7 @@ def self_test():
             verbosity = True
         elif sys.argv[i] == '-r' or sys.argv[i] == '-regular':
             regular = True
-        elif sys.argv[i] == '-i' or sys.argv[i] == '-infilename':
+        elif sys.argv[i] == '-t' or sys.argv[i] == '-testfilename':
             i += 1
             if i < len(sys.argv):
                 infilename = sys.argv[i]
@@ -801,6 +872,12 @@ def self_test():
             sys.exit(10);
 
         i += 1
+
+    if infilename is not None:
+        clearTables()
+        status = parsefile(tablefile=infilename)
+        if status:
+            sys.stderr.write('\n****** Specified file does not validate!\n%s\n\n' % infilename)
 
     # Initialize the check flag to False meaning everything is okay so far
     checkflag = False
@@ -858,7 +935,10 @@ def self_test():
         else:
             print('Whoops - Digital port %d is not configured correctly' % port)
         lastport = port
-    print('\nConfiguration has %d 595 ports, %d Maestro ports, and %d GPIO ports configured for digital signals\n' % (d5ports, dmports, dgports))
+    print('\n   Digital Ports')
+    print('595 ports     :', d5ports)
+    print('Maestro ports :', dmports)
+    print('GPIO ports    :', dgports)
 
     # Run overwrite tests
     if _ExpectedDigitalPorts != len(DigitalPortTable):
@@ -918,13 +998,16 @@ def self_test():
             print('Whoops - PWM port %d is not configured correctly' % port)
             checkflag = True
         lastport = port
-    print('\nConfiguration has %d pca9685 ports, %d Maestro ports, and %d GPIO ports configured for PWM signals\n' % (d5ports, dmports, dgports))
+    print('\n   PWM Ports')
+    print('pca9685 ports :', d5ports)
+    print('Maestro ports :', dmports)
+    print('GPIO ports    :', dgports)
 
     # Run input specification tests
     numPorts = len(DigitalInputPortTable)
     if RunInputPort is not None: numPorts += 1
     if TriggerInputPort is not None: numPorts += 1
-    if OptoInputPort is not None: numPorts += 1
+    if MainInputPort is not None: numPorts += 1
     if _ExpectedDigitalinputPorts != numPorts:
         print('  WARNING - Number of digital input ports requested (%d) does not match number configured (%d)!' % 
             (_ExpectedDigitalinputPorts, numPorts))
@@ -950,15 +1033,8 @@ def self_test():
 
     if status: print('Valid GPIO pins are:', goodpins)
 
-    if infilename is not None:
-        csvToBin(infilename)
-
     return status or checkflag
 
 
 if __name__ == "__main__":
-    if not _parseStatus:
-        flag = self_test()
-        if not flag:
-            exit(0)
-    exit(1)
+    main()

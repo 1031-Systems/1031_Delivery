@@ -227,6 +227,10 @@ def makePControl():
     if pControl is None:
         pControl = maestro.Controller()
 
+def configureMaestroUART(TxPin=None, RxPin=None):
+    # Dummy method for compatibility with Pico tabledefs
+    pass
+
 def configureMaestroPWM(firstport=0, boardid=0, count=1, firstchannel=0):
     global PWMPortTable
 
@@ -576,29 +580,80 @@ TriggerInputPort = None
 _ExpectedDigitalinputPorts = 0
 
 ############## Method to process an external file for table definition #################
+_parsedFile = None
+
+def clearTables():
+    global _PWMBoards
+    _PWMBoards = {}         # Dictionary of Servos objects, one for each pca9685 board
+    global _PWMGPIOs
+    _PWMGPIOs = {}          # Dictionary of GPIO pins set up for direct PWM control
+    global PWMPortTable
+    PWMPortTable = { }
+    global _ExpectedPWMPorts
+    _ExpectedPWMPorts = 0
+    global _DigitalGPIOs
+    _DigitalGPIOs = {}          # Dictionary of GPIO pins set up for Digital control
+    global DigitalPortTable
+    DigitalPortTable = { }
+    global _ExpectedDigitalPorts
+    _ExpectedDigitalPorts = 0
+    global DigitalInputPortTable
+    DigitalInputPortTable = { }
+    global RunInputPort
+    RunInputPort = None
+    global TriggerInputPort
+    TriggerInputPort = None
+    global MainInputPort
+    MainInputPort = None
+    global _ExpectedDigitalinputPorts
+    _ExpectedDigitalinputPorts = 0
+    global _parsedFile
+    _parsedFile = None
+
 
 def setPreferBinary(flag):
     global PreferBinary
     PreferBinary = flag
 
-def parsefile():
-    # Look for the table definition file in PYTHONPATH
-    for path in sys.path:
-        if verbosity: print('Looking for tabledefs in:', path)
+def parsefile(tablefile=None):
+    global _parsedFile
+    clearTables()
+    if tablefile is None:
+        # Look for the table definition file in PYTHONPATH
+        for path in sys.path:
+            if verbosity: print('Looking for tabledefs in:', path)
+            try:
+                with open(path + '/tabledefs', 'r') as f:
+                    line = f.readline()
+                    while len(line) > 0:
+                        if verbosity: print('Executing line:', line)
+                        exec(line)
+                        line = f.readline()
+                _parsedFile = path + '/tabledefs'
+                break   # Quit if we successfully found and processed the file
+
+            except:
+                pass
+    else:
+        if verbosity: print('Looking for tabledefs in:', tablefile)
         try:
-            with open(path + '/tabledefs', 'r') as f:
+            with open(tablefile, 'r') as f:
                 line = f.readline()
                 while len(line) > 0:
                     if verbosity: print('Executing line:', line)
                     exec(line)
                     line = f.readline()
-            break   # Quit if we successfully found and processed the file
+            _parsedFile = tablefile
 
         except:
             pass
 
+    if _parsedFile is None:
+        print('Whoops - Unable to find and read tabledefs file\n\n')
+        return(True)
+
     if len(DigitalPortTable) == 0 and len(PWMPortTable) == 0:
-        print('Whoops - Unable to find and process tabledefs file\n\n')
+        print('Whoops - No ports found in tabledefs file\n\n')
         return(True)
 
     return(False)
