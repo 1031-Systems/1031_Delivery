@@ -66,8 +66,7 @@ SW dot 1031 dot Systems at gmail dot com.
 These tools have been built and tested on Mint 22.1 and Rocky 9,
 two distributions of linux, and on MacOS Sonoma 14.9, another
 variant of linux.  It has had minimal testing under Windows.  It
-ran.  However, none of the installation scripts work under Windows
-so it will be necessary to follow the scripted steps manually.
+runs.
 
 To have a readily runnable version of the tools, download the zipped
 release file of your choice from https://github.com/1031-Systems/1031_Delivery/releases,
@@ -77,8 +76,8 @@ https://github.com/1031-Systems/1031_Delivery/releases/latest.
 
 Once the zip file is downloaded, unzip it into the directory of
 your choice.  Unzipping the file produces a directory named
-1031_Hauntimator.  Navigate to that directory and run install.
-The tools should be ready to run.
+1031_Hauntimator.  Navigate to that directory and run install or
+install.bat for Windows.  The tools should be ready to run.
 
 Note that the directory structure and file locations for the User
 version are different from that for the Developer to avoid distractions

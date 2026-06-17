@@ -38,6 +38,8 @@ the audio.
 
 ## Installation
 
+### Linux and MacOS
+
 If you are reading this, you have already downloaded and unzipped the
 release files.  To enable the applications, run the install script in
 the same directory as this README.  Run it in a terminal window as it
@@ -88,6 +90,21 @@ animation control files, write them to an SD card on the PC, and
 then transfer the SD card to the controller.  However, a direct
 connection provides for more rapid iterations when developing and
 testing an animation.
+
+### Windows
+
+A Windows version of the install script is now included and is named install.bat.
+It performs most of the same tasks as the linux version but creates batch files
+in the install directory instead of linux scripts.  It also optionally
+creates a desktop shortcut with a nice icon for Hauntimator.
+
+The do_install script in the Pico directory has not yet been converted for Windows.
+It can be done manually but I would suggest waiting until it gets converted or
+ask Claude or some other AI to convert it for you.
+
+The do_install script in the Pololu directory has not yet been converted for Windows.
+This one really only makes a symbolic link in the installation/src directory to
+installation/Pololu/commlib.py.  Easy to do manually to enable Maestro controllers.
 
 ***
 
