@@ -84,45 +84,6 @@ if [ -d ~/Desktop ]; then
     read answer
     if [ $answer == 'y' ]; then
         if [ $OSTYPE == 'darwin' ]; then
-            # Make icons from logo.png files
-            pushd src/docs/images
-            mkdir MyIcon.iconset
-            ln -s Hlogo.png Icon1024.png
-            cp Icon1024.png MyIcon.iconset/icon_512x512@2x.png
-            sips -z 16 16     Icon1024.png --out MyIcon.iconset/icon_16x16.png
-            sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_16x16@2x.png
-            sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_32x32.png
-            sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_32x32@2x.png
-            sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_64x64.png
-            sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_64x64@2x.png
-            sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_128x128.png
-            sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_128x128@2x.png
-            sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_256x256.png
-            sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_256x256@2x.png
-            sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_512x512.png
-            iconutil -c icns MyIcon.iconset
-            mv MyIcon.icns Hicon.icns
-            rm -rf MyIcon.iconset Icon1024.png
-
-            mkdir MyIcon.iconset
-            ln -s jlogo.png Icon1024.png
-            cp Icon1024.png MyIcon.iconset/icon_512x512@2x.png
-            sips -z 16 16     Icon1024.png --out MyIcon.iconset/icon_16x16.png
-            sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_16x16@2x.png
-            sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_32x32.png
-            sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_32x32@2x.png
-            sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_64x64.png
-            sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_64x64@2x.png
-            sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_128x128.png
-            sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_128x128@2x.png
-            sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_256x256.png
-            sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_256x256@2x.png
-            sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_512x512.png
-            iconutil -c icns MyIcon.iconset
-            mv MyIcon.icns jicon.icns
-            rm -rf MyIcon.iconset Icon1024.png
-            popd
-
             if [ -e ~/Desktop/Untitled.app ]; then
                 # Create apps from existing structure
                 cd ${SCRIPTPATH}/src
@@ -133,12 +94,12 @@ if [ -d ~/Desktop ]; then
                 rm -rf ~/Desktop/Hauntimator.app
                 mv appdir ~/Desktop/Hauntimator.app
 
-                cp -r ~/Desktop/Untitled.app appdir
-                rm -f appdir/Contents/Resources/ApplicationStub.icns
-                cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
-                sed -i '' -e "s%>cat<%>${SCRIPTPATH}/joysticking<%g" appdir/Contents/document.wflow
-                rm -rf ~/Desktop/joysticking.app
-                mv appdir ~/Desktop/joysticking.app
+#                 cp -r ~/Desktop/Untitled.app appdir
+#                 rm -f appdir/Contents/Resources/ApplicationStub.icns
+#                 cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
+#                 sed -i '' -e "s%>cat<%>${SCRIPTPATH}/joysticking<%g" appdir/Contents/document.wflow
+#                 rm -rf ~/Desktop/joysticking.app
+#                 mv appdir ~/Desktop/joysticking.app
             fi
         elif [ ${OSTYPE:0:5} == linux ]; then
             cat << EOF > ~/Desktop/Hauntimator.desktop
@@ -152,16 +113,16 @@ Comment=Hauntimator Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/Hlogo.png
 EOF
 
-            cat << EOF > ~/Desktop/joysticking.desktop
-[Desktop Entry]
-Version=__VERSION__
-Type=Application
-Terminal=true
-Exec=${SCRIPTPATH}/joysticking
-Name=joysticking
-Comment=joysticking Version: __VERSION__
-Icon=${SCRIPTPATH}/src/docs/images/jlogo.png
-EOF
+#             cat << EOF > ~/Desktop/joysticking.desktop
+# [Desktop Entry]
+# Version=__VERSION__
+# Type=Application
+# Terminal=true
+# Exec=${SCRIPTPATH}/joysticking -a %f
+# Name=joysticking
+# Comment=joysticking Version: __VERSION__
+# Icon=${SCRIPTPATH}/src/docs/images/jlogo.png
+# EOF
         fi
     fi
 fi
