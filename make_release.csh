@@ -169,6 +169,8 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
 end
 sed "s/__VERSION__/$vnum/g" install > ${DeliveryRepo}/install
 chmod +x ${DeliveryRepo}/install
+sed "s/__VERSION__/$vnum/g" install.bat > ${DeliveryRepo}/install.bat
+chmod +x ${DeliveryRepo}/install.bat
 
 
 # Zip up the delivery
@@ -254,6 +256,7 @@ zip -qry Hauntimator_${vnum}.zip \
     $DeliveryRepo/Pico \
     $DeliveryRepo/Pololu \
     $DeliveryRepo/install \
+    $DeliveryRepo/install.bat \
     $DeliveryRepo/uninstall
 
 # Clean up

@@ -6,6 +6,7 @@ set SCRIPTPATH=%~dp0
 REM Remove trailing backslash
 if "%SCRIPTPATH:~-1%"=="\" set SCRIPTPATH=%SCRIPTPATH:~0,-1%
 echo Path:%SCRIPTPATH%
+echo Version:__VERSION__
 
 REM Set up the virtual environment
 cd /d "%SCRIPTPATH%"
