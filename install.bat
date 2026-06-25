@@ -80,17 +80,18 @@ REM --- Hauntimator ---
 ) > "%SCRIPTPATH%\Hauntimator.bat"
 
 REM --- Optionally Create Desktop Shortcuts ---
+set "SHORTCUT=%USERPROFILE%\Desktop\Hauntimator.lnk"
+set "BATFILE=%SCRIPTPATH%\Hauntimator.bat"
+set "ICONFILE=%SCRIPTPATH%\src\docs\images\Hlogo.ico"
+
 set /p "CREATE_SHORTCUT=Create desktop shortcuts? (y/N): "
 if /i "%CREATE_SHORTCUT%"=="y" (
-    set "SHORTCUT=%USERPROFILE%\Desktop\Hauntimator.lnk"
-    set "BATFILE=%SCRIPTPATH%\Hauntimator.bat"
-    set "ICONFILE=%SCRIPTPATH%\src\docs\images\Hlogo.ico"
 
     (
         echo Set oWS = WScript.CreateObject^("WScript.Shell"^)
         echo Set oLink = oWS.CreateShortcut^("%SHORTCUT%"^)
         echo oLink.TargetPath = "%BATFILE%"
-        echo oLink.Arguments = "-a ""%%1"""
+        echo oLink.Arguments = "-f "
         echo oLink.IconLocation = "%ICONFILE%"
         echo oLink.WorkingDirectory = "%SCRIPTPATH%"
         echo oLink.Save
