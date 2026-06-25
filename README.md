@@ -1,15 +1,6 @@
 <!-- john Fri Dec 17 17:35:16 PDT 2023 -->
 # Animatronics
 
-Apologies for a lack of recent updates.  I was working on support
-for the Pololu Maestro controllers, then I got injured and had to
-stop for awhile, then it was time to roll out the first Halloween
-animatronics, and then it was time for Christmas animatronics.  Now
-that's over I will be incorporating some of the lessons I learned
-working with Christmas music.  Thus, eventually there will be more
-new stuff.  Demos of the Halloween animatronics are available at
-our Youtube channel listed below.
-
 This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
 board designs created by Bill Douglas and available for
