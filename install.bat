@@ -31,7 +31,7 @@ if errorlevel 1 (
     )
 )
 pip install -U PythonQwt
-pip install -U pygame
+pip install -U pygame-ce
 pip install -U rshell
 pip install -U pocketsphinx
 
