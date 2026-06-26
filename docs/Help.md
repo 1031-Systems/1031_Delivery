@@ -660,13 +660,15 @@ Hauntimator does provide Undo capability for plugin actions.
 
 ### Help Menu
 
+![Help Menu](images/helpmenu.png)
+
 The Help menu provides access to this helpful information as well as some other helpful information.
 In addition, it provides some visibility into the content of the clipboard and the overall animation as
 expressed in the XML used for storing the animation information.  This is mostly for my personal
 debugging purposes but is available for all to peruse.
 
 If the developer or user has provided help files for the plugins (plugins/plugin_name.md), they will
-be automagically added to the Help menu.
+be automagically added to the Help menu under Plugins.
 
 <a name="audio-tracks">
 &nbsp;
