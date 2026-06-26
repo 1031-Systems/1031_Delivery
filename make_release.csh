@@ -61,50 +61,49 @@ if ( ! $?local ) then
         echo Better sort things out first
         exit 10
     endif
-endif
 
-# Check to see if this release has been previously generated
-set tagcount = `git tag | wc -l`
-if ( $tagcount ) then
-    set tags = `git tag`
-    foreach ltag ( $tags)
-        if ${vnum}_${OSTYPE} == $ltag then
-            echo
-            echo WHOOPS - Version ${vnum}_${OSTYPE} has already been tagged
-            if ( ! $?local ) then
-                goto usage
+    # Check to see if this release has been previously generated
+    set tagcount = `git tag | wc -l`
+    if ( $tagcount ) then
+        set tags = `git tag`
+        foreach ltag ( $tags)
+            if ${vnum}_${OSTYPE} == $ltag then
+                echo
+                echo WHOOPS - Version ${vnum}_${OSTYPE} has already been tagged
+                if ( ! $?local ) then
+                    goto usage
+                endif
             endif
-        endif
-        if ${vnum} == $ltag then
-            # Note that global release was tagged, probably elsewhere
-            set globaltag = ${vnum}_${OSTYPE}
-        endif
-    end
-endif
+            if ${vnum} == $ltag then
+                # Note that global release was tagged, probably elsewhere
+                set globaltag = ${vnum}_${OSTYPE}
+            endif
+        end
+    endif
 
-# Make sure nothing is being edited and that we are on main branch
-set bad = `find . -name '*.swap' | wc -l`
-if ($bad) then
-    echo
-    echo WHOOPS - Files are open for editing
-    echo Save your work and try again
-    goto usage
-endif
-git branch | grep '\* main' >& /dev/null
-if ($status) then
-    echo
-    echo WHOOPS - Not on main branch
-    goto usage
-endif
+    # Make sure nothing is being edited and that we are on main branch
+    set bad = `find . -name '*.swap' | wc -l`
+    if ($bad) then
+        echo
+        echo WHOOPS - Files are open for editing
+        echo Save your work and try again
+        goto usage
+    endif
+    git branch | grep '\* main' >& /dev/null
+    if ($status) then
+        echo
+        echo WHOOPS - Not on main branch
+        goto usage
+    endif
 
-if ( ! $?local ) then
     # Tag the release
     if($verbosity) echo Tagging the local release as ${vnum}_${OSTYPE}
-    git tag -a ${vnum}_${OSTYPE} -m "Local build version ${vnum}_${OSTYPE}"
-else
-    if ($verbosity) then
-        echo Would tag release as ${vnum}_${OSTYPE} in local repo
-        echo and as ${vnum} in remote repo
+        git tag -a ${vnum}_${OSTYPE} -m "Local build version ${vnum}_${OSTYPE}"
+    else
+        if ($verbosity) then
+            echo Would tag release as ${vnum}_${OSTYPE} in local repo
+            echo and as ${vnum} in remote repo
+        endif
     endif
 endif
 
