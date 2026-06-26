@@ -71,7 +71,9 @@ if ( $tagcount ) then
         if ${vnum}_${OSTYPE} == $ltag then
             echo
             echo WHOOPS - Version ${vnum}_${OSTYPE} has already been tagged
-            goto usage
+            if ( ! $?local ) then
+                goto usage
+            endif
         endif
         if ${vnum} == $ltag then
             # Note that global release was tagged, probably elsewhere
