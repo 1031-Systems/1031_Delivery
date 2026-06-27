@@ -31,7 +31,7 @@ if [ $CODE -ne 0 ]; then
     fi
 fi
 pip install -U PythonQwt
-pip install -U pygame
+pip install -U pygame-ce
 pip install -U rshell
 pip install -U pocketsphinx
 
