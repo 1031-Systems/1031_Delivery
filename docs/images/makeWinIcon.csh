@@ -28,12 +28,18 @@ while($i <= $#argv)
     @ i++
 end
 
+if(! -e $infile.png) then
+    echo "Whoops - Unable to open file: $infile.png"
+    goto usage
+endif
+
 # Do the right thing
 if ( $OSTYPE == 'linux' ) then
     # Make icons from logo.png files
     mkdir MyIcon.iconset
     # Make various resolution levels
-    pngtopam -alphapam $infile.png | pamscale -xysize 64 64 > MyIcon.iconset/icon.pam
+    pngtopam -alphapam $infile.png | pamscale -xysize 128 128 > MyIcon.iconset/icon.pam
+    pngtopam -alphapam $infile.png | pamscale -xysize 64 64 >> MyIcon.iconset/icon.pam
     pngtopam -alphapam $infile.png | pamscale -xysize 48 48 >> MyIcon.iconset/icon.pam
     pngtopam -alphapam $infile.png | pamscale -xysize 32 32 >> MyIcon.iconset/icon.pam
     pngtopam -alphapam $infile.png | pamscale -xysize 16 16 >> MyIcon.iconset/icon.pam
