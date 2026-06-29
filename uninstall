@@ -6,10 +6,6 @@
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 echo Uninstalling $SCRIPTPATH
 
-# Delete everything
-cd $SCRIPTPATH/..
-rm -rf $SCRIPTPATH
-
 # Make for loops skip if empty
 shopt -s nullglob
 
@@ -32,4 +28,8 @@ for f in ~/Desktop/*.app; do
         fi
     fi
 done
+
+# Delete everything
+cd $SCRIPTPATH/..
+rm -rf $SCRIPTPATH
 
