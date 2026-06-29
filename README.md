@@ -5,13 +5,14 @@ This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
 board designs created by Bill Douglas and available for
 download here in this repo at [Pico/Hardware](Pico/Hardware/).
+However, it also supports Pololu Maestro animation controllers.
 
 This codebase contains an application, Hauntimator, for creating control
 channel data for directing the animatronics and code for
 executing on a Raspberry Pi Pico for performing the animations.
 The Hauntimator application is intended to be board-agnostic so
 users may develop code for different processors such as 
-Arduino or other Raspberry Pi versions.
+Arduino, Pololu Maestro, or other Raspberry Pi versions.
 
 It also contains a utility application, joysticking.py, for recording
 joystick actions into Hauntimator channels.
