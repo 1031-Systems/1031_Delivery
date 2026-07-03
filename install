@@ -68,15 +68,15 @@ EOF
 
 chmod +x ${SCRIPTPATH}/Pico/verifyload
 
-cat << EOF > ${SCRIPTPATH}/control_emulator
+cat << EOF > ${SCRIPTPATH}/Maestro_Animator
 #!$SHELL
 
 export PYTHONPATH=${SCRIPTPATH}/Pololu:${SCRIPTPATH}/Pololu/lib
 
-${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/control_emulator.py "\$@"
+${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/Maestro_Animator.py "\$@"
 EOF
 
-chmod +x ${SCRIPTPATH}/control_emulator
+chmod +x ${SCRIPTPATH}/Maestro_Animator
 
 # Create desktop links to run Hauntimator and joysticking
 if [ -d ~/Desktop ]; then

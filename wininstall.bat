@@ -64,12 +64,12 @@ REM --- Pico\verifyload ---
     echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\Pico\verifyload.py" %%*
 ) > "%SCRIPTPATH%\Pico\verifyload.bat"
 
-REM --- control_emulator ---
+REM --- Maestro_Animator ---
 (
     echo @echo off
     echo set PYTHONPATH=%SCRIPTPATH%\Pololu;%SCRIPTPATH%\Pololu\lib
-    echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\src\control_emulator.py" %%*
-) > "%SCRIPTPATH%\control_emulator.bat"
+    echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\src\Maestro_Animator.py" %%*
+) > "%SCRIPTPATH%\Maestro_Animator.bat"
 
 echo.
 echo Installation complete. Wrapper scripts created as .bat files.

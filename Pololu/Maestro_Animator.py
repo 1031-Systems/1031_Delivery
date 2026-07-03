@@ -2,7 +2,7 @@
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
 #**********************************
-# Program control_emulator.py
+# Program Maestro_Animator.py
 # Created by john
 # Created Wed Jun 4 01:35:29 PM PDT 2025
 #*********************************/

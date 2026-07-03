@@ -170,8 +170,8 @@ foreach f (`find ${DeliveryRepo} -name '*.md'`)
 end
 sed "s/__VERSION__/$vnum/g" install > ${DeliveryRepo}/install
 chmod +x ${DeliveryRepo}/install
-sed "s/__VERSION__/$vnum/g" install.bat > ${DeliveryRepo}/install.bat
-chmod +x ${DeliveryRepo}/install.bat
+sed "s/__VERSION__/$vnum/g" wininstall.bat > ${DeliveryRepo}/wininstall.bat
+chmod +x ${DeliveryRepo}/wininstall.bat
 
 
 # Zip up the delivery
@@ -216,9 +216,10 @@ cp -r COPYING \
 
 cp -r ${HW_MODULES} \
     uninstall \
+    winuninstall.bat \
     $DeliveryRepo
 
-cp  Pololu/control_emulator.py \
+cp  Pololu/Maestro_Animator.py \
     $DeliveryRepo/src
 
 # Update all the versions in the code and help files and dist info
@@ -257,8 +258,9 @@ zip -qry Hauntimator_${vnum}.zip \
     $DeliveryRepo/Pico \
     $DeliveryRepo/Pololu \
     $DeliveryRepo/install \
-    $DeliveryRepo/install.bat \
-    $DeliveryRepo/uninstall
+    $DeliveryRepo/wininstall.bat \
+    $DeliveryRepo/uninstall \
+    $DeliveryRepo/winuninstall.bat
 
 # Clean up
 if($verbosity) then

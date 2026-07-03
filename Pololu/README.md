@@ -79,14 +79,14 @@ used to initiate the system or to abort a playback that is having problems and
 should be triggered by you when necessary.  This triggering paradigm will be
 maintained with the Maestros.
 
-The standalone application is named control_emulator.py.  This Python program uses
+The standalone application is named Maestro_Animator.py.  This Python program uses
 pygame to handle keyboard input and audio output.  Additional code sends and receives
 data to and from the Maestro controller via USB.  Chained Maestro controllers add
 more input and output channels and communicate via the Tx/Rx pins on the Maestros.
 
-### control_emulator.py
+### Maestro_Animator.py
 
-The control_emulator.py application emulates most of the functionality of the
+The Maestro_Animator.py application emulates most of the functionality of the
 Pico-based Animator-I while running on a desktop machine.  This includes a local
 filesystem that contains an anims directory and an sd/anims directory containing
 animations and associated audio files.  It supports an identical animList file
@@ -96,7 +96,7 @@ the next animation.  It supports continuous playback mode as well as idle mode
 where a specific animation is run if no other animation has been triggered.  It
 also handles audio playback via the pygame library.
 
-The control_emulator.py application  also makes use of a tabledefs file to 
+The Maestro_Animator.py application  also makes use of a tabledefs file to 
 specify the functionality of the Maestro inputs and outputs.  This file maps the
 port IDs designated in Hauntimator and referenced in the animation control files
 to specific Maestro boards and channels.
@@ -111,7 +111,7 @@ be useful in the future.
 There are no software files that need to be loaded for the Maestros as there are
 for Animator-I so it does not support checksumming of installed files.
 
-Since the control_emulator.py application runs on a desktop type of machine, it
+Since the Maestro_Animator.py application runs on a desktop type of machine, it
 adds support for keyboard control of the application as well as text output of
 playback state.  This may be disabled if input buttons designated for the main
 control functions are available attached directly to the Maestros.  However, it
@@ -142,7 +142,7 @@ Under the Channel Settings Tab are the specific settings for each channel on the
 Maestro.  Each channel should be set to Servo (the default) for channels attached
 to servos, Output for channels that provide a digital output, and Input for
 control inputs.  Any pin on any Maestro may be used for digital input.  Analog
-input is supported within the Maestros but not in the control_emulator.py
+input is supported within the Maestros but not in the Maestro_Animator.py
 application.
 
 More details on how to use MaestroControlCenter are available on Pololu's
