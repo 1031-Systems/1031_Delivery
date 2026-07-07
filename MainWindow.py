@@ -4374,6 +4374,7 @@ class MainWindow(QMainWindow):
                 with open(self.animatronics.filename, 'w') as outfile:
                     outfile.write(self.animatronics.toXML())
                 self.unsavedChanges = False
+                self.recentfiles.add(self.animatronics.filename)
 
             except Exception as e:
                 sys.stderr.write("\nWhoops - Error writing output file %s\n" % self.animatronics.filename)
@@ -4412,6 +4413,7 @@ class MainWindow(QMainWindow):
                     # Set upload paths prior to writing
                     self.animatronics.setFilename(fileName, uploadpath=SystemPreferences['UploadPath'])
                     outfile.write(self.animatronics.toXML())
+                self.recentfiles.add(fileName)
                 self.updateXMLPane()    # Refreshes XML and saves to new autosave file
                 self.unsavedChanges = False
                 if self.animatronics.filename is None:
