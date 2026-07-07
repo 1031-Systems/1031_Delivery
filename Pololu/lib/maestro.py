@@ -28,17 +28,6 @@ class Controller:
     # Pololu protocol allows for multiple Maestros to be connected to a single
     # serial port. Each connected device is then indexed by number.
     def __init__(self,ttyStr=None,device=0x0c):
-        if ttyStr is None:
-            for port in serial.tools.list_ports.comports():
-                if port.manufacturer is not None and port.manufacturer.find('Pololu') >= 0:
-                    if ttyStr is None or port.device < ttyStr:
-                        ttyStr = port.device
-        if ttyStr is None:
-            sys.stderr.write('\nWHOOPS - Could not find Pololu device.\n\n')
-            return
-        print('Device:', ttyStr)
-        # Open the command port
-        self.usb = serial.Serial(ttyStr, baudrate=115200)
         # Command lead-in and device number are sent for each Pololu serial command.
         self.boardID = device
         self.PololuCmd = chr(0xaa) + chr(device)
@@ -49,8 +38,54 @@ class Controller:
         # Servo minimum and maximum targets can be restricted to protect components.
         self.Mins = [0] * 24
         self.Maxs = [0] * 24
-        self.usb.close()
         self.commands = []
+
+        # Find the Pololu port that responds to commands
+        if ttyStr is None:
+            for port in serial.tools.list_ports.comports():
+                if port.manufacturer is not None and port.manufacturer.find('Pololu') >= 0:
+                    # Test the port to see if it is the command port
+                    self.usb = serial.Serial(port.device, baudrate=115200, timeout=1, write_timeout=1)
+                    cmd = chr(0x10) + chr(0)
+                    try:
+                        self.sendCmd(cmd)
+                        lsb = self.usb.read()
+                        msb = self.usb.read()
+                        self.close()
+                        if len(msb) > 0:
+                            # Worked to here without hitting timeout so must be good
+                            ttyStr = port.device
+                            break
+                    except:
+                        # Skip this one as it timed out or had other failure
+                        self.close()
+                        pass
+        else:
+            # Check passed in port for validity
+            try:
+                # Test the port to see if it is the command port
+                self.usb = serial.Serial(ttyStr, baudrate=115200, timeout=1, write_timeout=1)
+                cmd = chr(0x10) + chr(0)
+                self.sendCmd(cmd)
+                lsb = self.usb.read()
+                msb = self.usb.read()
+                self.close()
+                if len(msb) <= 0:
+                    sys.stderr.write('\nWHOOPS - Could not open specified command device:' + ttyStr + '\n')
+                    return
+                else:
+                    pass
+            except:
+                sys.stderr.write('\nWHOOPS - Could not open specified command device:' + ttyStr + '\n')
+                return
+
+        if ttyStr is None:
+            sys.stderr.write('\nWHOOPS - Could not find Pololu device.\n\n')
+            return
+        print('Device:', ttyStr)
+        # Open the command port without timeout for normal operations
+        self.usb = serial.Serial(ttyStr, baudrate=115200)
+        self.usb.close()
 
     # Cleanup by closing USB serial port
     def close(self):
