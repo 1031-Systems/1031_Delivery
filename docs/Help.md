@@ -167,6 +167,7 @@ The File menu contains the following options:
 
 + New Animation - Discard current animation and start from scratch
 + Open Anim File - Open and Load an existing animation file
++ Open Recent File - Open and Load an existing animation file from list of recents
 + Open Audio file - Open and attach audio file to the current animation (.wav only)
 + Merge Anim File - Open an existing animation and merge new channels into current one
 + Append Anim File - Open an existing animation and append common channels to current one
@@ -177,6 +178,15 @@ The File menu contains the following options:
 + Quit - Duh!
 
 Hauntimator tries to be careful about quitting without saving or overwriting files.
+
+A note about the menu of recent files.  Currently, Hauntimator NEVER forgets a file that
+has been opened or saved.  The Preferences control how many are displayed.  If you decide
+that you need to look back farther than 30 days (like to sometime last year) or really
+want to see the last 500 files, just change the Preferences and the display will update
+next time it is brought up.  This may change if it seems too cumbersome or people
+complain about taking too much space.  The recently opened file list is stored in the
+file .anim.recents in the user's home directory.  It may be deleted at any time to clear
+the list.
 
 The Merge and Append options are intended to support multiple people or sessions working on
 the same animation.  Merge is used to merge animation files that do not share channels, e.g.
@@ -409,6 +419,8 @@ to files and communication.  The individual preferences are:
 + ServoDataFile - The name of the file containing known servo types and their associated information.  The user may rename this file or move it so the preference allows that.  The values in the servo file are used to set initial limits on the channel values.  These are based on the ServoDefaultMaximum and ServoDefaultMinimum and the duty cycle of the servo from the file.  These are NOT used to distinguish servos on GPIO pins from servos on PCA9685 boards.  That is done within the controller.
 + UploadPath - The name of the directory to upload audio and control files to as it is used in the controller software.  The Pico software that accompanies the Hauntimator and is run on the Pico looks for a particular file and this must match that.  This will typically be on the SD card and look like "/sd/anims" to match expectations in the controller software.  If the controller software is edited, this can be changed to match.  Note that this is irrelevant if writing files locally to an SD card to be transferred later to the controller.
 + TTYPortRoot - This is most of the name of the communications port to use to talk to the controller when it is plugged into the USB port on the computer that Hauntimator runs on.  Under linux, this is typically /dev/ttyACM0 but may also be /dev/ttyACM1, 2, ... so the TTYPortRoot is set to /dev/ttyACM.  On a Mac it is more like /dev/tty00bb10 so the TTYPortRoot is set to /dev/tty00bb1.  Under Windows it is something I don't care about.  Note that this is irrelevant if writing files locally to an SD card to be transferred later to the controller and otherwise not using Hauntimator to talk directly to the controller.
++ MaxRecentAge - This is the number of days Hauntimator looks back for recent files.
++ MaxRecentCount - This is the maximum number of files Hauntimator will display in the list of recent files.
 + Toolbar_On_Window (Mac Only) - This controls whether the menubar for Hauntimator is at the top of the screen, the usual for Mac OSX applications, or at the top of the Hauntimator window.  If set to False, it will be at the top of the screen which makes some of the hot keys work strangely.  If set to True, it will be at the top of the window and functionality will be very much like that on Linux.
 
 <a name="view">
