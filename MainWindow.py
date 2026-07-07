@@ -22,6 +22,7 @@ import importlib
 import pkgutil
 import signal
 import time
+from functools import partial
 
 from Animatronics import *
 from Widgets import *
@@ -38,6 +39,8 @@ SystemPreferences = {
 'ServoDataFile':'servotypes',   # Name of file containing predefined servos
 'UploadPath':'/sd/anims/',      # Name of upload directory on controller
 'TTYPortRoot':'/dev/ttyACM',    # Root of tty port for usb comm
+'MaxRecentAge':30,              # Max days to look back for recent files
+'MaxRecentCount':10,            # Max count of recent files to display
 }
 SystemPreferenceTypes = {
 'MaxDigitalChannels':'int',
@@ -50,6 +53,8 @@ SystemPreferenceTypes = {
 'ServoDataFile':'str',
 'UploadPath':'str',
 'TTYPortRoot':'str',
+'MaxRecentAge':'int',
+'MaxRecentCount':'int',
 }
 
 # Try to deal with Mac idiosyncracies
@@ -174,6 +179,147 @@ def fromHMS(string):
         seconds = seconds * 60.0 + abs(float(value))
     if flag: seconds = -seconds
     return seconds
+
+#####################################################################
+# The Recents class provides support for a list of recently opened
+# files and removal of older ones.
+#####################################################################
+class Recents:
+    """
+    Keeps track of recently opened filenames along with the time they were
+    last accessed.
+
+    - Filenames are kept unique; adding a filename that is already present
+      just refreshes its access time instead of creating a duplicate entry.
+    - The list can be retrieved ordered from most recently accessed to least
+      recently accessed.
+    - The list is persisted to a file (default: '~/.anim.recents') and is
+      re-written every time a file is added.
+    - An optional "max_age" (in seconds) and "max_count"can be set. When the
+      list is returned to a caller, list is truncated to those newer than
+      max_age and no more than max_count.  NOTE - anim filenames are never
+      removed from the recents file allowing searching way back in history.
+    """
+
+    DEFAULT_FILENAME = "~/.anim.recents"
+
+    def __init__(self, filename=None):
+        """
+        :param filename: optional path to the recents file. Defaults to
+                          '~/.anim.recents' if not provided.
+        """
+        self._filename = os.path.expanduser(filename or self.DEFAULT_FILENAME)
+        self._max_age = None  # seconds; None means "no expiration"
+        self._max_count = None  # integer count; None means "no limit"
+        self._entries = {}    # filename -> last-accessed timestamp (float)
+
+        self.read()
+
+    # ------------------------------------------------------------------
+    # Configuration
+    # ------------------------------------------------------------------
+
+    def set_filename(self, filename):
+        """Change the file used to persist/read the recents list."""
+        self._filename = os.path.expanduser(filename)
+
+    def get_filename(self):
+        """Return the current path of the recents file."""
+        return self._filename
+
+    def set_max_age(self, seconds):
+        """
+        Store the maximum age (in seconds) an entry may have before it is
+        dropped on the next read(). Pass None to disable expiration.
+        """
+        self._max_age = seconds
+
+    def get_max_age(self):
+        """Return the currently configured max age in seconds (or None)."""
+        return self._max_age
+
+    def set_max_count(self, count):
+        """
+        Store the maximum count (in count) an entry may have before it is
+        dropped on the next read(). Pass None to disable expiration.
+        """
+        self._max_count = count
+
+    def get_max_count(self):
+        """Return the currently configured max count in count (or None)."""
+        return self._max_count
+
+    # ------------------------------------------------------------------
+    # Core behavior
+    # ------------------------------------------------------------------
+
+    def add(self, filename):
+        """
+        Add a filename to the recents list, or, if it is already present,
+        simply update its last-accessed time to now. Afterwards the list
+        is written out to the recents file.
+        """
+        self._entries[filename] = time.time()
+        self.write()
+
+    def get_filenames(self):
+        """
+        Return the list of filenames ordered from most recently accessed
+        to least recently accessed.
+        """
+        ordered = sorted(
+            self._entries.items(), key=lambda item: item[1], reverse=True
+        )
+        cutofftime = 0
+        if self._max_age is not None: cutofftime = time.time() - self._max_age
+        maxcount = 1000000
+        if self._max_count is not None: maxcount = self._max_count
+        return [filename for filename, _timestamp in ordered[0:maxcount] if _timestamp > cutofftime]
+
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    def read(self):
+        """
+        Read the recents list from the configured file. Lines are expected
+        to be in the form:
+
+            <timestamp>\t<filename>
+
+        Malformed lines are ignored. If a max age has been set, any entries
+        older than that many seconds are dropped after reading.
+        """
+        entries = {}
+
+        if os.path.exists(self._filename):
+            with open(self._filename, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.rstrip("\n")
+                    if not line:
+                        continue
+                    try:
+                        ts_str, fname = line.split("\t", 1)
+                        timestamp = float(ts_str)
+                    except ValueError:
+                        # skip malformed lines
+                        continue
+                    entries[fname] = timestamp
+
+        self._entries = entries
+        return self._entries
+
+    def write(self):
+        """Write the current recents list out to the configured file."""
+        directory = os.path.dirname(self._filename)
+        if directory and not os.path.isdir(directory):
+            os.makedirs(directory, exist_ok=True)
+
+        with open(self._filename, "w", encoding="utf-8") as f:
+            for fname, ts in self._entries.items():
+                f.write(f"{ts}\t{fname}\n")
+
+
 
 #####################################################################
 # The GroupLabel implements a label field that can be inserted to
@@ -3523,6 +3669,11 @@ class MainWindow(QMainWindow):
         # Create the TimeRangeDialog
         self.timerangedialog = self.TimeRangeDialog(parent=self)
 
+        # Create list of recently accessed files
+        self.recentfiles = Recents('~/.anim.recents')
+        self.recentfiles.set_max_age(SystemPreferences['MaxRecentAge'] * 86400)
+        self.recentfiles.set_max_count(SystemPreferences['MaxRecentCount'])
+
         # Create a timer to trigger I/O check
         self.timer = QTimer(self)
         self.timer.setInterval(100)
@@ -3974,27 +4125,33 @@ class MainWindow(QMainWindow):
                                 options=QFileDialog.DontUseNativeDialog)
 
             if fileName:
-                # Push current state for undo
-                pushState()
+                self.doTheOpening(fileName)
 
-                newAnim = Animatronics()
-                try:
-                    newAnim.parseXML(fileName, uploadpath=SystemPreferences['UploadPath'])
-                    self.setAnimatronics(newAnim)
-                    # Clear out Redo history
-                    self.pendingStates = []
-                    self.unsavedChanges = False
+    def doTheOpening(self, fileName):
+        # Push current state for undo
+        pushState()
 
-                except Exception as e:
-                    self.undo_action()
-                    sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
-                    sys.stderr.write("Message: %s\n" % e)
-                    return
+        newAnim = Animatronics()
+        try:
+            newAnim.parseXML(fileName, uploadpath=SystemPreferences['UploadPath'])
+            self.setAnimatronics(newAnim)
+            # Clear out Redo history
+            self.pendingStates = []
+            self.unsavedChanges = False
+            self.recentfiles.add(fileName)
+
+        except Exception as e:
+            self.undo_action()
+            sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
+            sys.stderr.write("Message: %s\n" % e)
+            return
 
     def redraw(self):
         self.save_visual_state()
         self.setAnimatronics(self.animatronics)
         self.restore_visual_state()
+        self.recentfiles.set_max_age(SystemPreferences['MaxRecentAge'] * 86400)
+        self.recentfiles.set_max_count(SystemPreferences['MaxRecentCount'])
 
     def newAnimFile(self):
         """
@@ -6692,6 +6849,34 @@ class MainWindow(QMainWindow):
             # Remove all tags in the tags pane
             self.tagPlot.setTags([])
 
+    def DUMMY(self, fname, arg2):
+        # Ignores arg2 and passes the filename to the opener
+        self.doTheOpening(fname)
+
+    def populate_recent_menu(self):
+        """
+        Clear and repopulate the 'Open Recent' submenu with the current
+        list of recent filenames (most recent first). Selecting an entry
+        calls DUMMY(filename).
+        """
+        self._recent_file_menu.clear()
+
+        filenames = self.recentfiles.get_filenames()
+
+        if not filenames:
+            empty_action = QAction("(No recent files)", self._recent_file_menu)
+            empty_action.setEnabled(False)
+            self._recent_file_menu.addAction(empty_action)
+            return
+
+        for filename in filenames:
+            action = QAction(filename, self._recent_file_menu)
+            # partial binds the current value of `filename`, avoiding the
+            # classic late-binding closure bug you'd get from a plain
+            # lambda inside a loop.
+            action.triggered.connect(partial(self.DUMMY, filename))
+            self._recent_file_menu.addAction(action)
+
     def create_menus(self):
         """
         The method create_menus creates all the dropdown menus for the
@@ -6719,6 +6904,10 @@ class MainWindow(QMainWindow):
             shortcut=QKeySequence.Open,
             triggered=self.openAnimFile)
         self.file_menu.addAction(self._open_file_action)
+
+        # Recents action
+        self._recent_file_menu = self.file_menu.addMenu("Open Recent File")
+        self._recent_file_menu.aboutToShow.connect(self.populate_recent_menu)
 
         self.file_menu.addSeparator()
 
@@ -7369,4 +7558,19 @@ def doRegressionTests():
 
 if __name__ == "__main__":
     doRegressionTests()
+
+if __name__ == "__main__":
+    # Quick manual sanity check
+    r = Recents()
+    r.set_max_age(60 * 60 * 24)  # drop entries older than a day on read
+    r.add("scene1.anim")
+    time.sleep(0.01)
+    r.add("scene2.anim")
+    time.sleep(0.01)
+    r.add("scene1.anim")  # re-adding just refreshes its time, no duplicate
+
+    print(r.get_filenames())  # ['scene1.anim', 'scene2.anim']
+
+    r2 = Recents(filename="/tmp/.anim.recents.test")
+    print(r2.get_filenames())  # loaded fresh from disk, same order
 
