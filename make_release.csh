@@ -257,10 +257,7 @@ zip -qry Hauntimator_${vnum}.zip \
     $DeliveryRepo/README.* \
     $DeliveryRepo/Pico \
     $DeliveryRepo/Pololu \
-    $DeliveryRepo/install \
-    $DeliveryRepo/wininstall.bat \
-    $DeliveryRepo/uninstall \
-    $DeliveryRepo/winuninstall.bat
+    $DeliveryRepo/*install*
 
 # Clean up
 if($verbosity) then
