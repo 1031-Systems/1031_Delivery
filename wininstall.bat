@@ -80,27 +80,35 @@ REM --- Hauntimator ---
 ) > "%SCRIPTPATH%\Hauntimator.bat"
 
 REM --- Optionally Create Desktop Shortcuts ---
-set "SHORTCUT=%USERPROFILE%\Desktop\Hauntimator.lnk"
-set "BATFILE=%SCRIPTPATH%\Hauntimator.bat"
-set "ICONFILE=%SCRIPTPATH%\src\docs\images\Hlogo.ico"
 
 set /p "CREATE_SHORTCUT=Create desktop shortcuts? (y/N): "
 if /i "%CREATE_SHORTCUT%"=="y" (
-
-    (
-        echo Set oWS = WScript.CreateObject^("WScript.Shell"^)
-        echo Set oLink = oWS.CreateShortcut^("%SHORTCUT%"^)
-        echo oLink.TargetPath = "%BATFILE%"
-        echo oLink.Arguments = "-f "
-        echo oLink.IconLocation = "%ICONFILE%"
-        echo oLink.WorkingDirectory = "%SCRIPTPATH%"
-        echo oLink.Save
-    ) > "%TEMP%\CreateShortcut.vbs"
-
-    cscript //nologo "%TEMP%\CreateShortcut.vbs"
-    del "%TEMP%\CreateShortcut.vbs"
-    echo Desktop shortcut created.
+    REM Call function for each shortcut to be created
+    CALL :CreateShortcut "Hauntimator" , "-f" , "Hlogo.ico"
+    CALL :CreateShortcut "Maestro_Animator" , "-p" , "CElogo.ico"
+    REM ALL :CreateShortcut "joysticking" , "-a" , "jlogo.ico"
 )
 
+goto :eof
+
+:CreateShortcut
+setlocal
+REM Call with Hauntimator , -f , Hlogo.ico
+(
+    echo Set oWS = WScript.CreateObject^("WScript.Shell"^)
+    echo Set oLink = oWS.CreateShortcut^("%USERPROFILE%\Desktop\%~1.lnk"^)
+    echo oLink.TargetPath = "%SCRIPTPATH%\%~1.bat"
+    echo oLink.Arguments = "%~2 "
+    echo oLink.IconLocation = "%SCRIPTPATH%\src\docs\images\%~3"
+    echo oLink.WorkingDirectory = "%SCRIPTPATH%"
+    echo oLink.Save
+) > "%TEMP%\CreateShortcut.vbs"
+cscript //nologo "%TEMP%\CreateShortcut.vbs"
+del "%TEMP%\CreateShortcut.vbs"
 endlocal
+EXIT /B 0
+
+
+endlocal
+
 
