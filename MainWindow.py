@@ -262,6 +262,16 @@ class Recents:
         self._entries[filename] = time.time()
         self.write()
 
+    def remove(self, filename):
+        """
+        Remove a filename from the recents list if present. Should only be
+        used if the specified file is missing or bad. If the filename is
+        removed, the updated list is written out to the recents file.
+        """
+        if filename in self._entries:
+            del self._entries[filename]
+            self.write()
+
     def get_filenames(self):
         """
         Return the list of filenames ordered from most recently accessed
@@ -4144,6 +4154,8 @@ class MainWindow(QMainWindow):
             self.undo_action()
             sys.stderr.write("\nWhoops - Error reading input file %s\n" % fileName)
             sys.stderr.write("Message: %s\n" % e)
+            # Remove a bad file entry from the recents list
+            self.recentfiles.remove(fileName)
             return
 
     def redraw(self):
