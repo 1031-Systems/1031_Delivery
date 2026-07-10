@@ -230,7 +230,7 @@ def mainEventLoop():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYUP and event.key == pygame.K_q):
                     pygame.quit()
-                    commdev.cleanup()
+                    if commdev is not None: commdev.cleanup()
                     sys.exit(0)
                 elif (event.type == pygame.KEYDOWN and event.key == pygame.K_m):
                     # Note press of trigger to see if held down for 5 seconds
@@ -409,7 +409,7 @@ def mainEventLoop():
 def signal_handler(signum, frame):
     signal.signal(signum, signal.SIG_IGN) # ignore additional signals
     pygame.quit()
-    commdev.cleanup()
+    if commdev is not None: commdev.cleanup()
     sys.stdout.write('\n')
     sys.stdout.flush()
     sys.exit(0)
@@ -456,19 +456,26 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     # Animations
-    inDir = os.path.join(path, 'sd/anims')
+    inDir = path
     animList = AnimClasses.AnimList(inDir=inDir)
     if len(animList.theAnims) > 0:
         tablefile = os.path.join(inDir, 'tabledefs')
         if os.path.isfile(tablefile):
             tables.parsefile(tablefile=tablefile)
     else:
-        inDir = os.path.join(path, 'anims')
-        animList.addAnims(inDir=inDir)
+        inDir = os.path.join(path, 'sd/anims')
+        animList = AnimClasses.AnimList(inDir=inDir)
         if len(animList.theAnims) > 0:
             tablefile = os.path.join(inDir, 'tabledefs')
             if os.path.isfile(tablefile):
                 tables.parsefile(tablefile=tablefile)
+        else:
+            inDir = os.path.join(path, 'anims')
+            animList.addAnims(inDir=inDir)
+            if len(animList.theAnims) > 0:
+                tablefile = os.path.join(inDir, 'tabledefs')
+                if os.path.isfile(tablefile):
+                    tables.parsefile(tablefile=tablefile)
 
     animPlayer = AnimPlayer()
     if verbosity:
@@ -487,16 +494,22 @@ if __name__ == "__main__":
     pygame.mixer.init()
     pygame.mixer.music.set_volume(0.5)
 
-    pygame.display.set_caption('Maestro Controller')
+    pygame.display.set_caption('Maestro_Animator')
     display = None
     if head: display = pygame.display.set_mode((maxWidth, 100))
     printer = TextPrint(display)
 
     # FIFOs
-    commdev = transcomm.FIFOComm(
-        inputFIFOName = '/tmp/fifo.commtocontrol',
-        outputFIFOName = '/tmp/fifo.controltocomm'
-    )
+    try:
+        # FIFOs are optional connection to Hauntimator
+        # Windows Python does not support them
+        commdev = transcomm.FIFOComm(
+            inputFIFOName = '/tmp/fifo.commtocontrol',
+            outputFIFOName = '/tmp/fifo.controltocomm'
+        )
+    except:
+        # Can still play without FIFOs
+        pass
 
     # Maestro
 

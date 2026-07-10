@@ -129,7 +129,12 @@ def lineFromPico():
 
 #################### Status Request Functions #################
 def isReady():
-    return commdev.isReady()
+    if commdev.isReady():
+        return True
+    else:
+        # Should probably check something here but for now we are assuming
+        # that we can always talk via the tables directly.  May not be true.
+        return True
 
 def cleanup():
     # Pololu uses FIFOs to communicate with Hauntimator so careful cleanup is needed
@@ -305,16 +310,29 @@ def playOnce():
     stringToPico('a\n')
 
 def setServo(channel, cyclefrac):
-    outstring = 's %d %d\n' % (channel, cyclefrac)
-    stringToPico(outstring)
+    if commdev.isReady():
+        outstring = 's %d %d\n' % (channel, cyclefrac)
+        stringToPico(outstring)
+    else:
+        setServoValue(channel, cyclefrac, True)
 
 def releaseServo(channel):
-    outstring = 's %d %d\n' % (channel, 0)
-    stringToPico(outstring)
+    setServo(channel, 0)
 
 def setDigitalChannel(channel, value):
-    outstring = 'd %d %d\n' % (channel, value)
-    stringToPico(outstring)
+    if commdev.isReady():
+        outstring = 'd %d %d\n' % (channel, value)
+        stringToPico(outstring)
+    else:
+        setDigitalValue(channel, value, True)
+
+##### Methods to bypass FIFOs as needed for Windows
+def setServoValue(channel, value, push=False):
+        tables.setPWM(channel, value, push)
+
+def setDigitalValue(channel, value, push=False):
+        tables.setDigital(channel, value, push)
+
 
 
 #/* Define block */
