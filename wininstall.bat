@@ -33,7 +33,7 @@ if errorlevel 1 (
 pip install -U PythonQwt
 pip install -U pygame-ce
 pip install -U rshell
-pip install -U pocketsphinx
+REM pip install -U pocketsphinx
 
 REM Set VIRTUAL_ENV path for use in wrapper scripts below
 set VIRTUAL_ENV=%SCRIPTPATH%\.venv

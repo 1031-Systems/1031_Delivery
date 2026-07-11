@@ -89,14 +89,14 @@ if [ -d ~/Desktop ]; then
                 cd ${SCRIPTPATH}/src
                 cp -r ~/Desktop/Untitled.app appdir
                 rm -f appdir/Contents/Resources/ApplicationStub.icns
-                cp -f docs/images/Hicon.icns appdir/Contents/Resources/ApplicationStub.icns
+                cp -f docs/images/Hlogo.icns appdir/Contents/Resources/ApplicationStub.icns
                 sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Hauntimator -f \$1<%g" appdir/Contents/document.wflow
                 rm -rf ~/Desktop/Hauntimator.app
                 mv appdir ~/Desktop/Hauntimator.app
 
                 cp -r ~/Desktop/Untitled.app appdir
                 rm -f appdir/Contents/Resources/ApplicationStub.icns
-                cp -f docs/images/CEicon.icns appdir/Contents/Resources/ApplicationStub.icns
+                cp -f docs/images/CElogo.icns appdir/Contents/Resources/ApplicationStub.icns
                 sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Maestro_Animator<%g" appdir/Contents/document.wflow
                 rm -rf ~/Desktop/Maestro_Animator.app
                 mv appdir ~/Desktop/Maestro_Animator.app
