@@ -94,12 +94,12 @@ if [ -d ~/Desktop ]; then
                 rm -rf ~/Desktop/Hauntimator.app
                 mv appdir ~/Desktop/Hauntimator.app
 
-#                 cp -r ~/Desktop/Untitled.app appdir
-#                 rm -f appdir/Contents/Resources/ApplicationStub.icns
-#                 cp -f docs/images/jicon.icns appdir/Contents/Resources/ApplicationStub.icns
-#                 sed -i '' -e "s%>cat<%>${SCRIPTPATH}/joysticking<%g" appdir/Contents/document.wflow
-#                 rm -rf ~/Desktop/joysticking.app
-#                 mv appdir ~/Desktop/joysticking.app
+                cp -r ~/Desktop/Untitled.app appdir
+                rm -f appdir/Contents/Resources/ApplicationStub.icns
+                cp -f docs/images/CEicon.icns appdir/Contents/Resources/ApplicationStub.icns
+                sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Maestro_Animator<%g" appdir/Contents/document.wflow
+                rm -rf ~/Desktop/Maestro_Animator.app
+                mv appdir ~/Desktop/Maestro_Animator.app
             fi
         elif [ ${OSTYPE:0:5} == linux ]; then
             cat << EOF > ~/Desktop/Hauntimator.desktop
@@ -113,16 +113,16 @@ Comment=Hauntimator Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/Hlogo.png
 EOF
 
-#             cat << EOF > ~/Desktop/joysticking.desktop
-# [Desktop Entry]
-# Version=__VERSION__
-# Type=Application
-# Terminal=true
-# Exec=${SCRIPTPATH}/joysticking -a %f
-# Name=joysticking
-# Comment=joysticking Version: __VERSION__
-# Icon=${SCRIPTPATH}/src/docs/images/jlogo.png
-# EOF
+            cat << EOF > ~/Desktop/Maestro_Animator.desktop
+[Desktop Entry]
+Version=__VERSION__
+Type=Application
+Terminal=true
+Exec=${SCRIPTPATH}/Maestro_Animator -p %f
+Name=Maestro_Animator
+Comment=joysticking Version: __VERSION__
+Icon=${SCRIPTPATH}/src/docs/images/CElogo.png
+EOF
         fi
     fi
 fi
