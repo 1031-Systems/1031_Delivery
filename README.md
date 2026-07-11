@@ -1,5 +1,9 @@
-<!-- john Fri Dec 17 17:35:16 PDT 2023 -->
+<!-- john Fri Jul 10 17:35:16 PDT 2026 -->
 # Animatronics
+
+We are pleased to announce that the tools in this repo are now available
+for Windows 11.  In general, the Python code always worked but the
+installation scripts were lacking.  That has changed.
 
 This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
@@ -15,7 +19,9 @@ users may develop code for different processors such as
 Arduino, Pololu Maestro, or other Raspberry Pi versions.
 
 It also contains a utility application, joysticking.py, for recording
-joystick actions into Hauntimator channels.
+joystick actions into Hauntimator channels.  If using Maestro controllers,
+there is also the Maestro_Animator application for PC-based control
+of the Maestros from Hauntimator output animations.
 
 A Youtube channel is available that contains some 
 [introductory videos](https://www.youtube.com/@1031-Systems-Animatronics)
@@ -57,19 +63,25 @@ SW dot 1031 dot Systems at gmail dot com.
 
 These tools have been built and tested on Mint 22.1 and Rocky 9,
 two distributions of linux, and on MacOS Sonoma 14.9, another
-variant of linux.  It has had minimal testing under Windows.  It
-runs.
+variant of linux.  It has also been tested under Windows 11, 
+although not as extensively.  A very small number of features
+appear to not be functional on Windows but are rarely used with
+easy workarounds.
+
 
 To have a readily runnable version of the tools, download the zipped
 release file of your choice from https://github.com/1031-Systems/1031_Delivery/releases,
 navigating to the realease of your choice.  If you just want the
 latest release, find the one labeled Latest.  It should be at
 https://github.com/1031-Systems/1031_Delivery/releases/latest.
+Look for the asset named Hauntimator_{version}.zip.
 
 Once the zip file is downloaded, unzip it into the directory of
 your choice.  Unzipping the file produces a directory named
 1031_Hauntimator.  Navigate to that directory and run install or
-install.bat for Windows.  The tools should be ready to run.
+wininstall.bat for Windows.  The tools will mostly be ready to run.
+More steps are actually required to build and execute animations
+but they are explained in the README that accompanies the installation.
 
 Note that the directory structure and file locations for the User
 version are different from that for the Developer to avoid distractions
@@ -170,8 +182,8 @@ the Pico directory.  See the README there for more details.
 
 In the Pico part of the repo there is a file named commlib.py.  This
 is the interface library for Hauntimator.py to talk to the hardware.
-In order for Hauntimator to load the right commlib, there should be a
-symbolic link in the Animatronics directory to the appropriate
+In order for Hauntimator to load the right commlib, there MUST be a
+symbolic link in the src directory to the appropriate
 commlib.py file to support users developing controllers with other
 hardware or programming languages.  commlib.py has the purpose of
 decoupling Hauntimator from the hardware specifics.
@@ -182,6 +194,27 @@ control files will need to be transferred to the hardware via rshell,
 thonny, direct copy to SD card, or other mechanism.  Hauntimator can
 output the CSV control files locally for separate transfer and the
 audio files must already exist on the system.
+
+### Pololu
+
+This installation also includes files for using Pololu Maestro
+animation controllers.  The provided software is in the Pololu
+directory.  See the README there for more details.
+
+In the Pololu subdirectory, there is a file named commlib.py.  This
+is the interface library for Hauntimator.py and Maestro_Animator.py 
+to talk to the hardware.
+In order for these tools to load the right commlib, there MUST be a
+symbolic link in the src directory to the appropriate
+commlib.py file to support users developing controllers with other
+hardware or programming languages.  commlib.py has the purpose of
+decoupling Hauntimator from the hardware specifics.
+
+Hauntimator's direct communication with the hardware is optional and
+somewhat limited because the hardware does not in fact store the
+animations as the the Pico-based Animator board does.  The animations
+are stored in the local filesystem and the application
+Maestro_Animator is used to play them via its Maestro interface.
 
 ## Plugins
 
@@ -195,6 +228,62 @@ the README in the plugins folder for more details.
 This software is made available for use under the GNU General Public License (GPL).
 A copy of this license is available within the repository for this software and is
 included herein by reference.
+
+## Uninstallation
+
+Yes, it is possible that you may decide that this is not for you.  To
+uninstall everything do the following:
+
+- {installation directory}/uninstall
+
+Or on Windows do:
+
+- {installation directory}\winuninstall.bat
+
+These will delete any desktop icons referencing this installation and everything
+in it.  Since it does delete everything from the installation directory on down,
+do not put your animation files here unless you want them deleted as well.
+
+***
+
+## Rando Thoughts
+
+Building and operating animatronics is an art and there are many ways to
+do just about anything.  Our goal here was to create a low-cost, high-powered
+animation controller with software to operate it.  For $40 or so and some
+labor you can have a controller that will operate dozens to hundreds of
+controllable devices at 50Hz while playing audio synchronized to the actions.
+However, we recognize that not everybody
+wants to build hardware so we chose to support Pololu Maestro controllers
+as well.  The hardware solution is standalone while a Maestro solution needs
+a PC to play the audio and synchronize the actions.  Some users might build
+the Animator hardware for a prop while using Maestros for another prop.
+Some might want to have many props all synchronized.  We hope that these tools
+will support a variety of users in their quest for fun.
+
+Security is always an iffy thing.  Some people may be worried that this software
+will attack their system.  To assuage your concerns, note that on linux and MacOS,
+nothing is run at root level and all installations of Python modules and such
+are done in a virtual environment in the install directory.  Perusal of the
+uninstall script will show you that merely deleting the desktop icons that refer
+to the installation directory and the directory itself is all that is needed to
+completely remove all traces of our code.  If you are more experienced, you
+can peruse the install script to see the same thing.  However, on Windows there
+is one step that requires Administrator privileges, making a symbolic link.
+That is in a small batch file and you may peruse that to feel comfortable that
+all it does is make that symbolic link.
+
+The term animation used often throughout the documentation generally refers
+to a pair of files, one containing a comma-separated-values file of action
+controls and one containing a wav audio file.  It is possible to play animations
+that are only audio or only action but this can only be done with an animlist
+file, described elsewhere.  Within Hauntimator, an animation is an XML file
+containing a link to the audio and descriptions of the actions.  Hauntimator
+exports those to the CSV file for playback.  Installing animations generally means
+copying the CSV and WAV file to the appropriate place for the playback mechanism to
+find them, either on the local filesystem, an SD card, or to the Animator hardware
+via USB.
+
 
 ***
 

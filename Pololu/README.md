@@ -158,6 +158,14 @@ As you develop your overall system, it is important to make note of what Maestro
 boards will be utilized for what purposes.  Then setting up the system will be
 relatively straightforward.
 
+### Pololu Drivers on Windows 11
+
+Note that Maestros have been tested under Windows both with and without drivers
+from Pololu.  Our software is able to find the Command Port on the Maestro USB
+interface using Pololu drivers or generic Microsoft drivers.  Thus, if you are
+able to configure the Maestros on another system, it is not necessary to install
+any drivers on the animation system.
+
 ## Using tabledefs
 
 The tabledefs file is used to map logical port numbers used in Hauntimator to
