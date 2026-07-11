@@ -80,7 +80,7 @@ class FIFOComm(Communications):
             # Don't worry if it already exists
             pass
         except:
-            sys.stderr.write('\nWHOOPS - Unable to create output FIFO %s\n', self.outputFIFOName)
+            sys.stderr.write('\nWHOOPS - Unable to create output FIFO %s\n' % self.outputFIFOName)
 
     def isThereInput(self):
         if self.inpoll is not None:
