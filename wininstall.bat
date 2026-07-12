@@ -84,22 +84,22 @@ REM --- Optionally Create Desktop Shortcuts ---
 set /p "CREATE_SHORTCUT=Create desktop shortcuts? (y/N): "
 if /i "%CREATE_SHORTCUT%"=="y" (
     REM Call function for each shortcut to be created
-    CALL :CreateShortcut "Hauntimator" , "-f" , "Hlogo.ico"
-    CALL :CreateShortcut "Maestro_Animator" , "-p" , "CElogo.ico"
-    REM ALL :CreateShortcut "joysticking" , "-a" , "jlogo.ico"
+    CALL :CreateShortcut "Hauntimator" , "Hlogo.ico"
+    CALL :CreateShortcut "Maestro_Animator" , "CElogo.ico"
+    REM CALL :CreateShortcut "joysticking" , "jlogo.ico"
 )
 
 goto :eof
 
 :CreateShortcut
 setlocal
-REM Call with Hauntimator , -f , Hlogo.ico
+REM Call with appname , logo.ico
 (
     echo Set oWS = WScript.CreateObject^("WScript.Shell"^)
     echo Set oLink = oWS.CreateShortcut^("%USERPROFILE%\Desktop\%~1.lnk"^)
     echo oLink.TargetPath = "%SCRIPTPATH%\%~1.bat"
-    echo oLink.Arguments = "%~2 "
-    echo oLink.IconLocation = "%SCRIPTPATH%\src\docs\images\%~3"
+    echo oLink.Arguments = "-a "
+    echo oLink.IconLocation = "%SCRIPTPATH%\src\docs\images\%~2"
     echo oLink.WorkingDirectory = "%SCRIPTPATH%"
     echo oLink.Save
 ) > "%TEMP%\CreateShortcut.vbs"

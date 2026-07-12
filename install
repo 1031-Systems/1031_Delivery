@@ -38,6 +38,7 @@ pip install -U pocketsphinx
 # Make runnables that don't need venv
 cat << EOF > ${SCRIPTPATH}/Hauntimator
 #!$SHELL
+cd ~
 
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/Hauntimator.py "\$@"
 EOF
@@ -46,6 +47,7 @@ chmod +x ${SCRIPTPATH}/Hauntimator
 
 cat << EOF > ${SCRIPTPATH}/joysticking
 #!$SHELL
+cd ~
 
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/joysticking.py "\$@"
 EOF
@@ -54,6 +56,7 @@ chmod +x ${SCRIPTPATH}/joysticking
 
 cat << EOF > ${SCRIPTPATH}/Pico/rshell
 #!$SHELL
+cd ~
 
 ${VIRTUAL_ENV}/bin/rshell "\$@"
 EOF
@@ -62,6 +65,7 @@ chmod +x ${SCRIPTPATH}/Pico/rshell
 
 cat << EOF > ${SCRIPTPATH}/Pico/verifyload
 #!$SHELL
+cd ~
 
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/Pico/verifyload.py "\$@"
 EOF
@@ -70,6 +74,7 @@ chmod +x ${SCRIPTPATH}/Pico/verifyload
 
 cat << EOF > ${SCRIPTPATH}/Maestro_Animator
 #!$SHELL
+cd ~
 
 export PYTHONPATH=${SCRIPTPATH}/Pololu:${SCRIPTPATH}/Pololu/lib
 
@@ -84,30 +89,40 @@ if [ -d ~/Desktop ]; then
     read answer
     if [ $answer == 'y' ]; then
         if [ $OSTYPE == 'darwin' ]; then
-            if [ -e ~/Desktop/Untitled.app ]; then
-                # Create apps from existing structure
-                cd ${SCRIPTPATH}/src
-                cp -r ~/Desktop/Untitled.app appdir
-                rm -f appdir/Contents/Resources/ApplicationStub.icns
-                cp -f docs/images/Hlogo.icns appdir/Contents/Resources/ApplicationStub.icns
-                sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Hauntimator -f \$1<%g" appdir/Contents/document.wflow
-                rm -rf ~/Desktop/Hauntimator.app
-                mv appdir ~/Desktop/Hauntimator.app
 
-                cp -r ~/Desktop/Untitled.app appdir
-                rm -f appdir/Contents/Resources/ApplicationStub.icns
-                cp -f docs/images/CElogo.icns appdir/Contents/Resources/ApplicationStub.icns
-                sed -i '' -e "s%>cat<%>${SCRIPTPATH}/Maestro_Animator<%g" appdir/Contents/document.wflow
-                rm -rf ~/Desktop/Maestro_Animator.app
-                mv appdir ~/Desktop/Maestro_Animator.app
-            fi
+            # Function for creating desktop apps
+            create_shortcut() {
+                # Create an applescript file to run the app
+                cat << EOF > tmp.applescript
+on open droppedItems
+    repeat with anItem in droppedItems
+        set p to POSIX path of anItem
+        do shell script quoted form of "${SCRIPTPATH}/$1" & " -a " & quoted form of p
+    end repeat
+end open
+
+on run
+    do shell script quoted form of "${SCRIPTPATH}/$1"
+end run
+EOF
+                # Compile the script into the desktop shortcut
+                osacompile -o ~/Desktop/${1}.app tmp.applescript
+                # Attach the icon
+                cp $2 ~/Desktop/${1}.app/Contents/Resources/droplet.icns
+                # Remove the temp file
+                rm -f tmp.applescript
+            }
+            # Create shortcut for Hauntimator
+            create_shortcut "Hauntimator" "${SCRIPTPATH}/src/docs/images/Hlogo.icns"
+            # Create shortcut for Maestro_Animator
+            create_shortcut "Maestro_Animator" "${SCRIPTPATH}/src/docs/images/CElogo.icns"
         elif [ ${OSTYPE:0:5} == linux ]; then
             cat << EOF > ~/Desktop/Hauntimator.desktop
 [Desktop Entry]
 Version=__VERSION__
 Type=Application
 Terminal=true
-Exec=${SCRIPTPATH}/Hauntimator -f %f
+Exec=${SCRIPTPATH}/Hauntimator -a %f
 Name=Hauntimator
 Comment=Hauntimator Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/Hlogo.png
@@ -118,7 +133,7 @@ EOF
 Version=__VERSION__
 Type=Application
 Terminal=true
-Exec=${SCRIPTPATH}/Maestro_Animator -p %f
+Exec=${SCRIPTPATH}/Maestro_Animator -a %f
 Name=Maestro_Animator
 Comment=joysticking Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/CElogo.png
