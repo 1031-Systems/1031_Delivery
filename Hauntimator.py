@@ -63,7 +63,7 @@ def print_usage(name):
     sys.stderr.write("Create and edit animatronics control channels.\n");
     sys.stderr.write("-/-h/-help             :show this information\n");
     sys.stderr.write("-V/-version            :print version information and exit\n")
-    sys.stderr.write("-f/-file infilename    :Input anim file\n")
+    sys.stderr.write("-a/-anim infilename    :Input anim file\n")
     sys.stderr.write("\n\n");
 
 def print_module_version(module_name):
@@ -100,7 +100,7 @@ def doAnimatronics():
         elif sys.argv[i] == '-V' or sys.argv[i] == '-version':
             exitcode = print_module_version('Hauntimator')
             sys.exit(exitcode)
-        elif sys.argv[i] == '-f' or sys.argv[i] == '-file':
+        elif sys.argv[i] == '-a' or sys.argv[i] == '-anim':
             i += 1
             if i < len(sys.argv):
                 infilename = sys.argv[i]

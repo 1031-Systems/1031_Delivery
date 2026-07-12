@@ -419,10 +419,10 @@ def print_usage(name):
     """ Simple method to output usage when needed """
     sys.stderr.write("\nUsage: %s [-/-h/-help] [-v/-verbose]\n" % name);
     sys.stderr.write("Enter purpose here.\n");
-    sys.stderr.write("-/-h/-help        :show this information\n");
-    sys.stderr.write("-v/-verbose       :run more verbosely\n");
-    sys.stderr.write("-nohead           :do not open window or accept key commands\n")
-    sys.stderr.write("-p/-path dirpath  :specify path to anims and sd/anims directories\n")
+    sys.stderr.write("-/-h/-help            :show this information\n");
+    sys.stderr.write("-v/-verbose           :run more verbosely\n");
+    sys.stderr.write("-nohead               :do not open window or accept key commands\n")
+    sys.stderr.write("-a/-animpath dirpath  :specify path to anims and sd/anims directories\n")
     sys.stderr.write("\n\n");
 
 #/* Main */
@@ -440,7 +440,7 @@ if __name__ == "__main__":
             verbosity = True
         elif sys.argv[i] == '-nohead':
             head = False
-        elif sys.argv[i] == '-p' or sys.argv[i] == '-path':
+        elif sys.argv[i] == '-a' or sys.argv[i] == '-animpath':
             i += 1
             if i < len(sys.argv):
                 path = sys.argv[i]
