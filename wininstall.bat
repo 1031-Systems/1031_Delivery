@@ -35,6 +35,14 @@ pip install -U pygame-ce
 pip install -U rshell
 REM pip install -U pocketsphinx
 
+REM Installing rshell seems to install pyreadline2 as a dependency.
+REM That messes up python which gives a bunch of errors and causes
+REM rshell to not even run.  Needs pyreadline3.
+
+REM Clean up pyreadline from rshell
+pip --no-input uninstall pyreadline
+pip install pyreadline3
+
 REM Set VIRTUAL_ENV path for use in wrapper scripts below
 set VIRTUAL_ENV=%SCRIPTPATH%\.venv
 

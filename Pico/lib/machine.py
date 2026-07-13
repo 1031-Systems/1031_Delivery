@@ -7,8 +7,12 @@ included herein by reference.
 import select
 import sys
 
-inpoll = select.poll()
-inpoll.register(sys.stdin.buffer, select.POLLIN)
+try:
+    inpoll = select.poll()
+    inpoll.register(sys.stdin.buffer, select.POLLIN)
+except:
+    # probably on Windows so skip it
+    pass
 
 # This is a stub version of the Pico machine library
 class Pin:
@@ -45,7 +49,12 @@ class Pin:
             return(self.state)
         else:
             # Check for keyboard input as to which pin is activated
-            result = inpoll.poll(0)
+            result = []
+            try:
+                result = inpoll.poll(0)
+            except:
+                # Probably on Windows so skip it
+                pass
             if len(result) > 0:
                 line = input()
                 if len(line) > 1:
