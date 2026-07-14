@@ -343,12 +343,21 @@ def mountSDCard(mountpoint='/sd'):
 import select
 import sys
 
-# Create object for communicating over USB
-inpoll = select.poll()
-inpoll.register(sys.stdin.buffer, select.POLLIN)
+try:
+    # Create object for communicating over USB
+    inpoll = select.poll()
+    inpoll.register(sys.stdin.buffer, select.POLLIN)
+except:
+    # Polls don't work on Windows
+    pass
 
 def isThereInput():
-    result = inpoll.poll(0)
+    result = []
+    try:
+        result = inpoll.poll(0)
+    except:
+        # Polls don't work on Windows
+        pass
     return len(result) > 0
 
 def handleInput():
