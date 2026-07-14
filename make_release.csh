@@ -247,7 +247,8 @@ rm -f ${DeliveryRepo}/Pico/installtable*
 rm -f ${DeliveryRepo}/Pico/lib/tabledefs
 rm -f ${DeliveryRepo}/Pico/dumpBinary.py
 rm -f ${DeliveryRepo}/Pico/.portid
-rm -f ${DeliveryRepo}/src/docs/images/*.xcf ${DeliveryRepo}/src/docs/images/makeMacIcons.csh
+rm -f ${DeliveryRepo}/Pololu/docs/FIFOs.svg
+rm -f ${DeliveryRepo}/src/docs/images/*.xcf ${DeliveryRepo}/src/docs/images/*.csh
 
 # Zip up the delivery files
 rm -f Hauntimator_${vnum}.zip
