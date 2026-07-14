@@ -23,6 +23,7 @@ Hauntimator applications and the controller and hardware:
 
 isReady()
     Returns True if commlib can talk tot he hardware and False otherwise
+    MUST be called and return True prior to calling any other methods
 getPort()
     Returns the name of the port commlib is using to talk to the hardware
     Must be called AFTER isReady()
@@ -68,24 +69,70 @@ portRoot = None    # May be set by Hauntimator prior to comms
 # Remove path so other code can't accidentally get to it
 sys.path.remove(_Path)
 
+"""
+Cross-platform detection of a Pico Command Port.
+
+Find Port where vendor ID (vid) matches Raspberry Pi value 2E8A
+"""
+
+import re
+
+PICO_VID = 0x2E8A
+
+
+def _interface_number(port):
+    """Return the USB interface number (0 or 1) if we can determine it, else None."""
+    m = re.search(r"MI_(\d+)", port.hwid or "", re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"\.(\d+)$", port.location or "")
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def _natural_sort_key(device):
+    """Sort device paths/names by their trailing number so 'COM9' < 'COM10', etc."""
+    m = re.search(r"(\d+)$", device)
+    return (int(m.group(1)) if m else -1, device)
+
+
+def find_command_port(vid=PICO_VID, pid=None, serial_number=None):
+    """
+    Find the Command Port of a connected Pico Maestro.
+
+    Args:
+        vid: USB vendor ID to match (default: Pico's 0x2E8A).
+        pid: USB product ID to match, or None to match any Maestro model.
+        serial_number: Board serial number to match, needed if multiple
+            Maestros are connected, to avoid mixing up their ports.
+
+    Returns:
+        The device string (e.g. '/dev/ttyACM0', 'COM4',
+        '/dev/cu.usbmodem14201') for the Command Port, or None if no
+        matching Raspberry Pi device was found.
+    """
+    candidates = [
+        p for p in list_ports.comports()
+        if p.vid == vid
+        and (pid is None or p.pid == pid)
+        and (serial_number is None or p.serial_number == serial_number)
+    ]
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0].device
+
+    # 3. macOS (and any other platform lacking the above info): lowest device name.
+    return sorted(candidates, key=lambda p: _natural_sort_key(p.device))[0].device
+
 
 ################# Serial Comm Code #########################
 def openPort(timeout=5):
-    global portRoot
-
-    ser = None
-    # Try a whole bunch of port options
-    for port in serial.tools.list_ports.comports():
-        if port.manufacturer is not None and isinstance(port.manufacturer, str):
-            # Find the first com port whose vendor contains MicroPython
-            if port.manufacturer.find('MicroPython') >= 0:
-                try:
-                    ser = serial.Serial(port.device, 115200, timeout=timeout)
-                    # Save the good port
-                    portRoot = port.device
-                    break   # Found a good one
-                except:
-                    ser = None
+    try:
+        ser = serial.Serial(portRoot, 115200, timeout=timeout)
+    except:
+        ser = None
     return ser
 
 def getPort():
@@ -112,7 +159,16 @@ def lineFromPico():
 
 #################### Status Request Functions #################
 def isReady():
-    ser = openPort()
+    global portRoot
+
+    theDevice = find_command_port()
+    try:
+        ser = serial.Serial(theDevice, 115200)
+        # Save the good port
+        portRoot = theDevice
+    except:
+        ser = None
+
     if ser is not None:
         ser.close()
         return True
