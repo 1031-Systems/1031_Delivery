@@ -106,18 +106,11 @@ do this:
 
 ### Windows
 
-A Windows version of the install script is now included and is named wininstall.bat.
+A Windows version of the install script is now included and is named windo_install.bat.
 It performs most of the same tasks as the linux version but creates batch files
 in the install directory instead of linux scripts.  It also optionally
 creates desktop shortcuts with nice icons.
 
-The do_install script in the Pico directory has not yet been converted for Windows.
-It can be done manually but I would suggest waiting until it gets converted or
-ask Claude or some other AI to convert it for you.  It will only be useful if you
-have built the Pico-based Animator board.  If you have, let us know so we can get
-that prioritized for you.
-
-The windo_install script in the Pololu directory has been converted for Windows.
 This one really only makes a symbolic link in the installation/src directory to
 installation/Pololu/commlib.py.  Note that this step, and only this step, requires
 Administrator privileges because heaven forbid that someone would want to create

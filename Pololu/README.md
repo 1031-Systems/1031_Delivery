@@ -50,7 +50,9 @@ In both of these configurations, Animator-I is responsible for the audio allowin
 a stand-alone system to be built that does not need a PC for operation.
 
 Details on how to implement and use these configurations is available in the Pico
-section as these are extensions of the Pico implementation.
+section as these are extensions of the Pico implementation.  You must use winusePico
+or windo_install.bat in the Pico directory to link the Pico code to the top-level
+tools.
 
 ## Running Standalone
 
@@ -61,13 +63,20 @@ handling the audio playback.  Trigger or other inputs to the Maestro are sent ba
 the PC which adapts its output to what comes in.
 
 To maintain the board-agnosticity of Hauntimator, it will not directly interface to
-the Maestro.  Instead, a separate application will perform the functions provided by
+the Maestro.  Instead, it uses the Pololu version of commlib to properly communicate
+with the Maestros.  In order for this to function properly, there must be a symbolic
+link from the src directory to the commlib.py file in the Pololu folder.  On linux 
+and Mac, this is done when the do_install script is run and may be done manually as
+well.  On Windows 11, the windo_install.bat script will do it or the winUsePololu.bat
+script may be run.  These will request the Administrator privileges needed to make
+the symbolic.
+
+A separate application will perform the functions provided by
 the Pico on Animator-I.  These include identifying the animations to be played, the
 idle animation if any, handling the audio, providing the reset, main, and
-trigger functions, file I/O, and other capabilities.  A custom version
-of commlib.py will provide Hauntimator with the basic interface to this application.
+trigger functions, file I/O, and other capabilities.
 
-The Trigger on the Pico serves a different purpose than the
+The Trigger in this application serves a different purpose than the
 Main input and has different behavior.  The Main input is a master control
 that can abort playback of an animation and also trigger continuous playback mode.
 On the Pico, the Trigger can only trigger a playback when an animation

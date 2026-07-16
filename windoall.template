@@ -1,0 +1,29 @@
+setlocal enabledelayedexpansion
+
+REM Download the matching version zip file from repo
+curl -OL https://github.com/1031-Systems/1031_Delivery/releases/download/__VERSION__/Hauntimator___VERSION__.zip
+
+REM Unzip the file locally
+tar -xf Hauntimator___VERSION__.zip
+
+REM Run the install batch file
+cd 1031_Hauntimator
+call .\wininstall.bat
+
+REM Use a reasonable tabledefs file
+REM Change Pololu to Pico as needed
+cd Pololu\lib
+copy tabledefs.basic tabledefs
+
+REM Run the install file including Admin privileges for making symbolic link
+cd ..
+call .\windo_install.bat
+
+cd ..
+
+REM Clean up downloaded zip file
+del ..\Hauntimator___VERSION__.zip
+
+endlocal
+
+exit /B 0

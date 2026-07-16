@@ -83,6 +83,14 @@ wininstall.bat for Windows.  The tools will mostly be ready to run.
 More steps are actually required to build and execute animations
 but they are explained in the README that accompanies the installation.
 
+On Windows there is a batch file with the release that will do the
+entire installation for you.  Download the windoall_{version}.bat
+file, copy or move it to the directory where you want to install
+the tools, and then run it, responding to prompts as needed.
+It defaults to installing for Pololu
+but you can edit the batch file and change Pololu to Pico to install
+for Pico.
+
 Note that the directory structure and file locations for the User
 version are different from that for the Developer to avoid distractions
 of source code and data files.  While most of the files are there,
@@ -116,14 +124,15 @@ python ./Hauntimator.py
 In addition, you may have to find the appropriate requirements file
 for your system.  If the OSTYPE environment is set then you can use
 the command above.  If not, you will have to replace it with the
-appropriate OS type for your system.  If your system is not available,
+appropriate OS type for your system.  NOTE that the requirements
+files are not well maintained yet.  If your system is not available,
 then you have to manually install needed modules with the  following:
 
 ~~~
 
 pip install PyQt5 # (or PyQt6==6.5, whichever will actually install)
 pip install PythonQwt
-pip install pygame
+pip install pygame-ce
 pip install rshell
 pip install pocketsphinx    # To support phonemes plugin
 pip freeze -l > ${OSTYPE}-requirements.txt # To save your own config

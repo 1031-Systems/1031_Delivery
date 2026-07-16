@@ -90,7 +90,7 @@ do the following:
 ~~~
 
 cd Pico
-do_install
+do_install (or windo_install.bat on Windows 11)
 
 ~~~
 
@@ -180,7 +180,7 @@ with the Pico.  To allow Hauntimator to make use of it, a symbolic link
 to the specific commlib.py package should be included in the Hauntimator
 executable directory.
 
-### do_install
+### do_install (or windo_install.bat on Windows 11)
 
 do_install is a shell script that installs all the Micropython code on
 the Pico as well as the tabledefs file defining the hardware setup.  It
@@ -191,6 +191,9 @@ These are simple left/right audio, to help get the audio channels hooked
 up as expected, and toggling digital channels 0-7 to get those signals
 hooked up right.  These go into the Pico's onboard flash memory and will
 be executed when the SD card is not in the slot.
+
+do_install also makes the symbolic link from the src directory to the
+Pico/commlib.py file to cause the top-level tools to access the Pico.
 
 ### dumpBinary.py
 
@@ -216,6 +219,12 @@ It utilizes a 16-bit CRC checksum to verify that the files on the Pico are
 identical to those on the development system.  With no arguments it validates
 all files in its internal list, which should be all the files in the system.
 Users may specify a specific file to validate with the -f option.
+
+### winUsePico.bat
+
+On windows 11, making a symbolic link requires administrator privileges.
+This script requests those privileges and makes the link and is called
+at the end of windo_install.bat.
 
 ## Files
 

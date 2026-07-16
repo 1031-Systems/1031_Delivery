@@ -136,6 +136,7 @@ endif
 # Also copy over the support files
 cp servotypes $DeliveryRepo
 sed "s/__VERSION__/$vnum/g" Delivery_README > $DeliveryRepo/README.md
+sed "s/__VERSION__/$vnum/g" windoall.template > windoall_$vnum.bat
 foreach f (*.dist-info)
     mkdir $DeliveryRepo/$f
     foreach g ($f/*)
