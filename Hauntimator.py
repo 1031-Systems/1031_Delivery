@@ -111,8 +111,16 @@ def doAnimatronics():
 
         i += 1
 
+    # Use our icon on the Windows Taskbar instead of Python's
+    if sys.platform == "win32":
+        import ctypes
+        myappid = "com.1031_Systems.Hauntimator"
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
     # Create the global main window
     app = QApplication(sys.argv)
+    # Globally deactivate ? button for context-based help - may revisit later
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_DisableWindowContextHelpButton)
     # For Mac, preferences need to be read before creating main window
     MainWindow.PreferencesWidget.readPreferences()
     main_win = MainWindow.MainWindow()

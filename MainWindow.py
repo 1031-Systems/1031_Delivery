@@ -3613,6 +3613,11 @@ class MainWindow(QMainWindow):
         global main_win
         main_win = self
 
+        # Assign the icon for the application
+        # QIcon automagically builds the proper internal structures and icon sizes
+        # from the PNG file so this is not system-dependent like the desktop shortcut icon
+        self.setWindowIcon(QIcon(os.path.join(getExecPath(), 'docs/images/Hlogo.png')))
+
         # Create file dialog used only for saving files
         self.filedialog = QFileDialog(parent=self, caption="Get Save Filename")
         self.filedialog.setOption(QFileDialog.DontUseNativeDialog)
