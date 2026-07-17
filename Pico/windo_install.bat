@@ -119,7 +119,11 @@ set /p "reply=Install demo/diagnostic animations (y/N): "
 echo.
 
 if /i "!reply!"=="y" (
-    call !rshell! --quiet cp anims/* /pyboard/anims
+    pushd anims
+    for %%F in (*) do (
+        call !rshell! --quiet cp "%%F" /pyboard/anims
+    )
+    popd
 )
 
 :: Check on the results

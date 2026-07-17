@@ -38,7 +38,6 @@ pip install -U pocketsphinx
 # Make runnables that don't need venv
 cat << EOF > ${SCRIPTPATH}/Hauntimator
 #!$SHELL
-cd ~
 
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/Hauntimator.py "\$@"
 EOF
@@ -47,7 +46,6 @@ chmod +x ${SCRIPTPATH}/Hauntimator
 
 cat << EOF > ${SCRIPTPATH}/joysticking
 #!$SHELL
-cd ~
 
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/joysticking.py "\$@"
 EOF
@@ -56,7 +54,6 @@ chmod +x ${SCRIPTPATH}/joysticking
 
 cat << EOF > ${SCRIPTPATH}/Pico/rshell
 #!$SHELL
-cd ~
 
 ${VIRTUAL_ENV}/bin/rshell "\$@"
 EOF
@@ -65,7 +62,6 @@ chmod +x ${SCRIPTPATH}/Pico/rshell
 
 cat << EOF > ${SCRIPTPATH}/Pico/verifyload
 #!$SHELL
-cd ~
 
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/Pico/verifyload.py "\$@"
 EOF
@@ -74,7 +70,6 @@ chmod +x ${SCRIPTPATH}/Pico/verifyload
 
 cat << EOF > ${SCRIPTPATH}/Maestro_Animator
 #!$SHELL
-cd ~
 
 export PYTHONPATH=${SCRIPTPATH}/Pololu:${SCRIPTPATH}/Pololu/lib
 

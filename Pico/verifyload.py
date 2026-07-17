@@ -98,6 +98,11 @@ def main():
 
         i += 1
 
+    # Quit right away if unable to find a Pico attached to the system
+    if not commlib.isReady():
+        sys.stderr.write("\nWhoops - Unable to attach to Pico to verify files.\n")
+        sys.exit(10)
+
     if len(filenames) > 0:
         allfiles = filenames
 

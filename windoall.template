@@ -1,9 +1,12 @@
 setlocal enabledelayedexpansion
 
+@ECHO off
+
 REM Download the matching version zip file from repo
 curl -OL https://github.com/1031-Systems/1031_Delivery/releases/download/__VERSION__/Hauntimator___VERSION__.zip
 
 REM Unzip the file locally
+rmdir 1031_Hauntimator /S /Q >nul 2>&1
 tar -xf Hauntimator___VERSION__.zip
 
 REM Run the install batch file
@@ -11,7 +14,6 @@ cd 1031_Hauntimator
 call .\wininstall.bat
 
 REM Use a reasonable tabledefs file
-REM Change Pololu to Pico as needed
 cd Pololu\lib
 copy tabledefs.basic tabledefs
 
@@ -21,8 +23,17 @@ call .\windo_install.bat
 
 cd ..
 
+REM Clean up unused install scripts
+del /Q .\install* Pololu\do_install*
+
+REM Clean up other hardware
+rmdir /Q /S Pico  >nul 2>&1
+
+REM Other cleanups
+REM TARGET
+
 REM Clean up downloaded zip file
-del ..\Hauntimator___VERSION__.zip
+del /Q ..\Hauntimator___VERSION__.zip
 
 endlocal
 

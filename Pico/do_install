@@ -70,6 +70,23 @@ fi
 port=$(${rshell} -l | grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%')
 echo Using port: $port >& $out
 
+# Make the link to commlib in the root directory
+rm -f ../src/commlib.py ../commlib.py
+if [ -d ../src ]; then
+    ln -s ${PWD}/commlib.py ../src/commlib.py
+else
+    ln -s ${PWD}/commlib.py ../commlib.py
+fi
+if [ -d ../_internal ]; then
+    rm -f _internal
+    ln -s ../_internal .
+fi
+
+if [ -z "$port" ]; then
+    echo 'WHOOPS - Unable to locate Pico on USB port - Aborting'
+    exit 10
+fi
+
 echo -n 'Do you want to remove all existing animations (y/N)? '
 read answer
 if [ $answer == 'y' ]; then
@@ -114,18 +131,6 @@ ${rshell} --quiet repl '~ import memstats ~' >& $out
 # Install boot.py last as rshell runs really slowly once it's there
 echo Installing boot.py
 ${rshell} --quiet cp boot.py /pyboard
-
-# Make the link to commlib in the root directory
-rm -f ../src/commlib.py ../commlib.py
-if [ -d ../src ]; then
-    ln -s ${PWD}/commlib.py ../src/commlib.py
-else
-    ln -s ${PWD}/commlib.py ../commlib.py
-fi
-if [ -d ../_internal ]; then
-    rm -f _internal
-    ln -s ../_internal .
-fi
 
 # Record the port locally for commlib to pick up
 echo -n $port > .portid

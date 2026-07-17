@@ -68,10 +68,9 @@ although not as extensively.  A very small number of features
 appear to not be functional on Windows but are rarely used with
 easy workarounds.
 
-
 To have a readily runnable version of the tools, download the zipped
 release file of your choice from https://github.com/1031-Systems/1031_Delivery/releases,
-navigating to the realease of your choice.  If you just want the
+navigating to the release of your choice.  If you just want the
 latest release, find the one labeled Latest.  It should be at
 https://github.com/1031-Systems/1031_Delivery/releases/latest.
 Look for the asset named Hauntimator_{version}.zip.
@@ -80,16 +79,39 @@ Once the zip file is downloaded, unzip it into the directory of
 your choice.  Unzipping the file produces a directory named
 1031_Hauntimator.  Navigate to that directory and run install or
 wininstall.bat for Windows.  The tools will mostly be ready to run.
-More steps are actually required to build and execute animations
-but they are explained in the README that accompanies the installation.
+The full set of procedures for linux/MacOS and Windows are:
 
-On Windows there is a batch file with the release that will do the
-entire installation for you.  Download the windoall_{version}.bat
-file, copy or move it to the directory where you want to install
-the tools, and then run it, responding to prompts as needed.
-It defaults to installing for Pololu
-but you can edit the batch file and change Pololu to Pico to install
-for Pico.
+| linux/MacOS | Windows 11 |
+|-------------|------------|
+| Download zip file | Download zip file |
+| Unzip zip file | Unzip zip file |
+| cd 1031_Hauntimator | cd 1031_Hauntimator |
+| ./install | .\\wininstall.bat |
+| cd Pololu/lib | cd Pololu\\lib |
+| edit tabledefs | edit tabledefs |
+| cd .. | cd .. |
+| ./do_install | .\\windo_install.bat |
+| cd .. | cd .. |
+
+To support the Pico Animator instead of Pololu Maestros, replace
+Pololu with Pico.  To properly associate Pico or Pololu with Hauntimator
+and other tools, a symbolic link is made in the src directory to the
+appropriate commlib.py file.  This is done in the do_install or
+windo_install.bat files.  On Windows, this requires Administrator
+privileges so you will be prompted to grant them.  Our implementation
+requires a symbolic link.  A copy will NOT work correctly.
+
+To simplify things, each release includes scripts for linux/MacOS and
+Windows 11 to install Pico or Pololu code and implement all the above
+steps as well as cleaning up unnecessary files.  You can download the
+appropriate script for your system and run it standalone to completely
+install the 1031 tools.  Be sure to copy or move it to the directory
+where you want the installation to occur prior to running it.  You
+can install in the Downloads directory if you wish.
+
+The script installs a generic tabledefs file that might work for you
+but in general you will need to edit the tabledefs file to customize
+it for your application.
 
 Note that the directory structure and file locations for the User
 version are different from that for the Developer to avoid distractions
@@ -126,6 +148,7 @@ for your system.  If the OSTYPE environment is set then you can use
 the command above.  If not, you will have to replace it with the
 appropriate OS type for your system.  NOTE that the requirements
 files are not well maintained yet.  If your system is not available,
+or doesn't work,
 then you have to manually install needed modules with the  following:
 
 ~~~
@@ -147,6 +170,9 @@ PyQt6.  However, when I updated my Mac to PyQt6.8, everything quit
 working.  PyQt6 seems to be changing a lot with every release, especially
 in the QMediaPlayer area which is used here.  Thus, it is recommended
 that you install specifically PyQt6.5 for now.
+
+Rocky 9 is Fedora-based while Mint is Ubuntu-based so we expect you
+to have no issues on other related systems.
 
 ***
 

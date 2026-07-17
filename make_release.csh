@@ -136,13 +136,24 @@ endif
 # Also copy over the support files
 cp servotypes $DeliveryRepo
 sed "s/__VERSION__/$vnum/g" Delivery_README > $DeliveryRepo/README.md
-sed "s/__VERSION__/$vnum/g" windoall.template > windoall_$vnum.bat
 foreach f (*.dist-info)
     mkdir $DeliveryRepo/$f
     foreach g ($f/*)
         sed "s/__VERSION__/$vnum/g" $g > $DeliveryRepo/$g
     end
 end
+
+# Create specialized install scripts that do everything
+sed "s/__VERSION__/$vnum/g" windoall.template > wininstall_Pololu_$vnum.bat
+sed -e "s/__VERSION__/$vnum/g" -e "s/Pololu/XXX/g" -e "s/Pico/Pololu/g" -e "s/XXX/Pico/" \
+    -e "s#REM TARGET#del %USERPROFILE%\\Desktop\\Maestro_Animator.lnk#" \
+    windoall.template > wininstall_Pico_$vnum.bat
+sed "s/__VERSION__/$vnum/g" doall.template > install_Pololu_$vnum
+sed -e "s/__VERSION__/$vnum/g" -e "s/Pololu/XXX/g" -e "s/Pico/Pololu/g" -e "s/XXX/Pico/" \
+    -e "s%#TARGET%rm ~/Desktop/Maestro_Animator.desktop%" \
+    doall.template > install_Pico_$vnum
+# Make them executable
+chmod +x wininstall_Pololu_$vnum.bat wininstall_Pico_$vnum.bat install_Pololu_$vnum install_Pico_$vnum
 
 # Build the single directory tools for each hardware type
 foreach hw ($HW_MODULES)
