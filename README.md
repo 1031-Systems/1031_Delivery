@@ -183,7 +183,7 @@ to have no issues on other related systems.
 Hauntimator.py is the visual user interface for creating and editing the
 control channels.  It displays a stack of channels, typically with 
 audio at the top, in which all channels display the same time range.
-During audio playback, a red bar moves across all channels so that
+During audio playback, a green bar moves across all channels so that
 the user may visually align behaviors between channels and the audio
 track.
 
@@ -196,7 +196,7 @@ a similar set of knots but apply Lagrange interpolation between the
 knots for a smoother motion of the controlled device.
 
 Channel data may be exported to a CSV file to be transferred to an
-external hardware controller.  In addition, a pipe may be used to
+external animation controller.  In addition, a pipe may be used to
 directly signal the controller from the system while it runs
 Hauntimator.py.
 

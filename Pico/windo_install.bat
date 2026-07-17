@@ -160,7 +160,9 @@ if /i "!reply!"=="y" (
     echo.
     :: Build file list from anims\*
     set "animfiles="
-    for %%F in (anims\*) do set "animfiles=!animfiles! %%F"
+    pushd anims
+    for %%F in (*) do set "animfiles=!animfiles! anims/%%F"
+    popd
 
     if exist ".\verifyload.exe" (
         .\verifyload -p !port! -fl !animfiles!

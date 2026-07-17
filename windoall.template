@@ -6,7 +6,7 @@ REM Download the matching version zip file from repo
 curl -OL https://github.com/1031-Systems/1031_Delivery/releases/download/__VERSION__/Hauntimator___VERSION__.zip
 
 REM Unzip the file locally
-rmdir 1031_Hauntimator /S /Q >nul 2>&1
+call .\1031_Hauntimator\winuninstall.bat >nul 2>&1
 tar -xf Hauntimator___VERSION__.zip
 
 REM Run the install batch file
@@ -24,7 +24,7 @@ call .\windo_install.bat
 cd ..
 
 REM Clean up unused install scripts
-del /Q .\install* Pololu\do_install*
+del /Q .\install* Pololu\do_install* .\uninstall
 
 REM Clean up other hardware
 rmdir /Q /S Pico  >nul 2>&1
