@@ -161,6 +161,7 @@ def lineFromPico():
 def isReady():
     global portRoot
 
+    portRoot = None
     theDevice = find_command_port()
     try:
         ser = serial.Serial(theDevice, 115200)
@@ -169,7 +170,7 @@ def isReady():
     except:
         ser = None
 
-    if ser is not None:
+    if ser is not None and ser.port is not None and portRoot is not None:
         ser.close()
         return True
     else:
