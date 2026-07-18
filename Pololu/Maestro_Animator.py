@@ -230,7 +230,8 @@ def mainEventLoop():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYUP and event.key == pygame.K_q):
                     pygame.quit()
-                    if commdev is not None: commdev.cleanup()
+                    if commdev is not None and commdev.isReady():
+                        commdev.cleanup()
                     sys.exit(0)
                 elif (event.type == pygame.KEYDOWN and event.key == pygame.K_m):
                     # Note press of trigger to see if held down for 5 seconds
