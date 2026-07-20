@@ -82,7 +82,16 @@ elif __file__:
 
 sys.path.append(application_path)
 
-# Import commlib for my board
+# Set up for whatever hardware the pointer.py file references
+windowName = 'Hauntimator'
+try:
+    import pointer
+    windowName = pointer.useHardware + ':' + windowName
+except:
+    # Assume we have the commlib symlink set up instead
+    pass
+
+# Import commlib for my board from where pointer points
 try:
     import commlib
     COMMLIB_ENABLED = commlib.isReady()
@@ -3657,7 +3666,7 @@ class MainWindow(QMainWindow):
         self.create_menus()
 
         # Initialize some stuff
-        self.setWindowTitle("Hauntimator")
+        self.setWindowTitle(windowName)
         self.resize(500, 600)
         self.lastX = 0.0
         self.lastY = 1.0
@@ -3753,10 +3762,10 @@ class MainWindow(QMainWindow):
 
         # Add filename to window title
         if self.animatronics.filename is not None:
-            self.setWindowTitle("Hauntimator - " +
+            self.setWindowTitle(windowName + " - " +
                 self.animatronics.filename)
         else:
-            self.setWindowTitle("Hauntimator")
+            self.setWindowTitle(windowName)
 
         # Create the bottom level widget and make it the main widget
         self._mainarea = QFrame(self)
@@ -4435,7 +4444,7 @@ class MainWindow(QMainWindow):
                 self.unsavedChanges = False
                 if self.animatronics.filename is None:
                     self.animatronics.filename = fileName
-                    self.setWindowTitle("Hauntimator - " +
+                    self.setWindowTitle(windowName + " - " +
                         self.animatronics.filename)
 
             except Exception as e:

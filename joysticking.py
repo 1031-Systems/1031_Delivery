@@ -25,6 +25,13 @@ elif __file__:
 
 sys.path.append(application_path)
 
+# Set up for whatever hardware the pointer.py file references
+try:
+    import pointer
+except:
+    # Assume we have the commlib symlink set up instead
+    pass
+
 # Import commlib for my board
 try:
     import commlib

@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Download the matching version zip file from repo
+curl -OL https://github.com/1031-Systems/1031_Delivery/releases/download/__VERSION__/Hauntimator___VERSION__.zip
+
+# Unzip the file locally
+./1031_Hauntimator/uninstall >& /dev/null
+unzip Hauntimator___VERSION__.zip
+
+# Rename unzipped directory to be hardware specific
+mv 1031_Hauntimator Pololu_Hauntimator
+
+# Run the install batch file
+cd Pololu_Hauntimator
+./install
+
+# Use a reasonable tabledefs file
+cd Pololu/lib
+cp tabledefs.basic tabledefs
+
+# Run the install file including Admin privileges for making symbolic link
+cd ..
+./do_install
+
+cd ..
+
+# Clean up unused install scripts
+rm ./win* Pololu/win*
+
+# Clean up other hardware
+rm -rf Pico
+
+# Other cleanups
+#TARGET
+
+# Clean up downloaded zip file
+rm ../Hauntimator___VERSION__.zip
+
+exit 0

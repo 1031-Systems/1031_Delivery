@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Get path to this script
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
+# Get the name of the local directory for hardware ID
+MYDIR=`basename ${SCRIPTPATH}`
+
+# Create the pointer.py file pointing here
+cat << EOF > ${SCRIPTPATH}/../src/pointer.py
+import sys
+
+sys.path.append("${SCRIPTPATH}")
+
+useHardware = "$MYDIR"
+EOF
