@@ -16,5 +16,5 @@ if %CODE% GTR 1 (
 )
 
 REM Run external script to make symlink last
-winUsePololu
+call winUsePololu.bat
 

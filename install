@@ -1,7 +1,11 @@
 #!/bin/bash
 SHELL=/bin/bash
 
-# No arguments
+# One optional argument is hardware name
+TOOLNAME=Hauntimator
+if [ $# -gt 0 ]; then
+    TOOLNAME=$1
+fi
 
 # Get path to this script and thus to the install directory
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
@@ -38,6 +42,8 @@ pip install -U pocketsphinx
 # Make runnables that don't need venv
 cat << EOF > ${SCRIPTPATH}/Hauntimator
 #!$SHELL
+# Need to be in a user directory when creating autosave file
+cd ~
 
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/Hauntimator.py "\$@"
 EOF
@@ -101,41 +107,46 @@ on run
 end run
 EOF
                 # Compile the script into the desktop shortcut
-                osacompile -o ~/Desktop/${1}.app tmp.applescript
+                osacompile -o ~/Desktop/${2}.app tmp.applescript
                 # Attach the icon
-                cp $2 ~/Desktop/${1}.app/Contents/Resources/droplet.icns
+                cp $3 ~/Desktop/${2}.app/Contents/Resources/droplet.icns
+                touch ~/Desktop/${2}.app
                 # Remove the temp file
                 rm -f tmp.applescript
             }
             # Create shortcut for Hauntimator
-            create_shortcut "Hauntimator" "${SCRIPTPATH}/src/docs/images/Hlogo.icns"
-            # Create shortcut for Maestro_Animator
-            create_shortcut "Maestro_Animator" "${SCRIPTPATH}/src/docs/images/CElogo.icns"
+            create_shortcut "Hauntimator" "$TOOLNAME" "${SCRIPTPATH}/src/docs/images/Hlogo.icns"
+            if [ -z "$1" ] || [ "$1" = "Pololu" ]; then
+                # Create shortcut for Maestro_Animator
+                create_shortcut "Maestro_Animator" "Maestro_Animator" "${SCRIPTPATH}/src/docs/images/CElogo.icns"
+            fi
         elif [ ${OSTYPE:0:5} == linux ]; then
-            cat << EOF > ~/Desktop/Hauntimator.desktop
+            cat << EOF > ~/Desktop/${TOOLNAME}.desktop
 [Desktop Entry]
 Version=__VERSION__
 Type=Application
 Terminal=true
 Exec=${SCRIPTPATH}/Hauntimator -a %f
-Name=Hauntimator
+Name=${TOOLNAME}
 Comment=Hauntimator Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/Hlogo.png
 EOF
 
-            cat << EOF > ~/Desktop/Maestro_Animator.desktop
+            if [ -z "$1" ] || [ "$1" = "Pololu" ]; then
+                cat << EOF > ~/Desktop/Maestro_Animator.desktop
 [Desktop Entry]
 Version=__VERSION__
 Type=Application
 Terminal=true
 Exec=${SCRIPTPATH}/Maestro_Animator -a %f
 Name=Maestro_Animator
-Comment=joysticking Version: __VERSION__
+Comment=Animator Version: __VERSION__
 Icon=${SCRIPTPATH}/src/docs/images/CElogo.png
 EOF
+            fi
         fi
     fi
 fi
 
-# Clean up some unwanted things
+# Go back where we came from
 cd ${SCRIPTPATH}

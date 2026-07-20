@@ -50,8 +50,7 @@ if [ $CODE -gt 1 ]; then
     exit
 fi
 
-# Make the link to commlib in the root directory
-rm -f ../src/commlib.py
-ln -s ../Pololu/commlib.py ../src/commlib.py
+# Create pointer.py file pointing here
+./usePololu
 
 exit

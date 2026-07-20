@@ -20,13 +20,11 @@ done
 
 # Remove MacOS desktop icons that point to this repo
 for f in ~/Desktop/*.app; do
-    if [ -e ${f}/Contents/document.wflow ]; then
-        grep -q "$SCRIPTPATH" ${f}/Contents/document.wflow
-        CODE=$?
-        if [ $CODE -eq 0 ]; then
+    for g in ${f}/Contents/Resources/Scripts/*.scpt; do
+        if osadecompile $g 2>/dev/null | grep -qi "$SCRIPTPATH"; then
             rm -rf $f
         fi
-    fi
+    done
 done
 
 # Delete everything

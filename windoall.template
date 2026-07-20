@@ -7,17 +7,21 @@ curl -OL https://github.com/1031-Systems/1031_Delivery/releases/download/__VERSI
 
 REM Unzip the file locally
 call .\1031_Hauntimator\winuninstall.bat >nul 2>&1
+call .\Pololu_Hauntimator\winuninstall.bat >nul 2>&1
 tar -xf Hauntimator___VERSION__.zip
 
+REM Rename unzipped directory to be hardware specific
+ren 1031_Hauntimator Pololu_Hauntimator
+
 REM Run the install batch file
-cd 1031_Hauntimator
-call .\wininstall.bat
+cd Pololu_Hauntimator
+call .\wininstall.bat Pololu
 
 REM Use a reasonable tabledefs file
 cd Pololu\lib
 copy tabledefs.basic tabledefs
 
-REM Run the install file including Admin privileges for making symbolic link
+REM Run the Pololu-specific install file
 cd ..
 call .\windo_install.bat
 

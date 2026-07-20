@@ -48,6 +48,9 @@ pushd "%~dp0"
 echo In: "%~dp0"
 call ..\.venv\Scripts\activate
 
+:: Make needed symlink with external script
+call winUsePico.bat
+
 :: Check to make sure tabledefs has been created
 echo Validating local tabledefs
 ..\.venv\Scripts\python.exe lib\tables.py >nul 2>&1
@@ -173,9 +176,6 @@ if /i "!reply!"=="y" (
         echo Diagnostic anim files validate
     )
 )
-
-:: Make needed symlink with external script
-winUsePico
 
 endlocal
 exit /b 0

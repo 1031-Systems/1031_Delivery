@@ -67,9 +67,12 @@ the Maestro.  Instead, it uses the Pololu version of commlib to properly communi
 with the Maestros.  In order for this to function properly, there must be a symbolic
 link from the src directory to the commlib.py file in the Pololu folder.  On linux 
 and Mac, this is done when the do_install script is run and may be done manually as
-well.  On Windows 11, the windo_install.bat script will do it or the winUsePololu.bat
-script may be run.  These will request the Administrator privileges needed to make
-the symbolic.
+well.  On Windows 11, this requires Administrator privileges so we do it differently.
+The windo_install.bat script or the winUsePololu.bat script will create a small
+python file in src that adds Pololu to the python path.  That small file points to
+the Pololu directory so the correct hardware support libraries are used and is
+named pointer.py.  winUsePololu.bat can be run standalone to quickly switch from
+some other type of hardware to Pololu.
 
 A separate application will perform the functions provided by
 the Pico on Animator-I.  These include identifying the animations to be played, the

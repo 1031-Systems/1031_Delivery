@@ -1,6 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
+set TOOLNAME=Hauntimator
+if NOT "%1"=="" set "TOOLNAME=%1"
+
 REM Get path to this script (equivalent to SCRIPTPATH in bash)
 set SCRIPTPATH=%~dp0
 REM Remove trailing backslash
@@ -52,7 +55,7 @@ REM --- Hauntimator ---
 (
     echo @echo off
     echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\src\Hauntimator.py" %%*
-) > "%SCRIPTPATH%\Hauntimator.bat"
+) > "%SCRIPTPATH%\%TOOLNAME%.bat"
 
 REM --- joysticking ---
 (
@@ -88,13 +91,19 @@ REM --- Hauntimator ---
 ) > "%SCRIPTPATH%\Hauntimator.bat"
 
 REM --- Optionally Create Desktop Shortcuts ---
+REM Have to set variables outside conditional to have effect
+set res=F
+if "%1"=="" set res=T
+if "%1"=="Pololu" set res=T
 
 set /p "CREATE_SHORTCUT=Create desktop shortcuts? (y/N): "
 if /i "%CREATE_SHORTCUT%"=="y" (
     REM Call function for each shortcut to be created
-    CALL :CreateShortcut "Hauntimator" , "Hlogo.ico"
-    CALL :CreateShortcut "Maestro_Animator" , "CElogo.ico"
-    REM CALL :CreateShortcut "joysticking" , "jlogo.ico"
+    CALL :CreateShortcut "%TOOLNAME%" , "Hauntimator", "Hlogo.ico"
+    if "%res%"=="T" (
+        CALL :CreateShortcut "Maestro_Animator" , "Maestro_Animator" , "CElogo.ico"
+    )
+    REM CALL :CreateShortcut "%TOOLNAME%_Joy" , "joysticking" , "jlogo.ico"
 )
 
 goto :eof
@@ -105,9 +114,9 @@ REM Call with appname , logo.ico
 (
     echo Set oWS = WScript.CreateObject^("WScript.Shell"^)
     echo Set oLink = oWS.CreateShortcut^("%USERPROFILE%\Desktop\%~1.lnk"^)
-    echo oLink.TargetPath = "%SCRIPTPATH%\%~1.bat"
+    echo oLink.TargetPath = "%SCRIPTPATH%\%~2.bat"
     echo oLink.Arguments = "-a "
-    echo oLink.IconLocation = "%SCRIPTPATH%\src\docs\images\%~2"
+    echo oLink.IconLocation = "%SCRIPTPATH%\src\docs\images\%~3"
     echo oLink.WorkingDirectory = "%SCRIPTPATH%"
     echo oLink.Save
 ) > "%TEMP%\CreateShortcut.vbs"

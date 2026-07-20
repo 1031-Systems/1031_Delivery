@@ -222,9 +222,11 @@ Users may specify a specific file to validate with the -f option.
 
 ### winUsePico.bat
 
-On windows 11, making a symbolic link requires administrator privileges.
-This script requests those privileges and makes the link and is called
-at the end of windo_install.bat.
+To link the Pico hardware support libraries to Hauntimator, a small python
+file is created named pointer.py that adds the Pico directory to the python path.
+This avoids the use of a symbolic link that requires Administrator privileges.
+winUsePico.bat creates the pointer.py file in src and can be used standalone
+to quickly switch from other hardware to Pico.
 
 ## Files
 

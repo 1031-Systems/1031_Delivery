@@ -96,10 +96,12 @@ The full set of procedures for linux/MacOS and Windows are:
 To support the Pico Animator instead of Pololu Maestros, replace
 Pololu with Pico.  To properly associate Pico or Pololu with Hauntimator
 and other tools, a symbolic link is made in the src directory to the
-appropriate commlib.py file.  This is done in the do_install or
-windo_install.bat files.  On Windows, this requires Administrator
-privileges so you will be prompted to grant them.  Our implementation
-requires a symbolic link.  A copy will NOT work correctly.
+appropriate commlib.py file under linux.  This is done in do_install.
+On Windows, this requires Administrator
+privileges so we do it differently with a small python file in src
+named pointer.py that puts the appropriate directory in the python path.
+This is created in windo_install.bat or winUsePololu/Pico in the
+appropriate directory.
 
 To simplify things, each release includes scripts for linux/MacOS and
 Windows 11 to install Pico or Pololu code and implement all the above
@@ -297,16 +299,13 @@ Some might want to have many props all synchronized.  We hope that these tools
 will support a variety of users in their quest for fun.
 
 Security is always an iffy thing.  Some people may be worried that this software
-will attack their system.  To assuage your concerns, note that on linux and MacOS,
+will attack their system.  To assuage your concerns, note that on all systems
 nothing is run at root level and all installations of Python modules and such
 are done in a virtual environment in the install directory.  Perusal of the
 uninstall script will show you that merely deleting the desktop icons that refer
 to the installation directory and the directory itself is all that is needed to
 completely remove all traces of our code.  If you are more experienced, you
-can peruse the install script to see the same thing.  However, on Windows there
-is one step that requires Administrator privileges, making a symbolic link.
-That is in a small batch file and you may peruse that to feel comfortable that
-all it does is make that symbolic link.
+can peruse the install script to see the same thing.
 
 The term animation used often throughout the documentation generally refers
 to a pair of files, one containing a comma-separated-values file of action
