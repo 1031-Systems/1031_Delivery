@@ -95,23 +95,18 @@ The full set of procedures for linux/MacOS and Windows are:
 
 To support the Pico Animator instead of Pololu Maestros, replace
 Pololu with Pico.  To properly associate Pico or Pololu with Hauntimator
-and other tools, a symbolic link is made in the src directory to the
-appropriate commlib.py file under linux.  This is done in do_install.
-On Windows, this requires Administrator
-privileges so we do it differently with a small python file in src
-named pointer.py that puts the appropriate directory in the python path.
-This is created in windo_install.bat or winUsePololu/Pico in the
+and other tools, a pointer.py file is made in the src directory to the
+appropriate commlib.py file under linux.  This is done in do_install
+and in windo_install.bat or winUsePololu/Pico in the
 appropriate directory.
 
 To simplify things, each release includes scripts for linux/MacOS and
-Windows 11 to install Pico or Pololu code and implement all the above
-steps as well as cleaning up unnecessary files.  You can download the
-appropriate script for your system and run it standalone to completely
-install the 1031 tools.  Be sure to copy or move it to the directory
-where you want the installation to occur prior to running it.  You
-can install in the Downloads directory if you wish.
+Windows 11 to install Pico or Pololu code and implement most of the above
+steps as well as cleaning up unnecessary files.  After downloading and
+unzipping the release file, run the quick install script of your choice.
+See the README in the installation directory for more details.
 
-The script installs a generic tabledefs file that might work for you
+These scripts install a generic tabledefs file that might work for you
 but in general you will need to edit the tabledefs file to customize
 it for your application.
 
@@ -120,8 +115,8 @@ version are different from that for the Developer to avoid distractions
 of source code and data files.  While most of the files are there,
 it is not intended to be a development environment.
 
-If you encounter any issues, the README in the unzipped release
-will contain more information about getting started.
+If you encounter any issues, and even if you don't, the README in the
+unzipped release will contain more information about getting started.
 
 ## If You Are A Developer
 
@@ -220,7 +215,7 @@ the Pico directory.  See the README there for more details.
 In the Pico part of the repo there is a file named commlib.py.  This
 is the interface library for Hauntimator.py to talk to the hardware.
 In order for Hauntimator to load the right commlib, there MUST be a
-symbolic link in the src directory to the appropriate
+pointer.py file in the src directory linking to the appropriate
 commlib.py file to support users developing controllers with other
 hardware or programming languages.  commlib.py has the purpose of
 decoupling Hauntimator from the hardware specifics.
@@ -242,7 +237,7 @@ In the Pololu subdirectory, there is a file named commlib.py.  This
 is the interface library for Hauntimator.py and Maestro_Animator.py 
 to talk to the hardware.
 In order for these tools to load the right commlib, there MUST be a
-symbolic link in the src directory to the appropriate
+pointer.py file in the src directory linking to the appropriate
 commlib.py file to support users developing controllers with other
 hardware or programming languages.  commlib.py has the purpose of
 decoupling Hauntimator from the hardware specifics.

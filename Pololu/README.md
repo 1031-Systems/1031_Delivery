@@ -64,11 +64,12 @@ the PC which adapts its output to what comes in.
 
 To maintain the board-agnosticity of Hauntimator, it will not directly interface to
 the Maestro.  Instead, it uses the Pololu version of commlib to properly communicate
-with the Maestros.  In order for this to function properly, there must be a symbolic
-link from the src directory to the commlib.py file in the Pololu folder.  On linux 
+with the Maestros.  In order for this to function properly, there must be a small
+python file named pointer.py in the src directory
+pointing to the commlib.py file in the Pololu folder.  On linux 
 and Mac, this is done when the do_install script is run and may be done manually as
-well.  On Windows 11, this requires Administrator privileges so we do it differently.
-The windo_install.bat script or the winUsePololu.bat script will create a small
+well by running usePololu.  
+The windo_install.bat script or the winUsePololu.bat script also creates the small
 python file in src that adds Pololu to the python path.  That small file points to
 the Pololu directory so the correct hardware support libraries are used and is
 named pointer.py.  winUsePololu.bat can be run standalone to quickly switch from
@@ -108,7 +109,7 @@ the next animation.  It supports continuous playback mode as well as idle mode
 where a specific animation is run if no other animation has been triggered.  It
 also handles audio playback via the pygame library.
 
-The Maestro_Animator.py application  also makes use of a tabledefs file to 
+The Maestro_Animator.py application also makes use of a tabledefs file to 
 specify the functionality of the Maestro inputs and outputs.  This file maps the
 port IDs designated in Hauntimator and referenced in the animation control files
 to specific Maestro boards and channels.
@@ -128,6 +129,11 @@ adds support for keyboard control of the application as well as text output of
 playback state.  This may be disabled if input buttons designated for the main
 control functions are available attached directly to the Maestros.  However, it
 is very useful for development and debugging purposes.  Trust me on this!
+
+The easiest way to run Maestro_Animator is to drag and drop a directory containing
+the desired animations to be played onto the Maestro_Animator desktop icon.  Note
+that if there is no Maestro controller attached to the system the software will
+generally crash and burn.
 
 ## Installing the Maestro(s)
 
@@ -304,4 +310,15 @@ board 14, channel 6.  The fourth animation in the list is the idle animation tha
 will be played when no other animation is playing.  In this case, the idle animation
 has been specified with audio but no animation.  Note that the idle animation
 is optional and if not specified will result in no action between other animations.
+
+
+***
+
+This software is made available for use under the GNU General Public License (GPL3).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+
+***
+
+Copyright 2026 John R. Wright, William R. Douglas - 1031_Systems
 

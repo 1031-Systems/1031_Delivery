@@ -25,7 +25,7 @@ If using a regular Pico with only 4MB of flash
 or a clone, an external SD card can be used to store the audio and
 animation data.  With a big SD card, it can run multiple hours of
 animations, audio, flashing lights, etc.  Either the clone or the actual Pico can work with the
-standard 4MB firmware v1.21.0 available at:
+standard 4MB firmware v1.21.0, and probably newer ones, available at:
 
 [https://micropython.org/download/RPI_PICO/](https://micropython.org/download/RPI_PICO/)
 
@@ -40,7 +40,7 @@ Prior to installing the Pico python code on the processor, the user needs to cus
 tables defining the digital and PWM I/O ports.  The customized tables are used to assign
 port numbers to the different kinds of control outputs.  To perform this step, copy
 Pico/lib/tabledefs_template to Pico/lib/tabledefs and edit Pico/lib/tabledefs according
-to the system design.
+to the system design.  Alternatively, copy tabledefs.basic to tabledefs and start there.
 
 The default file Pico/lib/tabledefs_template defines 16 digital I/O ports corresponding to
 the 16 channels supported by the onboard 74HC595 chips.  It defines no PWM ports as there
@@ -97,7 +97,7 @@ do_install (or windo_install.bat on Windows 11)
 In the Pico part of the repo there is a file named commlib.py.  This
 is the interface library for Hauntimator.py to talk to the hardware.
 In order for Hauntimator to load the right commlib, do_install creates a
-symbolic link in the Animatronics directory to the local commlib.py file.
+pointer.py file in the src directory to the local controller installation.
 However, commlib.py can be relinked to other commlib.py files to support
 users developing controllers with other
 hardware or programming languages.  commlib.py has the purpose of
@@ -192,7 +192,7 @@ up as expected, and toggling digital channels 0-7 to get those signals
 hooked up right.  These go into the Pico's onboard flash memory and will
 be executed when the SD card is not in the slot.
 
-do_install also makes the symbolic link from the src directory to the
+do_install also makes the pointer.py file in the src directory to point to the
 Pico/commlib.py file to cause the top-level tools to access the Pico.
 
 ### dumpBinary.py
@@ -220,12 +220,13 @@ identical to those on the development system.  With no arguments it validates
 all files in its internal list, which should be all the files in the system.
 Users may specify a specific file to validate with the -f option.
 
-### winUsePico.bat
+### usePico/winUsePico.bat
 
 To link the Pico hardware support libraries to Hauntimator, a small python
 file is created named pointer.py that adds the Pico directory to the python path.
 This avoids the use of a symbolic link that requires Administrator privileges.
-winUsePico.bat creates the pointer.py file in src and can be used standalone
+usePico (on linux/Mac) or winUsePico.bat (on Windows 11) creates the pointer.py
+file in src and can be used standalone
 to quickly switch from other hardware to Pico.
 
 ## Files
@@ -285,4 +286,4 @@ included herein by reference.
 
 ***
 
-Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems
+Copyright 2026 John R. Wright, William R. Douglas - 1031_Systems
