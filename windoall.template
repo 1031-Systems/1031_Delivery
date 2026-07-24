@@ -2,13 +2,15 @@ setlocal enabledelayedexpansion
 
 @ECHO off
 
-REM Download the matching version zip file from repo
-curl -OL https://github.com/1031-Systems/1031_Delivery/releases/download/__VERSION__/Hauntimator___VERSION__.zip
+REM Run in a parenthesis block so it continues to run
+REM after renaming directory.
+(
 
-REM Unzip the file locally
-call .\1031_Hauntimator\winuninstall.bat >nul 2>&1
+REM Go to the install directory
+pushd "%~dp0\.."
+
+REM Remove any existing installation of the same name
 call .\Pololu_Hauntimator\winuninstall.bat >nul 2>&1
-tar -xf Hauntimator___VERSION__.zip
 
 REM Rename unzipped directory to be hardware specific
 ren 1031_Hauntimator Pololu_Hauntimator
@@ -36,8 +38,7 @@ rmdir /Q /S Pico  >nul 2>&1
 REM Other cleanups
 REM TARGET
 
-REM Clean up downloaded zip file
-del /Q ..\Hauntimator___VERSION__.zip
+)
 
 endlocal
 

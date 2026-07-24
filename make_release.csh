@@ -143,15 +143,15 @@ foreach f (*.dist-info)
     end
 end
 
-# Create specialized install scripts that do everything
-sed "s/__VERSION__/$vnum/g" windoall.template > wininstall_Pololu_$vnum.bat
+# Create specialized install scripts that do everything after unzipping
+sed "s/__VERSION__/$vnum/g" windoall.template > winquickinstall_Pololu.bat
 sed -e "s/__VERSION__/$vnum/g" -e "s/Pololu/XXX/g" -e "s/Pico/Pololu/g" -e "s/XXX/Pico/" \
-    windoall.template > wininstall_Pico_$vnum.bat
-sed "s/__VERSION__/$vnum/g" doall.template > install_Pololu_$vnum
+    windoall.template > winquickinstall_Pico.bat
+sed "s/__VERSION__/$vnum/g" doall.template > quickinstall_Pololu
 sed -e "s/__VERSION__/$vnum/g" -e "s/Pololu/XXX/g" -e "s/Pico/Pololu/g" -e "s/XXX/Pico/" \
-    doall.template > install_Pico_$vnum
+    doall.template > quickinstall_Pico
 # Make them executable
-chmod +x wininstall_Pololu_$vnum.bat wininstall_Pico_$vnum.bat install_Pololu_$vnum install_Pico_$vnum
+chmod +x winquickinstall_Pololu.bat winquickinstall_Pico.bat quickinstall_Pololu quickinstall_Pico
 
 # Build the single directory tools for each hardware type
 foreach hw ($HW_MODULES)
@@ -225,8 +225,8 @@ cp -r COPYING \
     $DeliveryRepo/LICENSE
 
 cp -r ${HW_MODULES} \
-    uninstall \
-    winuninstall.bat \
+    *quickinstall* \
+    *uninstall* \
     $DeliveryRepo
 
 cp  Pololu/Maestro_Animator.py \
@@ -294,7 +294,8 @@ endif
 
 if (-e Hauntimator_${vnum}.zip) then
     echo Built release file: Hauntimator_${vnum}.zip
-    ls -l Hauntimator_${vnum}.zip
+    sha256sum Hauntimator_${vnum}.zip >Hauntimator_${vnum}.sha256
+    ls -l Hauntimator_${vnum}.*
 else
     echo Failed to build release file: Hauntimator_${vnum}.zip
 endif

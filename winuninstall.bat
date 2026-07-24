@@ -1,4 +1,9 @@
 @echo off
+
+setlocal enabledelayedexpansion
+
+pushd "%~dp0"
+
 :: No arguments
 :: Get path to this script and thus to the install directory
 set "SCRIPTPATH=%~dp0"
@@ -10,7 +15,7 @@ echo Uninstalling %SCRIPTPATH%
 :: Remove Windows desktop shortcuts that point to this repo
 for %%a in ("%cd%") do set "LastDir=%%~nxa"
 for %%f in ("%USERPROFILE%\Desktop\*.lnk") do (
-    findstr /m /i "%LastDir%" "%%f" >nul 2>&1
+    findstr /m /i "%SCRIPTPATH%" "%%f" >nul 2>&1
     if not errorlevel 1 (
         del /f "%%f"
     )

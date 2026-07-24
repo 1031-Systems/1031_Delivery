@@ -1,12 +1,7 @@
 #!/bin/bash
 
-# Download the matching version zip file from repo
-curl -OL https://github.com/1031-Systems/1031_Delivery/releases/download/__VERSION__/Hauntimator___VERSION__.zip
-
-# Unzip the file locally
+# Remove any existing installation of the same name
 ./Pololu_Hauntimator/uninstall >& /dev/null
-./1031_Hauntimator/uninstall >& /dev/null
-unzip Hauntimator___VERSION__.zip
 
 # Rename unzipped directory to be hardware specific
 mv 1031_Hauntimator Pololu_Hauntimator
@@ -33,8 +28,5 @@ rm -rf Pico
 
 # Other cleanups
 #TARGET
-
-# Clean up downloaded zip file
-rm ../Hauntimator___VERSION__.zip
 
 exit 0

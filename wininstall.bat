@@ -1,6 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM Go to the directory where we unzipped the file
+pushd "%~dp0\.."
+
+REM Get optional tool name from argument
 set TOOLNAME=Hauntimator
 if NOT "%1"=="" set "TOOLNAME=%1"
 
