@@ -156,9 +156,9 @@ install script is the easiest way to get going:
 | Windows 11 | Pico | wininstall_Pico.bat |
 | Windows 11 | Pololu | wininstall_Pololu.bat |
 
-Note that running one of these quickinstall scripts will delete the installation
+Note that running one of these quickinstall scripts will delete the subdirectory
 for the other hardware so you will not be able to switch back and forth between
-hardware types.
+hardware types within this installation.
 
 ***
 
