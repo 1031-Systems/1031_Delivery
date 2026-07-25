@@ -151,10 +151,10 @@ install script is the easiest way to get going:
 
 | OS | Controller | Script |
 |------|------|------|
-| linux/MacOS | Pico | install_Pico |
-| linux/MacOS | Pololu | install_Pololu |
-| Windows 11 | Pico | wininstall_Pico.bat |
-| Windows 11 | Pololu | wininstall_Pololu.bat |
+| linux/MacOS | Pico | quickinstall_Pico |
+| linux/MacOS | Pololu | quickinstall_Pololu |
+| Windows 11 | Pico | winquickinstall_Pico.bat |
+| Windows 11 | Pololu | winquickinstall_Pololu.bat |
 
 Note that running one of these quickinstall scripts will delete the subdirectory
 for the other hardware so you will not be able to switch back and forth between

@@ -176,9 +176,9 @@ See the README in the lib directory for more details on those.
 commlib.py is a small package that allows the Hauntimator executable to
 interact with the controller hardware whilst remaining hardware agnostic.
 commlib.py encapsulates the communications specifics for communicating
-with the Pico.  To allow Hauntimator to make use of it, a symbolic link
-to the specific commlib.py package should be included in the Hauntimator
-executable directory.
+with the Pico.  To allow Hauntimator to make use of it, a small python
+file is included in the src directory, named pointer.py, that references
+the specific commlib.py package to be included.
 
 ### do_install (or windo_install.bat on Windows 11)
 
@@ -224,7 +224,6 @@ Users may specify a specific file to validate with the -f option.
 
 To link the Pico hardware support libraries to Hauntimator, a small python
 file is created named pointer.py that adds the Pico directory to the python path.
-This avoids the use of a symbolic link that requires Administrator privileges.
 usePico (on linux/Mac) or winUsePico.bat (on Windows 11) creates the pointer.py
 file in src and can be used standalone
 to quickly switch from other hardware to Pico.
