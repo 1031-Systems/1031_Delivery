@@ -1,42 +1,14 @@
 #!/bin/bash
 #set echo
 
-function usage() {
+# Get path to this script
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
-echo
-echo 'Usage:'$0' [-/-h/-help] [-v/-verbose]'
-echo '    This tool installs all the code on the Pico.'
-echo '-/-h/-help          :Print this helpful info'
-echo '-v/-verbose         :Run more verbosely'
-echo
+# make it the working directory
+cd $SCRIPTPATH
 
-}
-
-# Set initial/default values
-out=/dev/null
-
-# Parse arguments
-i=1
-j=$#
-
-while [ $i -le $j ]
-do
-    echo Processing arg:$1
-    if [[ "-" == "$1" || "-h" == "$1" || "-help" == "$1" ]]; then
-        usage
-    elif [[ "$1" == "-v" || "-verbose" == "$1" ]]; then
-        out=/dev/stdout
-    else
-        echo
-        echo "Whoops - Unrecognized argument:$1"
-        usage
-    fi
-
-    shift
-    ((i++))
-done
-
-# Do the right thing
+# Set Pico as the active hardware
+./usePico
 
 # Check to make sure tabledefs has been created
 echo Validating local tabledefs
@@ -47,120 +19,7 @@ if [ $CODE -ne 0 ]; then
     echo Whoops - problems with tabledefs file - aborting
     echo Results of check are:
     python3 lib/tables.py -r -v
-    exit
+    exit 2
 fi
 
-# Determine which rshell to use
-echo Checking rshell
-rshell=rshell
-which rshell >& /dev/null
-CODE=$?
-if [ $CODE -ne 0 ]; then
-    if [ -f ../rshell ]; then
-        rshell='../rshell'
-    elif [ -f ./rshell ]; then
-        rshell='./rshell'
-    else
-        echo Whoops - Unable to find rshell tool needed for installation
-        exit 10
-    fi
-fi
-
-# Get the port used by rshell - we assume it is first in the list
-port=$(${rshell} -l | grep -i micropython | sed -e 's/^[^@]*@//' -e 's/ .*//' -e 's%/cu\.%/tty.%')
-echo Using port: $port >& $out
-
-# Create pointer.py file pointing here
-./usePico
-
-if [ -z "$port" ]; then
-    echo 'WHOOPS - Unable to locate Pico on USB port - Aborting'
-    exit 10
-fi
-
-echo -n 'Do you want to remove all existing animations (y/N)? '
-read answer
-if [ $answer == 'y' ]; then
-    echo Removing existing animations '(Make take more than 1 minute)'
-    ${rshell} --quiet rm '/pyboard/sd/anims/*'
-    ${rshell} --quiet rm '/pyboard/anims/*'
-fi
-
-echo Prepping Pico filesystem
-${rshell} --quiet rm /pyboard/boot.py >& $out
-${rshell} --quiet repl '~ import machine ~ machine.reset() ~' >& $out
-sleep 5
-
-echo Installing libraries
-${rshell} --quiet mkdir /pyboard/lib >& $out
-${rshell} --quiet mkdir /pyboard/anims >& $out
-${rshell} --quiet cp lib/servo.py \
-          lib/wave.py \
-          lib/pca9685.py \
-          lib/sdcard.py \
-          lib/memstats.py \
-          lib/tables.py \
-          lib/tabledefs \
-          lib/helpers.py \
-          lib/maestro.py \
-          /pyboard/lib
-echo Installing main.py
-${rshell} --quiet cp main.py /pyboard
-
-echo ''
-echo ''
-echo -n 'Install demo/diagnostic animations (y/N):'
-read reply
-echo ''
-if [ $reply = 'y' ] || [ $reply = 'Y' ]; then
-    ${rshell} --quiet cp anims/* /pyboard/anims
-fi
-
-# Check on the results
-${rshell} --quiet repl '~ import memstats ~' >& $out
-
-# Install boot.py last as rshell runs really slowly once it's there
-echo Installing boot.py
-${rshell} --quiet cp boot.py /pyboard
-
-# Record the port locally for commlib to pick up
-echo -n $port > .portid
-
-# Reboot the Pico
-echo Resetting Pico
-${rshell} --quiet repl '~ import machine ~ machine.reset() ~' >& $out
-
-# Wait a couple of seconds for Pico to restart running main
-sleep 5
-
-# Verify installation
-echo
-echo Verifying installation
-echo
-if [ -f ./verifyload ]; then
-    ./verifyload -p $port
-else
-    python3 verifyload.py -p $port
-fi
-
-CODE=$?
-if [ $CODE -eq 0 ]; then
-    echo All python files validate
-fi
-
-# Validate installed diagnostic animations
-if [ $reply = 'y' ] || [ $reply = 'Y' ]; then
-    echo ''
-    # Used to fail for .wav files due to short timeout but now fixed
-    if [ -f ./verifyload ]; then
-        ./verifyload -p $port -fl `ls anims/*`
-    else
-        python3 verifyload.py -p $port -fl `ls anims/*`
-    fi
-    CODE=$?
-    if [ $CODE -eq 0 ]; then
-        echo Diagnostic anim files validate
-    fi
-fi
-
-exit
+exit 0

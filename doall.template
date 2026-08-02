@@ -21,7 +21,7 @@ cd ..
 cd ..
 
 # Clean up unused install scripts
-rm ./win* Pololu/win*
+rm -f quickinstall_Pico
 
 # Clean up other hardware
 rm -rf Pico

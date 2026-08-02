@@ -17,7 +17,7 @@ echo Version:__VERSION__
 
 REM Set up the virtual environment
 cd /d "%SCRIPTPATH%"
-python -m venv --system-site-packages .venv
+python -m venv .venv
 if errorlevel 1 (
     echo WHOOPS - Need to install venv tools
     exit /b %errorlevel%
@@ -27,7 +27,7 @@ REM Activate the virtual environment
 call "%SCRIPTPATH%\.venv\Scripts\activate.bat"
 
 REM Install and update dependencies
-pip install -U pip
+python -m pip install -U pip
 pip install -U PyQt5
 if errorlevel 1 (
     echo WHOOPS - Need to install PyQt6
@@ -59,25 +59,13 @@ REM --- Hauntimator ---
 (
     echo @echo off
     echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\src\Hauntimator.py" %%*
-) > "%SCRIPTPATH%\%TOOLNAME%.bat"
+) > "%SCRIPTPATH%\Hauntimator.bat"
 
 REM --- joysticking ---
 (
     echo @echo off
     echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\src\joysticking.py" %%*
 ) > "%SCRIPTPATH%\joysticking.bat"
-
-REM --- Pico\rshell ---
-(
-    echo @echo off
-    echo "%VIRTUAL_ENV%\Scripts\rshell.exe" %%*
-) > "%SCRIPTPATH%\Pico\rshell.bat"
-
-REM --- Pico\verifyload ---
-(
-    echo @echo off
-    echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\Pico\verifyload.py" %%*
-) > "%SCRIPTPATH%\Pico\verifyload.bat"
 
 REM --- Maestro_Animator ---
 (
@@ -88,11 +76,7 @@ REM --- Maestro_Animator ---
 
 echo.
 echo Installation complete. Wrapper scripts created as .bat files.
-REM --- Hauntimator ---
-(
-    echo @echo off
-    echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\src\Hauntimator.py" %%*
-) > "%SCRIPTPATH%\Hauntimator.bat"
+echo.
 
 REM --- Optionally Create Desktop Shortcuts ---
 REM Have to set variables outside conditional to have effect
@@ -114,7 +98,7 @@ goto :eof
 
 :CreateShortcut
 setlocal
-REM Call with appname , logo.ico
+REM Call with linkname , appname , logo.ico
 (
     echo Set oWS = WScript.CreateObject^("WScript.Shell"^)
     echo Set oLink = oWS.CreateShortcut^("%USERPROFILE%\Desktop\%~1.lnk"^)
@@ -126,10 +110,7 @@ REM Call with appname , logo.ico
 ) > "%TEMP%\CreateShortcut.vbs"
 cscript //nologo "%TEMP%\CreateShortcut.vbs"
 del "%TEMP%\CreateShortcut.vbs"
+
 endlocal
 EXIT /B 0
-
-
-endlocal
-
 

@@ -46,6 +46,46 @@ Read the following section for details on the installation process but
 also read the Quick Install section to see if you can use the easy
 method.
 
+### Quick Install Option
+
+Once you have downloaded and unzipped the appropriate release file, scripts are1s
+ available to aid the installation process.   These scripts do all the
+below steps for either Pico or Pololu, except install MicroPython on the Pico and
+install MaestroControlCenter for Pololu Maestros.  These
+assume a default tabledefs configuration file.  Since most users will work on a 
+single platform with a single type of animation controller, running the appropriate
+install script is the easiest way to get going:
+
+| OS | Controller | Script |
+|------|------|------|
+| linux/MacOS | Pico | quickinstall_Pico |
+| linux/MacOS | Pololu | quickinstall_Pololu |
+| Windows 11 | Pico | winquickinstall_Pico.bat |
+| Windows 11 | Pololu | winquickinstall_Pololu.bat |
+
+Note that running one of these quickinstall scripts will delete the subdirectory
+for the other hardware so you will not be able to switch back and forth between
+hardware types within this installation.  To support multiple hardware types from
+the same system, simply unzip the zip file again and run another quickinstall
+script to support that additional hardware type.
+
+These quick install scripts only install the python tools.  When using a Pico-based
+animation controller, it is also necessary to install a MicroPython image and then
+all the MicroPython code into the Pico flash memory.  See the Pico/README for more
+on installing MicroPython on the Pico.  Once that is done, the embedded code can be
+installed.  There is one command to do this:
+
+| OS | Script |
+|------|------|
+| linux/MacOS | Pico_install |
+| Windows 11  | winPicoinstall.bat |
+
+NOTE - you may upset your anti-virus tools running the above commands even though
+we have tried to use AV-friendly methods.  If you have problems you may either
+disable your AV software or run the steps below manually.  bitdefender, at least,
+seems to have no problems when everything is run manually but sometimes complains
+on the quick install methods above.
+
 ### Linux and MacOS
 
 If you are reading this, you have already downloaded and unzipped the
@@ -78,8 +118,8 @@ Pico:
 - cd to the Pico/lib directory
 - copy tabledefs_template to tabledefs and edit it as needed (see Pico/lib/README)
 - cd to the Pico directory
-- run "do_install" to install all the embedded software on the Pico (see Pico/README)
-    and link to the Pico libraries
+- run "do_install" to link to the Pico libraries
+- run "Pico_install" to install all the embedded software on the Pico (see Pico/README)
 
 Note that it is not necessary for Hauntimator and joysticking to
 communicate with the Pico.  It is perfectly possible to create
@@ -117,8 +157,8 @@ Pico:
 - cd to the Pico/lib directory
 - copy tabledefs_template to tabledefs and edit it as needed (see Pico/lib/README)
 - cd to the Pico directory
-- run "windo_install.bat" to install all the embedded software on the Pico (see Pico/README)
-    and link to the Pico libraries
+- run "windo_install.bat" to link to the Pico libraries
+- run "winPicoinstall.bat" to install all the embedded software on the Pico (see Pico/README)
 
 Note that it is not necessary for Hauntimator and joysticking to
 communicate with the Pico.  It is perfectly possible to create
@@ -139,26 +179,6 @@ To use the Maestro controllers, they must be configured for your system.  This
 is done with the MaestroControlCenter application available from Pololu.  You
 will need this application so follow the directions at:
 https://www.pololu.com/product/1350/resources
-
-### Quick Install Option
-
-Scripts are available to aid the installation process.   These scripts do all the
-above steps for either Pico or Pololu, except install MicroPython on the Pico and
-install MaestroControlCenter for Pololu Maestros, and
-assume a default tabledefs configuration file.  Since most users will work on a 
-single platform with a single type of animation controller, running the appropriate
-install script is the easiest way to get going:
-
-| OS | Controller | Script |
-|------|------|------|
-| linux/MacOS | Pico | quickinstall_Pico |
-| linux/MacOS | Pololu | quickinstall_Pololu |
-| Windows 11 | Pico | winquickinstall_Pico.bat |
-| Windows 11 | Pololu | winquickinstall_Pololu.bat |
-
-Note that running one of these quickinstall scripts will delete the subdirectory
-for the other hardware so you will not be able to switch back and forth between
-hardware types within this installation.
 
 ***
 

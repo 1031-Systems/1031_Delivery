@@ -261,14 +261,37 @@ rm -f ${DeliveryRepo}/Pololu/docs/FIFOs.svg
 rm -f ${DeliveryRepo}/src/docs/images/*.xcf ${DeliveryRepo}/src/docs/images/*.csh
 
 # Zip up the delivery files
-rm -f Hauntimator_${vnum}.zip
-zip -qry Hauntimator_${vnum}.zip \
+rm -f Hauntimator_LinuxMac_${vnum}.zip
+zip -qry Hauntimator_LinuxMac_${vnum}.zip \
     $DeliveryRepo/src \
     $DeliveryRepo/LICENSE \
     $DeliveryRepo/README.* \
     $DeliveryRepo/Pico \
     $DeliveryRepo/Pololu \
-    $DeliveryRepo/*install*
+    $DeliveryRepo/*install* \
+    -x "$DeliveryRepo/win*" "$DeliveryRepo/Pico/win*" "$DeliveryRepo/Pololu/win*"
+
+rm -f Hauntimator_Windows_${vnum}.zip
+zip -qry Hauntimator_Windows_${vnum}.zip \
+    $DeliveryRepo/src \
+    $DeliveryRepo/LICENSE \
+    $DeliveryRepo/README.* \
+    $DeliveryRepo/Pico \
+    $DeliveryRepo/Pololu \
+    $DeliveryRepo/*install* \
+    -x "$DeliveryRepo/quick*" "$DeliveryRepo/install" "$DeliveryRepo/uninstall" \
+    "$DeliveryRepo/Pico/do_*" "$DeliveryRepo/Pico/Pico_install" "$DeliveryRepo/Pico/usePico" \
+    "$DeliveryRepo/Pololu/do_*" "$DeliveryRepo/Pololu/Pololu_install" "$DeliveryRepo/Pololu/usePololu"
+
+foreach hw (LinuxMac Windows)
+    if (-e Hauntimator_${hw}_${vnum}.zip) then
+        echo Built release file: Hauntimator_${hw}_${vnum}.zip
+        sha256sum Hauntimator_${hw}_${vnum}.zip >Hauntimator_${hw}_${vnum}.sha256
+        ls -l Hauntimator_${hw}_${vnum}.*
+    else
+        echo Failed to build release file: Hauntimator_${hw}_${vnum}.zip
+    endif
+end
 
 # Clean up
 if($verbosity) then
@@ -290,14 +313,6 @@ if ( ! $?local ) then
     endif
 else
     if($verbosity) echo Would tag release as $vnum in remote repo
-endif
-
-if (-e Hauntimator_${vnum}.zip) then
-    echo Built release file: Hauntimator_${vnum}.zip
-    sha256sum Hauntimator_${vnum}.zip >Hauntimator_${vnum}.sha256
-    ls -l Hauntimator_${vnum}.*
-else
-    echo Failed to build release file: Hauntimator_${vnum}.zip
 endif
 
 exit

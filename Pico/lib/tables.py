@@ -878,6 +878,12 @@ def main():
         status = parsefile(tablefile=infilename)
         if status:
             sys.stderr.write('\n****** Specified file does not validate!\n%s\n\n' % infilename)
+            sys.exit(5)
+    else:
+        # Check to see if we properly imported the default tabledefs file
+        if _parseStatus:
+            sys.stderr.write('\n****** Standard tabledefs file not found or unparsable\n\n')
+            sys.exit(5)
 
     # Initialize the check flag to False meaning everything is okay so far
     checkflag = False

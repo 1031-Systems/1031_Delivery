@@ -73,11 +73,13 @@ release file of your choice from https://github.com/1031-Systems/1031_Delivery/r
 navigating to the release of your choice.  If you just want the
 latest release, find the one labeled Latest.  It should be at
 https://github.com/1031-Systems/1031_Delivery/releases/latest.
-Look for the asset named Hauntimator_{version}.zip.
+Look for the asset named Hauntimator_{OS}_{version}.zip.
+There is a zip file and associated sha256 checksum file for both Windows
+and Linux/Mac so choose the one you need.
 
 Once the zip file is downloaded, unzip it into the directory of
 your choice.  Unzipping the file produces a directory named
-1031_Hauntimator.  Navigate to that directory and run install or
+1031_Hauntimator.  Navigate to that directory and run install for linux/Mac or
 wininstall.bat for Windows.  The tools will mostly be ready to run.
 The full set of procedures for linux/MacOS and Windows are:
 
@@ -116,7 +118,7 @@ of source code and data files.  While most of the files are there,
 it is not intended to be a development environment.
 
 If you encounter any issues, and even if you don't, the README in the
-unzipped release will contain more information about getting started.
+unzipped release will contain a little more information about getting started.
 
 ## If You Are A Developer
 
@@ -154,12 +156,12 @@ pip install PyQt5 # (or PyQt6==6.5, whichever will actually install)
 pip install PythonQwt
 pip install pygame-ce
 pip install rshell
-pip install pocketsphinx    # To support phonemes plugin
+pip install pocketsphinx    # To support phonemes plugin (NOT available on Windows)
 pip freeze -l > ${OSTYPE}-requirements.txt # To save your own config
 
 ~~~
 
-On darwin, the only MacOS test system I have, PyQt5 does not install
+On darwin (Sonoma), the only MacOS test system I have, PyQt5 does not install
 but PyQt6 does.  Meanwhile, on my Rocky 9 test system, PyQt5 installs
 just fine whilst PyQt6 does not.  You will have to install whichever
 works for you.  Hauntimator.py is written to work with either PyQt5 or
