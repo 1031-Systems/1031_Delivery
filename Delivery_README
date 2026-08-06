@@ -40,16 +40,43 @@ the audio.
 
 ***
 
+## Before You Install
+
+You may upset your anti-virus tools running the install commands even though
+we have tried to use AV-friendly methods.  If you have problems you may either
+disable your AV software or run the steps below manually.  bitdefender, at least,
+seems to have no problems when everything is run manually but sometimes complains
+on the quick install methods.  Or you can disable first and then install.  Your
+choice.
+
+These tools require python3 and the python venv module for setting up and using
+virtual environments.  Generally, venv comes with python but on some systems
+may need to be installed separately.  The system has been tested with python3.9 
+and python 3.11.  It should be pretty flexible about exactly which version you
+have installed but might be unhappy with very old or very new versions.
+
+On a linux-based system, you need to be a member of the dialout group.  See the
+Linux/MacOS installation guide below for more details.
+
+If using a Raspberry Pi Pico system, you will need to have Micropython installed
+on the Pico prior to installing our software.  Details on how to do this are all
+over the interweb with some notes in the Pico/README file.
+
+If using Pololu Maestro animation controllers, you will need to have Pololu's
+MaestroControlCenter available.  It doesn't have to be on the same system as
+long as it is available to you somewhere.  More details are in the Pololu/README
+file.
+
 ## Installation
 
-Read the following section for details on the installation process but
+Read the following sections for details on the installation process but
 also read the Quick Install section to see if you can use the easy
 method.
 
 ### Quick Install Option
 
-Once you have downloaded and unzipped the appropriate release file, scripts are1s
- available to aid the installation process.   These scripts do all the
+Once you have downloaded and unzipped the appropriate release file, scripts are
+available to aid the installation process.   These scripts do all the
 below steps for either Pico or Pololu, except install MicroPython on the Pico and
 install MaestroControlCenter for Pololu Maestros.  These
 assume a default tabledefs configuration file.  Since most users will work on a 
@@ -58,16 +85,24 @@ install script is the easiest way to get going:
 
 | OS | Controller | Script |
 |------|------|------|
-| linux/MacOS | Pico | quickinstall_Pico |
-| linux/MacOS | Pololu | quickinstall_Pololu |
-| Windows 11 | Pico | winquickinstall_Pico.bat |
-| Windows 11 | Pololu | winquickinstall_Pololu.bat |
+| linux/MacOS | Pico | 1031_Hauntimator/quickinstall_Pico |
+| linux/MacOS | Pololu | 1031_Hauntimator/quickinstall_Pololu |
+| Windows 11 | Pico | 1031_Hauntimator\\winquickinstall_Pico.bat |
+| Windows 11 | Pololu | 1031_Hauntimator\\winquickinstall_Pololu.bat |
 
-Note that running one of these quickinstall scripts will delete the subdirectory
-for the other hardware so you will not be able to switch back and forth between
-hardware types within this installation.  To support multiple hardware types from
+
+To support multiple hardware types from
 the same system, simply unzip the zip file again and run another quickinstall
-script to support that additional hardware type.
+script to support that additional hardware type.  Each installation changes the name
+of 1031_Hauntimator to Pico_Hauntimator or Pololu_Hauntimator and creates desktop
+shortcuts named Pico or Pololu for running the Hauntimator application for that
+hardware.
+
+[ TMI Warning - If you are wondering why we change the name of the 1031_Hauntimator directory,
+it is because the desktop shortcuts contain a path to the executables.  These must be 
+known when the shortcuts are created.  Then, if the directory name is not changed, any
+additional hardware installations (e.g. supporting both Pico and Pololu) will simply
+point at the same executables and everything gets confused.]
 
 These quick install scripts only install the python tools.  When using a Pico-based
 animation controller, it is also necessary to install a MicroPython image and then
@@ -77,14 +112,8 @@ installed.  There is one command to do this:
 
 | OS | Script |
 |------|------|
-| linux/MacOS | Pico_install |
-| Windows 11  | winPicoinstall.bat |
-
-NOTE - you may upset your anti-virus tools running the above commands even though
-we have tried to use AV-friendly methods.  If you have problems you may either
-disable your AV software or run the steps below manually.  bitdefender, at least,
-seems to have no problems when everything is run manually but sometimes complains
-on the quick install methods above.
+| linux/MacOS | Pico/Pico_install |
+| Windows 11  | Pico\\winPicoinstall.bat |
 
 ### Linux and MacOS
 
