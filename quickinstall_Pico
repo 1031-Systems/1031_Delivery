@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Get path to this script and thus to the install directory
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+cd $SCRIPTPATH/..
+
+# Remove any existing installation of the same name
+./Pico_Hauntimator/uninstall >& /dev/null
+
+# Rename unzipped directory to be hardware specific
+mv 1031_Hauntimator Pico_Hauntimator
+
+# Run the install batch file
+cd Pico_Hauntimator
+./install Pico
+
+# Use a reasonable tabledefs file
+cd Pico/lib
+cp tabledefs.basic tabledefs
+
+# Run the Pico-specific install file
+cd ..
+./do_install
+
+cd ..
+
+# Clean up unused install scripts
+rm -f quickinstall_Pololu
+
+# Clean up other hardware
+rm -rf Pololu
+
+# Other cleanups
+#TARGET
+
+exit 0
