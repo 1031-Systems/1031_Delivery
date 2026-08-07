@@ -28,26 +28,24 @@ while($i <= $#argv)
     @ i++
 end
 
+if(! -e $infile.png) then
+    echo "Whoops - Unable to open file: $infile.png"
+    goto usage
+endif
+
 # Do the right thing
-if ( $OSTYPE == 'darwin' ) then
+if ( $OSTYPE == 'linux' ) then
     # Make icons from logo.png files
     mkdir MyIcon.iconset
-    ln -s ${infile}.png Icon1024.png
-    cp Icon1024.png MyIcon.iconset/icon_512x512@2x.png
-    sips -z 16 16     Icon1024.png --out MyIcon.iconset/icon_16x16.png
-    sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_16x16@2x.png
-    sips -z 32 32     Icon1024.png --out MyIcon.iconset/icon_32x32.png
-    sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_32x32@2x.png
-    sips -z 64 64     Icon1024.png --out MyIcon.iconset/icon_64x64.png
-    sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_64x64@2x.png
-    sips -z 128 128   Icon1024.png --out MyIcon.iconset/icon_128x128.png
-    sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_128x128@2x.png
-    sips -z 256 256   Icon1024.png --out MyIcon.iconset/icon_256x256.png
-    sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_256x256@2x.png
-    sips -z 512 512   Icon1024.png --out MyIcon.iconset/icon_512x512.png
-    iconutil -c icns MyIcon.iconset
-    mv MyIcon.icns ${outfile}.icns
-    rm -rf MyIcon.iconset Icon1024.png
+    # Make various resolution levels
+    pngtopam -alphapam $infile.png | pamscale -xysize 256 256 | pamtopng >> MyIcon.iconset/icon256.png
+    if ( $status ) goto usage
+    pngtopam -alphapam $infile.png | pamscale -xysize 128 128 | pamtopng > MyIcon.iconset/icon128.png
+    pngtopam -alphapam $infile.png | pamscale -xysize 32 32 | pamtopng >> MyIcon.iconset/icon32.png
+    pngtopam -alphapam $infile.png | pamscale -xysize 16 16 | pamtopng >> MyIcon.iconset/icon16.png
+    png2icns $outfile.icns MyIcon.iconset/icon*.png
+    if ( $status ) goto usage
+    rm -rf MyIcon.iconset
 endif
 
 exit
@@ -56,10 +54,12 @@ usage:
 
 echo
 echo 'Usage:'$0' -i inname [-o outname]'
-echo '    This tool converts a png file, assumed to be 1024x1024, to a MacOS'
+echo '    This tool converts a png file, of any size, to a MacOS'
 echo 'icon file for use on the desktop.'
 echo ''
 echo '-/-h/-help          :Print this helpful info'
 echo '-i inname           :Name of input image without .png'
 echo '-o outname          :Name of output icon file without .icns (Defaults to input name)'
+echo
+echo 'This tool requires installation of the pam image (netpbm) and icnsutils packages.'
 echo
