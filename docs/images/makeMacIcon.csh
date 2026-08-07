@@ -38,11 +38,11 @@ if ( $OSTYPE == 'linux' ) then
     # Make icons from logo.png files
     mkdir MyIcon.iconset
     # Make various resolution levels
-    pngtopam -alphapam $infile.png | pamscale -xysize 256 256 | pamtopng >> MyIcon.iconset/icon256.png
+    pngtopam -alphapam $infile.png | pamscale -xysize 256 256 | pamtopng > MyIcon.iconset/icon256.png
     if ( $status ) goto usage
     pngtopam -alphapam $infile.png | pamscale -xysize 128 128 | pamtopng > MyIcon.iconset/icon128.png
-    pngtopam -alphapam $infile.png | pamscale -xysize 32 32 | pamtopng >> MyIcon.iconset/icon32.png
-    pngtopam -alphapam $infile.png | pamscale -xysize 16 16 | pamtopng >> MyIcon.iconset/icon16.png
+    pngtopam -alphapam $infile.png | pamscale -xysize 32 32   | pamtopng > MyIcon.iconset/icon32.png
+    pngtopam -alphapam $infile.png | pamscale -xysize 16 16   | pamtopng > MyIcon.iconset/icon16.png
     png2icns $outfile.icns MyIcon.iconset/icon*.png
     if ( $status ) goto usage
     rm -rf MyIcon.iconset
