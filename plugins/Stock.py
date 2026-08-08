@@ -234,22 +234,5 @@ def replicate(channelList, theanim, starttime=None, endtime=None):
 
     return True # so Hauntimator knows a change was made
 
-def blockCut(channelList, theanim, starttime=None, endtime=None):
-    MainWindow.main_win.blockCut(channelList, minTime=starttime, maxTime=endtime)
-    return True # so Hauntimator knows a change was made
-
-def blockCopy(channelList, theanim, starttime=None, endtime=None):
-    MainWindow.main_win.blockCopy(channelList, minTime=starttime, maxTime=endtime)
-    return False # Copy to clipboard is not an undoable offense
-
-def blockPasteAt(channelList, theanim, starttime=None, endtime=None):
-    try:
-        firstChannel = channelList[0].name
-        theXML = MainWindow.main_win.clipboard.text()
-        MainWindow.main_win.blockPasteAt(theXML, starttime, firstChannel = firstChannel)
-        return True # so Hauntimator knows a change was made
-    except:
-        return False
-
-external_callables = [invert, repeat, replicate, blockCut, blockCopy, blockPasteAt]  # , shift]
+external_callables = [invert, repeat, replicate]  # , shift]
 
