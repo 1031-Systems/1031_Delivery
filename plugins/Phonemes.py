@@ -11,13 +11,10 @@
 import os
 import sys
 import string
-import difflib
+import json
+import wave
 
-# Allow test code to find Animatronics module
-if __name__ == "__main__": sys.path.append('..')
-import Animatronics
-
-from pocketsphinx import get_model_path, Decoder, Config
+from vosk import Model, KaldiRecognizer
 
 usedPyQt = None
 try:
@@ -123,6 +120,95 @@ class Segment:
         self.start_frame = start
         self.end_frame = end
 
+def transcriptToDictionary(transcript=None):
+    if transcript is None: return None
+    # Get list of all words in transcript without punctuation
+    with open(transcript, 'r') as f:
+        text = f.read()
+        # Remove all the bad characters and replace them with spaces
+        outtext = ''
+        for i in range(len(text)):
+            val = ord(text[i])
+            if i > 0 and i < len(text)-1 and text[i] == "'":
+                pass    # All 's are just removed
+            elif val < 32 or val > 127 or chr(val) in string.punctuation:
+                outtext += ' '
+            else:
+                outtext += text[i]
+        # Convert entirely to lower case
+        text = outtext.lower()
+        # Split into a list
+        tlist = sorted(set(text.split()))
+        tlist.append('[unk]')
+
+    return tlist
+
+def runVoskWords(audiofile, dict=None, model=None, transcript=None, starttime=0, endtime=0):
+    # Open WAV file
+    wf = wave.open(audiofile, "rb")
+
+    # Verify format
+    if wf.getnchannels() != 1:
+        raise ValueError("WAV file must be mono.")
+
+    if wf.getsampwidth() != 2:
+        raise ValueError("WAV file must be 16-bit PCM.")
+
+    if wf.getcomptype() != "NONE":
+        raise ValueError("WAV file must be uncompressed PCM.")
+
+    if wf.getframerate() != 16000:
+        raise ValueError("WAV file must be 16000 Hz.")
+
+    # Compute data rate that should always be 16000 frames per second
+    datarate = wf.getframerate()
+
+    # Load Vosk model
+    model = Model(model)
+
+    # Create recognizer
+    grammar = None
+    if dict is not None:
+        # Dictionary is array of recognizable words in lower case
+        grammar = json.dumps(dict)
+    elif transcript is not None:
+        # Transcript is text of audio with possible punctuation, case, etc.
+        grammar = json.dumps(transcriptToDictionary(transcript))
+
+    if grammar is not None:
+        # print('Grammar:', grammar)
+        recognizer = KaldiRecognizer(model, wf.getframerate(), grammar)
+    else:
+        recognizer = KaldiRecognizer(model, wf.getframerate())
+
+    # Enable word timing output
+    recognizer.SetWords(True)
+
+    words = []
+
+    # Skip to desired start time
+    data = wf.readframes(int(starttime * datarate))
+
+    while True:
+        data = wf.readframes(4000)
+        if len(data) == 0:
+            break
+
+        if recognizer.AcceptWaveform(data):
+            result = json.loads(recognizer.Result())
+
+            for word in result.get("result", []):
+                words.append((word["word"], word["start"], word["end"]))
+
+    # Process any remaining audio
+    final = json.loads(recognizer.FinalResult())
+
+    print('final:', final)
+    for word in final.get("result", []):
+        words.append((word["word"], word["start"], word["end"]))
+
+    return words
+
 def runSphinxWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, endtime=0):
     # Create a decoder with certain model
     config = Config()
@@ -166,93 +252,6 @@ def runSphinxWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, 
 
     # Compare to transcript and correct mistranslations
     segments = decoder.seg()
-    '''
-    if decoder.seg() is not None and transcript is not None:
-        words = []
-        segments = []
-        # Get list of all words in transcript without punctuation
-        with open(transcript, 'r') as f:
-            text = f.read()
-            # Remove all the bad characters and replace them with spaces
-            outtext = ''
-            for i in range(len(text)):
-                val = ord(text[i])
-                if i > 0 and i < len(text)-1 and text[i] == "'":
-                    pass    # All 's are just removed
-                elif val < 32 or val > 127 or chr(val) in string.punctuation:
-                    outtext += ' '
-                else:
-                    outtext += text[i]
-            # Convert entirely to upper case
-            text = outtext.upper()
-            # Split into a list
-            tlist = text.split()
-        # Get list of words found by sphinx
-        for s in decoder.seg():
-            # Remove any trailing things in parens although they will be kept for phoneme lookup
-            tword = s.word
-            indx = tword.find('(')
-            if indx >= 0:
-                tword = tword[0:indx]
-            words.append(tword)
-            segments.append(s)
-
-        # Diff the lists
-        differ = difflib.Differ()
-        diff = differ.compare(tlist, words)
-
-        # Replace mistranslated words with correct words
-        goodwords = []
-        badstart = 0
-        badend = 0
-        sphinxindx = 0
-        outsegments = []
-        for line in diff:
-            if len(line) > 0:
-                if line[0] == ' ':
-                    # Output any saved replacements
-                    if len(goodwords) > 0:
-                        # Guess at word duration from word length
-                        totlen = 0
-                        for word in goodwords:
-                            totlen += len(word)
-                        durstep = (badend - badstart) / totlen
-                        for word in goodwords:
-                            worddur = len(word) * durstep
-                            outsegments.append(Segment(word, badstart, badstart+worddur))
-                            badstart += worddur
-                        badstart = 0
-                        goodwords = []
-                    #  Output good sphinx match
-                    outsegments.append(segments[sphinxindx])
-                    # Update indices
-                    sphinxindx += 1
-                elif line[0] == '-':
-                    # Save this good word from the transcript
-                    goodwords.append(line[2:])
-                elif line[0] == '+':
-                    # Word found by sphinx that does not match transcript so accumulate its duration
-                    if badstart == 0:
-                        badstart = segments[sphinxindx].start_frame
-                    badend = segments[sphinxindx].end_frame
-                    sphinxindx += 1
-                else:
-                    # Skip ? sign indicating misspelling
-                    pass
-        # Output any last saved replacements
-        if len(goodwords) > 0:
-            # Guess at word duration from word length
-            totlen = 0
-            for word in goodwords:
-                totlen += len(word)
-            durstep = (badend - badstart) / totlen
-            for word in goodwords:
-                worddur = len(word) * durstep
-                outsegments.append(Segment(word, badstart, badstart+worddur))
-                badstart += worddur
-        segments = outsegments
-    '''
-
 
     # Output list of words with start and end times
     words = []
