@@ -280,7 +280,7 @@ def createLocalDictionary(transcript=None):
 
 def checkForSupplementalFiles(audiofile):
     # Get directory of this plugin file
-    dir = os.path.join(os.path.dirname(__file__), 'phoneme_data')
+    dir = os.path.join(os.path.dirname(__file__), 'Phoneme_data')
 
     # Check for supplemental files
     lmname = os.path.join(os.path.dirname(audiofile), 'vosk-model')
@@ -317,7 +317,7 @@ def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
     sFile = os.path.dirname(sFile)
 
     # Read CSV file
-    with open(os.path.join(sFile, 'plugins/phonemes.csv'), 'r') as csvfile:
+    with open(os.path.join(sFile, 'plugins/Phoneme_data/phonemes.csv'), 'r') as csvfile:
         # Get channel types from header
         firstline = csvfile.readline().strip()
         columns = firstline.split(',')
@@ -376,6 +376,8 @@ def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
         for word in words:
             if word[0][0] != '[':
                 theanim.addTag(word[0], word[1])
+
+    print('\nPhoneme channel complete\n')
 
     return True
 
@@ -454,7 +456,7 @@ if __name__ == "__main__":
                     print(phones)
                 if words is None:
                     words = runVoskWords(audiofile, dict=dictfilename, lm=lmfilename, transcript=transcriptfilename)
-                print('vosk adjusted speech recognition results:')
+                print('\nvosk adjusted speech recognition results:\n')
                 for word in words:
                     sys.stdout.write(word[0] + ' ')
                 sys.stdout.write('\n')
