@@ -155,7 +155,7 @@ def transcriptToGrammar(transcript=None):
 
     return tlist
 
-def runVoskWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, endtime=0):
+def runVoskWords(audiofile, lm=None, transcript=None, starttime=0, endtime=0):
     # Open WAV file
     wf = wave.open(audiofile, "rb")
 
@@ -172,16 +172,22 @@ def runVoskWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, en
     if wf.getframerate() != 16000:
         raise ValueError("WAV file must be 16000 Hz.")
 
-    # Compute data rate that should always be 16000 frames per second
+    # Get data rate that should always be 16000 frames per second
     datarate = wf.getframerate()
 
     # Load Vosk model
+    if lm is None and transcript is None:
+        lm,_,transcript = checkForSupplementalFiles(audiofile)
+    elif lm is None:
+        lm,_,_ = checkForSupplementalFiles(audiofile)
+
     model = Model(lm)
 
     # Create recognizer
     grammar = None
     if transcript is not None:
         # Transcript is text of audio with possible punctuation, case, etc.
+        # Grammar is a list of unique words in transcript
         grammar = json.dumps(transcriptToGrammar(transcript))
         # print('Grammar:', grammar)
         recognizer = KaldiRecognizer(model, wf.getframerate(), grammar)
@@ -196,8 +202,15 @@ def runVoskWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, en
     # Skip to desired start time
     data = wf.readframes(int(starttime * datarate))
 
+    # Compute frames to process for desired end time
+    framecount = int((endtime - starttime) * datarate)
+    # if endtime not set or framecount just too low, process a maximum of 1 hour
+    if framecount < 100: framecount = 3200 * datarate
+
     while True:
-        data = wf.readframes(4000)
+        framestoread = min(4000, framecount)
+        framecount -= framestoread
+        data = wf.readframes(framestoread)
         if len(data) == 0:
             break
 
@@ -205,7 +218,7 @@ def runVoskWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, en
             result = json.loads(recognizer.Result())
 
             for word in result.get("result", []):
-                words.append((word["word"], word["start"], word["end"]))
+                words.append((word["word"], word["start"] + starttime, word["end"] + starttime))
 
     # Process any remaining audio
     final = json.loads(recognizer.FinalResult())
@@ -217,7 +230,13 @@ def runVoskWords(audiofile, dict=None, lm=None, transcript=None, starttime=0, en
 
 def runVosk(audiofile, dict=None, lm=None, transcript=None, starttime=0, endtime=0):
     # First get the words and timing
-    words = runVoskWords(audiofile, dict=dict, lm=lm, transcript=transcript, starttime=starttime, endtime=endtime)
+    words = runVoskWords(audiofile, lm=lm, transcript=transcript, starttime=starttime, endtime=endtime)
+
+    # Make sure we have a dictionary
+    if dict is None:
+        _,dict,_ = checkForSupplementalFiles(audiofile)
+    if dict is None:
+        raise EnvironmentError('Unable to find phoneme dictionary')
 
     # Now distribute phonemes in each word evenly over the duration of the word
     phones = []
@@ -351,33 +370,39 @@ def create_phoneme_channel(channellist, theanim, starttime=0.0, endtime=0.0):
     # Check for matching transcript, dictionary, and/or language model for audio file
     lmname,dictfilename,transcriptfilename = checkForSupplementalFiles(audiofile)
 
-    # Run through vosk
-    phones, words = runVosk(widget.getAudioFile(), dict=dictfilename, lm=lmname,
-                        transcript=transcriptfilename, starttime=starttime, endtime=endtime)
+    try:
+        # Run through vosk
+        phones, words = runVosk(widget.getAudioFile(), dict=dictfilename, lm=lmname,
+                            transcript=transcriptfilename, starttime=starttime, endtime=endtime)
 
-    # Convert phonemes to positions and insert in channel(s)
-    type = widget.getType()
-    for channel in channellist:
-        minval = channel.minLimit
-        maxval = channel.maxLimit
-        for phone in phones:
-            if phone[0] in channelpositions[type]:
-                phonevalue = float(channelpositions[type][phone[0]]) / 100.0
-                value = (maxval - minval) * phonevalue + minval
-                channel.add_knot(phone[1], value)
-                if verbosity: print('Adding knot value:', value, 'at time:', phone[1], 'to channel:', channel.name, 'for phone:', phone[0])
+        # Convert phonemes to positions and insert in channel(s)
+        type = widget.getType()
+        for channel in channellist:
+            minval = channel.minLimit
+            maxval = channel.maxLimit
+            for phone in phones:
+                if phone[0] in channelpositions[type]:
+                    phonevalue = float(channelpositions[type][phone[0]]) / 100.0
+                    value = (maxval - minval) * phonevalue + minval
+                    channel.add_knot(phone[1], value)
+                    if verbosity: print('Adding knot value:', value, 'at time:', phone[1], 'to channel:', channel.name, 'for phone:', phone[0])
 
-    if widget.getTagFlag() == 'Words' and words is None:
-        # Rerun vosk just looking for word timing
-        words = runVoskWords(widget.getAudioFile(), dict=dictfilename, lm=lmfilename, starttime=starttime, endtime=endtime)
+        if widget.getTagFlag() == 'Words' and words is None:
+            # Rerun vosk just looking for word timing
+            words = runVoskWords(widget.getAudioFile(), lm=lmfilename, starttime=starttime, endtime=endtime)
 
-    if widget.getTagFlag() != 'None':
-        theanim.clearTags(starttime=starttime, endtime=endtime)
-        for word in words:
-            if word[0][0] != '[':
-                theanim.addTag(word[0], word[1])
+        if widget.getTagFlag() != 'None':
+            theanim.clearTags(starttime=starttime, endtime=endtime)
+            for word in words:
+                if word[0][0] != '[':
+                    theanim.addTag(word[0], word[1])
 
-    print('\nPhoneme channel complete\n')
+        print('\nPhoneme channel complete\n')
+    except Exception as e:
+        print('\nWhoops - Error processing phoneme channel')
+        print('for file:', widget.getAudioFile())
+        print(str(e))
+        return False
 
     return True
 
@@ -455,7 +480,7 @@ if __name__ == "__main__":
                 if verbosity:
                     print(phones)
                 if words is None:
-                    words = runVoskWords(audiofile, dict=dictfilename, lm=lmfilename, transcript=transcriptfilename)
+                    words = runVoskWords(audiofile, lm=lmfilename, transcript=transcriptfilename)
                 print('\nvosk adjusted speech recognition results:\n')
                 for word in words:
                     sys.stdout.write(word[0] + ' ')
