@@ -224,7 +224,7 @@ def runVoskWords(audiofile, lm=None, transcript=None, starttime=0, endtime=0):
     final = json.loads(recognizer.FinalResult())
 
     for word in final.get("result", []):
-        words.append((word["word"], word["start"], word["end"]))
+        words.append((word["word"], word["start"] + starttime, word["end"] + starttime))
 
     return words
 
