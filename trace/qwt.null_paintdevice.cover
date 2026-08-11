@@ -1,0 +1,310 @@
+       # -*- coding: utf-8 -*-
+       #
+       # Licensed under the terms of the Qwt License
+       # Copyright (c) 2002 Uwe Rathmann, for the original C++ code
+       # Copyright (c) 2015 Pierre Raybaut, for the Python translation/optimization
+       # (see LICENSE file for more details)
+       
+    1: """
+       QwtNullPaintDevice
+       ------------------
+       
+       .. autoclass:: QwtNullPaintDevice
+          :members:
+       """
+       
+    1: import os
+       
+    1: from qtpy.QtCore import QObject
+    1: from qtpy.QtGui import QPaintDevice, QPaintEngine, QPainterPath
+       
+    1: QT_API = os.environ["QT_API"]
+       
+       
+    2: class QwtNullPaintDevice_PrivateData(QObject):
+    1:     def __init__(self):
+   85:         QObject.__init__(self)
+       
+   85:         self.mode = QwtNullPaintDevice.NormalMode
+       
+       
+    2: class QwtNullPaintDevice_PaintEngine(QPaintEngine):
+    1:     def __init__(self, paintdevice):
+   53:         super(QwtNullPaintDevice_PaintEngine, self).__init__(QPaintEngine.AllFeatures)
+   53:         self.__paintdevice = paintdevice
+       
+    1:     def begin(self, paintdevice):
+   53:         self.setActive(True)
+   53:         return True
+       
+    1:     def end(self):
+   53:         self.setActive(False)
+   53:         return True
+       
+    1:     def type(self):
+               return QPaintEngine.User
+       
+    1:     def drawRects(self, rects, rectCount=None):
+               if rectCount is None:
+                   rectCount = len(rects)
+               device = self.nullDevice()
+               if device is None:
+                   return
+               if device.mode() != QwtNullPaintDevice.NormalMode:
+                   try:
+                       QPaintEngine.drawRects(self, rects, rectCount)
+                   except TypeError:
+                       QPaintEngine.drawRects(self, rects)
+                   return
+               device.drawRects(rects, rectCount)
+       
+    1:     def drawLines(self, lines, lineCount=None):
+   53:         if lineCount is None:
+   53:             lineCount = len(lines)
+   53:         device = self.nullDevice()
+   53:         if device is None:
+                   return
+   53:         if device.mode() != QwtNullPaintDevice.NormalMode and QT_API.startswith("pyqt"):
+   53:             try:
+   53:                 QPaintEngine.drawLines(self, lines, lineCount)
+   53:             except TypeError:
+   53:                 QPaintEngine.drawLines(self, lines)
+   53:             return
+               device.drawLines(lines, lineCount)
+       
+    1:     def drawEllipse(self, rect):
+               device = self.nullDevice()
+               if device is None:
+                   return
+               if device.mode() != QwtNullPaintDevice.NormalMode:
+                   QPaintEngine.drawEllipse(self, rect)
+                   return
+               device.drawEllipse(rect)
+       
+    1:     def drawPath(self, path):
+               device = self.nullDevice()
+               if device is None:
+                   return
+               device.drawPath(path)
+       
+    1:     def drawPoints(self, points, pointCount=None):
+               if pointCount is None:
+                   pointCount = len(points)
+               device = self.nullDevice()
+               if device is None:
+                   return
+               if device.mode() != QwtNullPaintDevice.NormalMode:
+                   try:
+                       QPaintEngine.drawPoints(self, points, pointCount)
+                   except TypeError:
+                       QPaintEngine.drawPoints(self, points)
+                   return
+               device.drawPoints(points, pointCount)
+       
+    1:     def drawPolygon(self, *args):
+   53:         if len(args) == 3:
+                   points, pointCount, mode = args
+   53:         elif len(args) == 2:
+   53:             points, mode = args
+   53:             pointCount = len(points)
+               else:
+                   raise TypeError("Unexpected arguments")
+   53:         device = self.nullDevice()
+   53:         if device is None:
+                   return
+   53:         if device.mode() == QwtNullPaintDevice.PathMode:
+   53:             path = QPainterPath()
+   53:             if pointCount > 0:
+   53:                 path.moveTo(points[0])
+  106:                 for i in range(1, pointCount):
+   53:                     path.lineTo(points[i])
+   53:                 if mode != QPaintEngine.PolylineMode:
+                           path.closeSubpath()
+   53:             device.drawPath(path)
+   53:             return
+               device.drawPolygon(points, pointCount, mode)
+       
+    1:     def drawPixmap(self, rect, pm, subRect):
+               device = self.nullDevice()
+               if device is None:
+                   return
+               device.drawPixmap(rect, pm, subRect)
+       
+    1:     def drawTextItem(self, pos, textItem):
+               device = self.nullDevice()
+               if device is None:
+                   return
+               if device.mode() != QwtNullPaintDevice.NormalMode:
+                   QPaintEngine.drawTextItem(self, pos, textItem)
+                   return
+               device.drawTextItem(pos, textItem)
+       
+    1:     def drawTiledPixmap(self, rect, pixmap, subRect):
+               device = self.nullDevice()
+               if device is None:
+                   return
+               if device.mode() != QwtNullPaintDevice.NormalMode:
+                   QPaintEngine.drawTiledPixmap(self, rect, pixmap, subRect)
+                   return
+               device.drawTiledPixmap(rect, pixmap, subRect)
+       
+    1:     def drawImage(self, rect, image, subRect, flags):
+               device = self.nullDevice()
+               if device is None:
+                   return
+               device.drawImage(rect, image, subRect, flags)
+       
+    1:     def updateState(self, state):
+   53:         device = self.nullDevice()
+   53:         if device is None:
+                   return
+   53:         device.updateState(state)
+       
+    1:     def nullDevice(self):
+  159:         if not self.isActive():
+                   return
+  159:         return self.__paintdevice
+       
+       
+    2: class QwtNullPaintDevice(QPaintDevice):
+    1:     """
+           A null paint device doing nothing
+       
+           Sometimes important layout/rendering geometries are not
+           available or changeable from the public Qt class interface.
+           ( f.e hidden in the style implementation ).
+       
+           `QwtNullPaintDevice` can be used to manipulate or filter out
+           this information by analyzing the stream of paint primitives.
+       
+           F.e. `QwtNullPaintDevice` is used by `QwtPlotCanvas` to identify
+           styled backgrounds with rounded corners.
+       
+           Modes:
+       
+               * `NormalMode`:
+       
+                  All vector graphic primitives are painted by
+                  the corresponding draw methods
+       
+               * `PolygonPathMode`:
+       
+                  Vector graphic primitives ( beside polygons ) are mapped to a
+                  `QPainterPath` and are painted by `drawPath`. In `PolygonPathMode`
+                  mode only a few draw methods are called:
+       
+                      - `drawPath()`
+                      - `drawPixmap()`
+                      - `drawImage()`
+                      - `drawPolygon()`
+       
+               * `PathMode`:
+       
+                  Vector graphic primitives are mapped to a `QPainterPath`
+                  and are painted by `drawPath`. In `PathMode` mode
+                  only a few draw methods are called:
+       
+                      - `drawPath()`
+                      - `drawPixmap()`
+                      - `drawImage()`
+           """
+       
+           # enum Mode
+    1:     NormalMode, PolygonPathMode, PathMode = list(range(3))
+       
+    1:     def __init__(self):
+   85:         super(QwtNullPaintDevice, self).__init__()
+   85:         self.__engine = None
+   85:         self.__data = QwtNullPaintDevice_PrivateData()
+       
+    1:     def setMode(self, mode):
+               """
+               Set the render mode
+       
+               :param int mode: New mode
+       
+               .. seealso::
+       
+                   :py:meth:`mode()`
+               """
+   85:         self.__data.mode = mode
+       
+    1:     def mode(self):
+               """
+               :return: Render mode
+       
+               .. seealso::
+       
+                   :py:meth:`setMode()`
+               """
+  106:         return self.__data.mode
+       
+    1:     def paintEngine(self):
+  159:         if self.__engine is None:
+   53:             self.__engine = QwtNullPaintDevice_PaintEngine(self)
+  159:         return self.__engine
+       
+    1:     def metric(self, deviceMetric):
+  212:         if deviceMetric == QPaintDevice.PdmWidth:
+   53:             value = self.sizeMetrics().width()
+  159:         elif deviceMetric == QPaintDevice.PdmHeight:
+   53:             value = self.sizeMetrics().height()
+  106:         elif deviceMetric == QPaintDevice.PdmNumColors:
+                   value = 0xFFFFFFFF
+  106:         elif deviceMetric == QPaintDevice.PdmDepth:
+                   value = 32
+  212:         elif deviceMetric in (
+  106:             QPaintDevice.PdmPhysicalDpiX,
+  106:             QPaintDevice.PdmPhysicalDpiY,
+  106:             QPaintDevice.PdmDpiY,
+  106:             QPaintDevice.PdmDpiX,
+               ):
+   53:             value = 72
+   53:         elif deviceMetric == QPaintDevice.PdmWidthMM:
+                   value = round(
+                       self.metric(QPaintDevice.PdmWidth)
+                       * 25.4
+                       / self.metric(QPaintDevice.PdmDpiX)
+                   )
+   53:         elif deviceMetric == QPaintDevice.PdmHeightMM:
+                   value = round(
+                       self.metric(QPaintDevice.PdmHeight)
+                       * 25.4
+                       / self.metric(QPaintDevice.PdmDpiY)
+                   )
+               else:
+   53:             value = 0
+  212:         return value
+       
+    1:     def drawRects(self, rects, rectCount):
+               pass
+       
+    1:     def drawLines(self, lines, lineCount):
+               pass
+       
+    1:     def drawEllipse(self, rect):
+               pass
+       
+    1:     def drawPath(self, path):
+               pass
+       
+    1:     def drawPoints(self, points, pointCount):
+               pass
+       
+    1:     def drawPolygon(self, points, pointCount, mode):
+               pass
+       
+    1:     def drawPixmap(self, rect, pm, subRect):
+               pass
+       
+    1:     def drawTextItem(self, pos, textItem):
+               pass
+       
+    1:     def drawTiledPixmap(self, rect, pm, subRect):
+               pass
+       
+    1:     def drawImage(self, rect, image, subRect, flags):
+               pass
+       
+    1:     def updateState(self, state):
+               pass

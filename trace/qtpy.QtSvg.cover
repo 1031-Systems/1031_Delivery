@@ -1,0 +1,19 @@
+       # -----------------------------------------------------------------------------
+       # Copyright © 2009- The Spyder Development Team
+       #
+       # Licensed under the terms of the MIT License
+       # (see LICENSE.txt for details)
+       # -----------------------------------------------------------------------------
+       
+    1: """Provides QtSvg classes and functions."""
+       
+    1: from . import PYQT5, PYQT6, PYSIDE2, PYSIDE6
+       
+    1: if PYQT5:
+    1:     from PyQt5.QtSvg import *
+       elif PYQT6:
+           from PyQt6.QtSvg import *
+       elif PYSIDE2:
+           from PySide2.QtSvg import *
+       elif PYSIDE6:
+           from PySide6.QtSvg import *

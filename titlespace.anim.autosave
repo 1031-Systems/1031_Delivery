@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<Animatronics starttime="0.000000" csvUploadFile="/sd/anims/titlespace.csv" audioUploadFile="/sd/anims/titlespace.wav">
+<Control rate="50.000000"/>
+<Channel name="1234567890" minLimit="0.000000" maxLimit="1.000000" type="Digital">
+</Channel>
+<Channel name="12345" minLimit="0.000000" maxLimit="1.000000" type="Digital">
+</Channel>
+<Channel name="123" minLimit="0.000000" maxLimit="1.000000" type="Digital">
+</Channel>
+<Channel name="12345678901234567890" minLimit="0.000000" maxLimit="65535.000000" type="Linear">
+</Channel>
+</Animatronics>

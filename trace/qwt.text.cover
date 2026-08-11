@@ -1,0 +1,1386 @@
+       # -*- coding: utf-8 -*-
+       #
+       # Licensed under the terms of the Qwt License
+       # Copyright (c) 2002 Uwe Rathmann, for the original C++ code
+       # Copyright (c) 2015 Pierre Raybaut, for the Python translation/optimization
+       # (see LICENSE file for more details)
+       
+    1: """
+       Text widgets
+       ------------
+       
+       QwtText
+       ~~~~~~~
+       
+       .. autoclass:: QwtText
+          :members:
+       
+       QwtTextLabel
+       ~~~~~~~~~~~~
+       
+       .. autoclass:: QwtTextLabel
+          :members:
+       
+       Text engines
+       ------------
+       
+       QwtTextEngine
+       ~~~~~~~~~~~~~
+       
+       .. autoclass:: QwtTextEngine
+          :members:
+       
+       QwtPlainTextEngine
+       ~~~~~~~~~~~~~~~~~~
+       
+       .. autoclass:: QwtPlainTextEngine
+          :members:
+       
+       QwtRichTextEngine
+       ~~~~~~~~~~~~~~~~~
+       
+       .. autoclass:: QwtRichTextEngine
+          :members:
+       """
+       
+    1: import math
+    1: import os
+    1: import struct
+       
+    1: from qtpy.QtCore import QObject, QRectF, QSize, QSizeF, Qt
+    1: from qtpy.QtGui import (
+           QAbstractTextDocumentLayout,
+           QColor,
+           QFont,
+           QFontInfo,
+           QFontMetrics,
+           QFontMetricsF,
+           QPainter,
+           QPalette,
+           QPixmap,
+           QTextDocument,
+           QTextOption,
+           QTransform,
+       )
+    1: from qtpy.QtWidgets import QApplication, QFrame, QSizePolicy, QWidget
+       
+    1: from qwt.painter import QwtPainter
+    1: from qwt.qthelpers import qcolor_from_str
+       
+    1: QWIDGETSIZE_MAX = (1 << 24) - 1
+       
+    1: QT_API = os.environ["QT_API"]
+       
+       
+    1: def taggedRichText(text, flags):
+           richText = text
+           if flags & Qt.AlignJustify:
+               richText = '<div align="justify">' + richText + "</div>"
+           elif flags & Qt.AlignRight:
+               richText = '<div align="right">' + richText + "</div>"
+           elif flags & Qt.AlignHCenter:
+               richText = '<div align="center">' + richText + "</div>"
+           return richText
+       
+       
+    2: class QwtRichTextDocument(QTextDocument):
+    1:     def __init__(self, text, flags, font):
+               super(QwtRichTextDocument, self).__init__(None)
+               self.setUndoRedoEnabled(False)
+               self.setDefaultFont(font)
+               self.setHtml(text)
+       
+               option = self.defaultTextOption()
+               if flags & Qt.TextWordWrap:
+                   option.setWrapMode(QTextOption.WordWrap)
+               else:
+                   option.setWrapMode(QTextOption.NoWrap)
+       
+               option.setAlignment(flags)
+               self.setDefaultTextOption(option)
+       
+               root = self.rootFrame()
+               fm = root.frameFormat()
+               fm.setBorder(0)
+               fm.setMargin(0)
+               fm.setPadding(0)
+               fm.setBottomMargin(0)
+               fm.setLeftMargin(0)
+               root.setFrameFormat(fm)
+       
+               self.adjustSize()
+       
+       
+    2: class QwtTextEngine(object):
+    1:     """
+           Abstract base class for rendering text strings
+       
+           A text engine is responsible for rendering texts for a
+           specific text format. They are used by `QwtText` to render a text.
+       
+           `QwtPlainTextEngine` and `QwtRichTextEngine` are part of the
+           `PythonQwt` library.
+       
+           .. seealso::
+       
+               :py:meth:`qwt.text.QwtText.setTextEngine()`
+           """
+       
+    1:     def __init__(self):
+               pass
+       
+    1:     def heightForWidth(self, font, flags, text, width):
+               """
+               Find the height for a given width
+       
+               :param QFont font: Font of the text
+               :param int flags: Bitwise OR of the flags used like in QPainter::drawText
+               :param str text: Text to be rendered
+               :param float width: Width
+               :return: Calculated height
+               """
+               pass
+       
+    1:     def textSize(self, font, flags, text):
+               """
+               Returns the size, that is needed to render text
+       
+               :param QFont font: Font of the text
+               :param int flags: Bitwise OR of the flags like in for QPainter::drawText
+               :param str text: Text to be rendered
+               :return: Calculated size
+               """
+               pass
+       
+    1:     def mightRender(self, text):
+               """
+               Test if a string can be rendered by this text engine
+       
+               :param str text: Text to be tested
+               :return: True, if it can be rendered
+               """
+               pass
+       
+    1:     def textMargins(self, font):
+               """
+               Return margins around the texts
+       
+               The textSize might include margins around the
+               text, like QFontMetrics::descent(). In situations
+               where texts need to be aligned in detail, knowing
+               these margins might improve the layout calculations.
+       
+               :param QFont font: Font of the text
+               :return: tuple (left, right, top, bottom) representing margins
+               """
+               pass
+       
+    1:     def draw(self, painter, rect, flags, text):
+               """
+               Draw the text in a clipping rectangle
+       
+               :param QPainter painter: Painter
+               :param QRectF rect: Clipping rectangle
+               :param int flags: Bitwise OR of the flags like in for QPainter::drawText()
+               :param str text: Text to be rendered
+               """
+               pass
+       
+       
+    1: ASCENTCACHE = {}
+       
+       
+    1: def get_screen_resolution():
+           """Return screen resolution: tuple of floats (DPIx, DPIy)"""
+  630:     try:
+  630:         desktop = QApplication.desktop()
+  630:         return (desktop.logicalDpiX(), desktop.logicalDpiY())
+           except AttributeError:
+               screen = QApplication.primaryScreen()
+               return (screen.logicalDotsPerInchX(), screen.logicalDotsPerInchY())
+       
+       
+    1: def qwtUnscaleFont(painter):
+  630:     if painter.font().pixelSize() >= 0:
+               return
+  630:     dpix, dpiy = get_screen_resolution()
+  630:     pd = painter.device()
+  630:     if pd.logicalDpiX() != dpix or pd.logicalDpiY() != dpiy:
+               try:
+                   pixelFont = QFont(painter.font(), QApplication.desktop())
+               except AttributeError:
+                   pixelFont = QFont(painter.font())
+               pixelFont.setPixelSize(QFontInfo(pixelFont).pixelSize())
+               painter.setFont(pixelFont)
+       
+       
+    2: class QwtPlainTextEngine(QwtTextEngine):
+    1:     """
+           A text engine for plain texts
+       
+           `QwtPlainTextEngine` renders texts using the basic `Qt` classes
+           `QPainter` and `QFontMetrics`.
+           """
+       
+    1:     def __init__(self):
+    1:         self.qrectf_max = QRectF(0, 0, QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
+    1:         self._fm_cache = {}
+    1:         self._fm_cache_f = {}
+       
+    1:     def fontmetrics(self, font):
+ 5679:         fid = font.toString()
+ 5679:         try:
+ 5679:             return self._fm_cache[fid]
+    2:         except KeyError:
+    2:             return self._fm_cache.setdefault(fid, QFontMetrics(font))
+       
+    1:     def fontmetrics_f(self, font):
+ 6621:         fid = font.toString()
+ 6621:         try:
+ 6621:             return self._fm_cache_f[fid]
+    4:         except KeyError:
+    4:             return self._fm_cache_f.setdefault(fid, QFontMetricsF(font))
+       
+    1:     def heightForWidth(self, font, flags, text, width):
+               """
+               Find the height for a given width
+       
+               :param QFont font: Font of the text
+               :param int flags: Bitwise OR of the flags used like in QPainter::drawText
+               :param str text: Text to be rendered
+               :param float width: Width
+               :return: Calculated height
+               """
+ 1018:         fm = self.fontmetrics_f(font)
+ 1018:         rect = fm.boundingRect(QRectF(0, 0, width, QWIDGETSIZE_MAX), flags, text)
+ 1018:         return rect.height()
+       
+    1:     def textSize(self, font, flags, text):
+               """
+               Returns the size, that is needed to render text
+       
+               :param QFont font: Font of the text
+               :param int flags: Bitwise OR of the flags like in for QPainter::drawText
+               :param str text: Text to be rendered
+               :return: Calculated size
+               """
+ 5603:         fm = self.fontmetrics_f(font)
+ 5603:         rect = fm.boundingRect(self.qrectf_max, flags, text)
+ 5603:         return rect.size()
+       
+    1:     def effectiveAscent(self, font):
+               global ASCENTCACHE
+ 5677:         fontKey = font.key()
+ 5677:         ascent = ASCENTCACHE.get(fontKey)
+ 5677:         if ascent is not None:
+ 5675:             return ascent
+    2:         return ASCENTCACHE.setdefault(fontKey, self.findAscent(font))
+       
+    1:     def findAscent(self, font):
+    2:         dummy = "E"
+    2:         white = QColor(Qt.white)
+       
+    2:         fm = self.fontmetrics(font)
+    2:         boundingr = fm.boundingRect(dummy)
+    2:         pm = QPixmap(boundingr.width(), boundingr.height())
+    2:         pm.fill(white)
+       
+    2:         p = QPainter(pm)
+    2:         p.setFont(font)
+    2:         p.drawText(0, 0, pm.width(), pm.height(), 0, dummy)
+    2:         p.end()
+       
+    2:         img = pm.toImage()
+       
+    2:         w = pm.width()
+    2:         linebytes = w * 4
+    7:         for row in range(img.height()):
+    7:             if QT_API.startswith("pyside"):
+                       line = bytes(img.scanLine(row))
+                   else:
+    7:                 line = img.scanLine(row).asstring(linebytes)
+   38:             for col in range(w):
+   33:                 color = struct.unpack("I", line[col * 4 : (col + 1) * 4])[0]
+   33:                 if color != white.rgb():
+    2:                     return fm.ascent() - row + 1
+               return fm.ascent()
+       
+    1:     def textMargins(self, font):
+               """
+               Return margins around the texts
+       
+               The textSize might include margins around the
+               text, like QFontMetrics::descent(). In situations
+               where texts need to be aligned in detail, knowing
+               these margins might improve the layout calculations.
+       
+               :param QFont font: Font of the text
+               :return: tuple (left, right, top, bottom) representing margins
+               """
+ 5677:         left = right = 0
+ 5677:         fm = self.fontmetrics(font)
+ 5677:         top = fm.ascent() - self.effectiveAscent(font)
+ 5677:         bottom = fm.descent()
+ 5677:         return left, right, top, bottom
+       
+    1:     def draw(self, painter, rect, flags, text):
+               """
+               Draw the text in a clipping rectangle
+       
+               :param QPainter painter: Painter
+               :param QRectF rect: Clipping rectangle
+               :param int flags: Bitwise OR of the flags like in for QPainter::drawText()
+               :param str text: Text to be rendered
+               """
+  630:         painter.save()
+  630:         qwtUnscaleFont(painter)
+  630:         painter.drawText(rect, flags, text)
+  630:         painter.restore()
+       
+    1:     def mightRender(self, text):
+               """
+               Test if a string can be rendered by this text engine
+       
+               :param str text: Text to be tested
+               :return: True, if it can be rendered
+               """
+               return True
+       
+       
+    2: class QwtRichTextEngine(QwtTextEngine):
+    1:     """
+           A text engine for `Qt` rich texts
+       
+           `QwtRichTextEngine` renders `Qt` rich texts using the classes
+           of the Scribe framework of `Qt`.
+           """
+       
+    1:     def __init__(self):
+    1:         pass
+       
+    1:     def heightForWidth(self, font, flags, text, width):
+               """
+               Find the height for a given width
+       
+               :param QFont font: Font of the text
+               :param int flags: Bitwise OR of the flags used like in QPainter::drawText
+               :param str text: Text to be rendered
+               :param float width: Width
+               :return: Calculated height
+               """
+               doc = QwtRichTextDocument(text, flags, font)
+               doc.setPageSize(QSizeF(width, QWIDGETSIZE_MAX))
+               return doc.documentLayout().documentSize().height()
+       
+    1:     def textSize(self, font, flags, text):
+               """
+               Returns the size, that is needed to render text
+       
+               :param QFont font: Font of the text
+               :param int flags: Bitwise OR of the flags like in for QPainter::drawText
+               :param str text: Text to be rendered
+               :return: Calculated size
+               """
+               doc = QwtRichTextDocument(text, flags, font)
+               option = doc.defaultTextOption()
+               if option.wrapMode() != QTextOption.NoWrap:
+                   option.setWrapMode(QTextOption.NoWrap)
+                   doc.setDefaultTextOption(option)
+                   doc.adjustSize()
+               return doc.size()
+       
+    1:     def draw(self, painter, rect, flags, text):
+               """
+               Draw the text in a clipping rectangle
+       
+               :param QPainter painter: Painter
+               :param QRectF rect: Clipping rectangle
+               :param int flags: Bitwise OR of the flags like in for QPainter::drawText()
+               :param str text: Text to be rendered
+               """
+               txt = QwtRichTextDocument(text, flags, painter.font())
+               painter.save()
+               unscaledRect = QRectF(rect)
+               if painter.font().pixelSize() < 0:
+                   dpix, dpiy = get_screen_resolution()
+                   pd = painter.device()
+                   if pd.logicalDpiX() != dpix or pd.logicalDpiY() != dpiy:
+                       transform = QTransform()
+                       transform.scale(
+                           dpix / float(pd.logicalDpiX()), dpiy / float(pd.logicalDpiY())
+                       )
+                       painter.setWorldTransform(transform, True)
+                       invtrans, _ok = transform.inverted()
+                       unscaledRect = invtrans.mapRect(rect)
+               txt.setDefaultFont(painter.font())
+               txt.setPageSize(QSizeF(unscaledRect.width(), QWIDGETSIZE_MAX))
+               layout = txt.documentLayout()
+               height = layout.documentSize().height()
+               y = unscaledRect.y()
+               if flags & Qt.AlignBottom:
+                   y += unscaledRect.height() - height
+               elif flags & Qt.AlignVCenter:
+                   y += (unscaledRect.height() - height) / 2
+               context = QAbstractTextDocumentLayout.PaintContext()
+               context.palette.setColor(QPalette.Text, painter.pen().color())
+               painter.translate(unscaledRect.x(), y)
+               layout.draw(painter, context)
+               painter.restore()
+       
+    1:     def taggedText(self, text, flags):
+               return taggedRichText(text, flags)
+       
+    1:     def mightRender(self, text):
+               """
+               Test if a string can be rendered by this text engine
+       
+               :param str text: Text to be tested
+               :return: True, if it can be rendered
+               """
+ 1259:         try:
+ 1259:             return Qt.mightBeRichText(text)
+               except AttributeError:
+                   return True
+       
+    1:     def textMargins(self, font):
+               """
+               Return margins around the texts
+       
+               The textSize might include margins around the
+               text, like QFontMetrics::descent(). In situations
+               where texts need to be aligned in detail, knowing
+               these margins might improve the layout calculations.
+       
+               :param QFont font: Font of the text
+               :return: tuple (left, right, top, bottom) representing margins
+               """
+               return 0, 0, 0, 0
+       
+       
+    2: class QwtText_PrivateData(QObject):
+    1:     def __init__(self):
+ 1250:         QObject.__init__(self)
+       
+ 1250:         self.renderFlags = Qt.AlignCenter
+ 1250:         self.borderRadius = 0
+ 1250:         self.borderPen = Qt.NoPen
+ 1250:         self.backgroundBrush = Qt.NoBrush
+ 1250:         self.paintAttributes = 0
+ 1250:         self.layoutAttributes = 0
+ 1250:         self.textEngine = None
+       
+ 1250:         self.text = None
+ 1250:         self.font = None
+ 1250:         self.color = None
+       
+       
+    2: class QwtText_LayoutCache(object):
+    1:     def __init__(self):
+ 1250:         self.textSize = None
+ 1250:         self.font = None
+       
+    1:     def invalidate(self):
+  505:         self.textSize = None
+       
+       
+    2: class QwtText(object):
+    1:     """
+           A class representing a text
+       
+           A `QwtText` is a text including a set of attributes how to render it.
+       
+             - Format:
+       
+             A text might include control sequences (f.e tags) describing
+             how to render it. Each format (f.e MathML, TeX, Qt Rich Text)
+             has its own set of control sequences, that can be handles by
+             a special `QwtTextEngine` for this format.
+       
+             - Background:
+       
+             A text might have a background, defined by a `QPen` and `QBrush`
+             to improve its visibility. The corners of the background might
+             be rounded.
+       
+             - Font:
+       
+             A text might have an individual font.
+       
+             - Color
+       
+             A text might have an individual color.
+       
+             - Render Flags
+       
+             Flags from `Qt.AlignmentFlag` and `Qt.TextFlag` used like in
+             `QPainter.drawText()`.
+       
+           ..seealso::
+       
+               :py:meth:`qwt.text.QwtTextEngine`,
+               :py:meth:`qwt.text.QwtTextLabel`
+       
+           Text formats:
+       
+             * `QwtText.AutoText`:
+       
+               The text format is determined using `QwtTextEngine.mightRender()` for
+               all available text engines in increasing order > PlainText.
+               If none of the text engines can render the text is rendered
+               like `QwtText.PlainText`.
+       
+             * `QwtText.PlainText`:
+       
+               Draw the text as it is, using a QwtPlainTextEngine.
+       
+             * `QwtText.RichText`:
+       
+               Use the Scribe framework (Qt Rich Text) to render the text.
+       
+             * `QwtText.OtherFormat`:
+       
+               The number of text formats can be extended using `setTextEngine`.
+               Formats >= `QwtText.OtherFormat` are not used by Qwt.
+       
+           Paint attributes:
+       
+             * `QwtText.PaintUsingTextFont`: The text has an individual font.
+             * `QwtText.PaintUsingTextColor`: The text has an individual color.
+             * `QwtText.PaintBackground`: The text has an individual background.
+       
+           Layout attributes:
+       
+             * `QwtText.MinimumLayout`:
+       
+               Layout the text without its margins. This mode is useful if a
+               text needs to be aligned accurately, like the tick labels of a scale.
+               If `QwtTextEngine.textMargins` is not implemented for the format
+               of the text, `MinimumLayout` has no effect.
+       
+           .. py:class:: QwtText([text=None], [textFormat=None], [other=None])
+       
+               :param str text: Text content
+               :param int textFormat: Text format
+               :param qwt.text.QwtText other: Object to copy (text and textFormat arguments are ignored)
+           """
+       
+           # enum TextFormat
+    1:     AutoText, PlainText, RichText = list(range(3))
+    1:     OtherFormat = 100
+       
+           # enum PaintAttribute
+    1:     PaintUsingTextFont = 0x01
+    1:     PaintUsingTextColor = 0x02
+    1:     PaintBackground = 0x04
+       
+           # enum LayoutAttribute
+    1:     MinimumLayout = 0x01
+       
+           # Optimization: a single text engine for all QwtText objects
+           # (this is not how it's implemented in Qwt6 C++ library)
+    1:     __map = {PlainText: QwtPlainTextEngine(), RichText: QwtRichTextEngine()}
+       
+    1:     def __init__(self, text=None, textFormat=None, other=None):
+ 1250:         if text is None:
+  768:             text = ""
+ 1250:         if textFormat is None:
+ 1250:             textFormat = self.AutoText
+ 1250:         if other is not None:
+                   text = other
+ 1250:         if isinstance(text, QwtText):
+                   self.__data = text.__data
+                   self.__layoutCache = text.__layoutCache
+               else:
+ 1250:             self.__data = QwtText_PrivateData()
+ 1250:             self.__data.text = text
+ 1250:             self.__data.textEngine = self.textEngine(text, textFormat)
+ 1250:             self.__layoutCache = QwtText_LayoutCache()
+       
+    1:     @classmethod
+    1:     def make(
+               cls,
+               text=None,
+               textformat=None,
+               renderflags=None,
+               font=None,
+               family=None,
+               pointsize=None,
+               weight=None,
+               color=None,
+               borderradius=None,
+               borderpen=None,
+               brush=None,
+           ):
+               """
+               Create and setup a new `QwtText` object (convenience function).
+       
+               :param str text: Text content
+               :param int textformat: Text format
+               :param int renderflags: Flags from `Qt.AlignmentFlag` and `Qt.TextFlag`
+               :param font: Font
+               :type font: QFont or None
+               :param family: Font family (default: Helvetica)
+               :type family: str or None
+               :param pointsize: Font point size (default: 10)
+               :type pointsize: int or None
+               :param weight: Font weight (default: QFont.Normal)
+               :type weight: int or None
+               :param color: Pen color
+               :type color: QColor or str or None
+               :param borderradius: Radius for the corners of the border frame
+               :type borderradius: float or None
+               :param borderpen: Background pen
+               :type borderpen: QPen or None
+               :param brush: Background brush
+               :type brush: QBrush or None
+       
+               .. seealso::
+       
+                   :py:meth:`setText()`
+               """
+               item = cls(text=text, textFormat=textformat)
+               if renderflags is not None:
+                   item.setRenderFlags(renderflags)
+               if font is not None:
+                   item.setFont(font)
+               elif family is not None or pointsize is not None or weight is not None:
+                   family = "Helvetica" if family is None else family
+                   pointsize = 10 if pointsize is None else pointsize
+                   weight = QFont.Normal if weight is None else weight
+                   item.setFont(QFont(family, pointsize, weight))
+               if color is not None:
+                   item.setColor(qcolor_from_str(color, Qt.black))
+               if borderradius is not None:
+                   item.setBorderRadius(borderradius)
+               if borderpen is not None:
+                   item.setBorderPen(borderpen)
+               if brush is not None:
+                   item.setBackgroundBrush(brush)
+               return item
+       
+    1:     def __eq__(self, other):
+  164:         return (
+  922:             self.__data.renderFlags == other.__data.renderFlags
+  164:             and self.__data.text == other.__data.text
+   99:             and self.__data.font == other.__data.font
+   99:             and self.__data.color == other.__data.color
+   99:             and self.__data.borderRadius == other.__data.borderRadius
+   99:             and self.__data.borderPen == other.__data.borderPen
+   99:             and self.__data.backgroundBrush == other.__data.backgroundBrush
+   99:             and self.__data.paintAttributes == other.__data.paintAttributes
+   99:             and self.__data.textEngine == other.__data.textEngine
+               )
+       
+    1:     def __ne__(self, other):
+  153:         return not self.__eq__(other)
+       
+    1:     def isEmpty(self):
+               """
+               :return: True if text is empty
+               """
+ 8921:         return len(self.text()) == 0
+       
+    1:     def setText(self, text, textFormat=None):
+               """
+               Assign a new text content
+       
+               :param str text: Text content
+               :param int textFormat: Text format
+       
+               .. seealso::
+       
+                   :py:meth:`text()`
+               """
+    9:         if textFormat is None:
+    9:             textFormat = self.AutoText
+    9:         self.__data.text = text
+    9:         self.__data.textEngine = self.textEngine(text, textFormat)
+    9:         self.__layoutCache.invalidate()
+       
+    1:     def text(self):
+               """
+               :return: Text content
+       
+               .. seealso::
+       
+                   :py:meth:`setText()`
+               """
+ 9025:         return self.__data.text
+       
+    1:     def setRenderFlags(self, renderFlags):
+               """
+               Change the render flags
+       
+               The default setting is `Qt.AlignCenter`
+       
+               :param int renderFlags: Bitwise OR of the flags used like in `QPainter.drawText()`
+       
+               .. seealso::
+       
+                   :py:meth:`renderFlags()`,
+                   :py:meth:`qwt.text.QwtTextEngine.draw()`
+               """
+  627:         renderFlags = Qt.AlignmentFlag(renderFlags)
+  627:         if renderFlags != self.__data.renderFlags:
+  496:             self.__data.renderFlags = renderFlags
+  496:             self.__layoutCache.invalidate()
+       
+    1:     def renderFlags(self):
+               """
+               :return: Render flags
+       
+               .. seealso::
+       
+                   :py:meth:`setRenderFlags()`
+               """
+  197:         return self.__data.renderFlags
+       
+    1:     def setFont(self, font):
+               """
+               Set the font.
+       
+               :param QFont font: Font
+       
+               .. note::
+       
+                   Setting the font might have no effect, when
+                   the text contains control sequences for setting fonts.
+       
+               .. seealso::
+       
+                   :py:meth:`font()`, :py:meth:`usedFont()`
+               """
+  209:         self.__data.font = font
+  209:         self.setPaintAttribute(self.PaintUsingTextFont)
+       
+    1:     def font(self):
+               """
+               :return: Return the font
+       
+               .. seealso::
+       
+                   :py:meth:`setFont()`, :py:meth:`usedFont()`
+               """
+               return self.__data.font
+       
+    1:     def usedFont(self, defaultFont):
+               """
+               Return the font of the text, if it has one.
+               Otherwise return defaultFont.
+       
+               :param QFont defaultFont: Default font
+               :return: Font used for drawing the text
+       
+               .. seealso::
+       
+                   :py:meth:`setFont()`, :py:meth:`font()`
+               """
+ 6621:         if self.__data.paintAttributes & self.PaintUsingTextFont:
+ 1018:             return self.__data.font
+ 5603:         return defaultFont
+       
+    1:     def setColor(self, color):
+               """
+               Set the pen color used for drawing the text.
+       
+               :param QColor color: Color
+       
+               .. note::
+       
+                   Setting the color might have no effect, when
+                   the text contains control sequences for setting colors.
+       
+               .. seealso::
+       
+                   :py:meth:`color()`, :py:meth:`usedColor()`
+               """
+               self.__data.color = QColor(color)
+               self.setPaintAttribute(self.PaintUsingTextColor)
+       
+    1:     def color(self):
+               """
+               :return: Return the pen color, used for painting the text
+       
+               .. seealso::
+       
+                   :py:meth:`setColor()`, :py:meth:`usedColor()`
+               """
+               return self.__data.color
+       
+    1:     def usedColor(self, defaultColor):
+               """
+               Return the color of the text, if it has one.
+               Otherwise return defaultColor.
+       
+               :param QColor defaultColor: Default color
+               :return: Color used for drawing the text
+       
+               .. seealso::
+       
+                   :py:meth:`setColor()`, :py:meth:`color()`
+               """
+               if self.__data.paintAttributes & self.PaintUsingTextColor:
+                   return self.__data.color
+               return defaultColor
+       
+    1:     def setBorderRadius(self, radius):
+               """
+               Set the radius for the corners of the border frame
+       
+               :param float radius: Radius of a rounded corner
+       
+               .. seealso::
+       
+                   :py:meth:`borderRadius()`, :py:meth:`setBorderPen()`,
+                   :py:meth:`setBackgroundBrush()`
+               """
+               self.__data.borderRadius = max([0.0, radius])
+       
+    1:     def borderRadius(self):
+               """
+               :return: Radius for the corners of the border frame
+       
+               .. seealso::
+       
+                   :py:meth:`setBorderRadius()`, :py:meth:`borderPen()`,
+                   :py:meth:`backgroundBrush()`
+               """
+               return self.__data.borderRadius
+       
+    1:     def setBorderPen(self, pen):
+               """
+               Set the background pen
+       
+               :param QPen pen: Background pen
+       
+               .. seealso::
+       
+                   :py:meth:`borderPen()`, :py:meth:`setBackgroundBrush()`
+               """
+               self.__data.borderPen = pen
+               self.setPaintAttribute(self.PaintBackground)
+       
+    1:     def borderPen(self):
+               """
+               :return: Background pen
+       
+               .. seealso::
+       
+                   :py:meth:`setBorderPen()`, :py:meth:`backgroundBrush()`
+               """
+               return self.__data.borderPen
+       
+    1:     def setBackgroundBrush(self, brush):
+               """
+               Set the background brush
+       
+               :param QBrush brush: Background brush
+       
+               .. seealso::
+       
+                   :py:meth:`backgroundBrush()`, :py:meth:`setBorderPen()`
+               """
+               self.__data.backgroundBrush = brush
+               self.setPaintAttribute(self.PaintBackground)
+       
+    1:     def backgroundBrush(self):
+               """
+               :return: Background brush
+       
+               .. seealso::
+       
+                   :py:meth:`setBackgroundBrush()`, :py:meth:`borderPen()`
+               """
+               return self.__data.backgroundBrush
+       
+    1:     def setPaintAttribute(self, attribute, on=True):
+               """
+               Change a paint attribute
+       
+               :param int attribute: Paint attribute
+               :param bool on: On/Off
+       
+               .. note::
+       
+                   Used by `setFont()`, `setColor()`, `setBorderPen()`
+                   and `setBackgroundBrush()`
+       
+               .. seealso::
+       
+                   :py:meth:`testPaintAttribute()`
+               """
+  209:         if on:
+  209:             self.__data.paintAttributes |= attribute
+               else:
+                   self.__data.paintAttributes &= ~attribute
+       
+    1:     def testPaintAttribute(self, attribute):
+               """
+               Test a paint attribute
+       
+               :param int attribute: Paint attribute
+               :return: True, if attribute is enabled
+       
+               .. seealso::
+       
+                   :py:meth:`setPaintAttribute()`
+               """
+  494:         return self.__data.paintAttributes & attribute
+       
+    1:     def setLayoutAttribute(self, attribute, on=True):
+               """
+               Change a layout attribute
+       
+               :param int attribute: Layout attribute
+               :param bool on: On/Off
+       
+               .. seealso::
+       
+                   :py:meth:`testLayoutAttribute()`
+               """
+  304:         if on:
+  304:             self.__data.layoutAttributes |= attribute
+               else:
+                   self.__data.layoutAttributes &= ~attribute
+       
+    1:     def testLayoutAttribute(self, attribute):
+               """
+               Test a layout attribute
+       
+               :param int attribute: Layout attribute
+               :return: True, if attribute is enabled
+       
+               .. seealso::
+       
+                   :py:meth:`setLayoutAttribute()`
+               """
+               return self.__data.layoutAttributes & attribute
+       
+    1:     def heightForWidth(self, width, defaultFont=None):
+               """
+               Find the height for a given width
+       
+               :param float width: Width
+               :param QFont defaultFont: Font, used for the calculation if the text has no font
+               :return: Calculated height
+               """
+ 1018:         if defaultFont is None:
+   32:             defaultFont = QFont()
+ 1018:         font = QFont(self.usedFont(defaultFont))
+ 1018:         h = 0
+ 1018:         if self.__data.layoutAttributes & self.MinimumLayout:
+                   (left, right, top, bottom) = self.__data.textEngine.textMargins(font)
+                   h = self.__data.textEngine.heightForWidth(
+                       font, self.__data.renderFlags, self.__data.text, width + left + right
+                   )
+                   h -= top + bottom
+               else:
+ 2036:             h = self.__data.textEngine.heightForWidth(
+ 1018:                 font, self.__data.renderFlags, self.__data.text, width
+                   )
+ 1018:         return h
+       
+    1:     def textSize(self, defaultFont):
+               """
+               Returns the size, that is needed to render text
+       
+               :param QFont defaultFont Font, used for the calculation if the text has no font
+               :return: Caluclated size
+               """
+ 5603:         font = QFont(self.usedFont(defaultFont))
+16071:         if (
+ 5603:             self.__layoutCache.textSize is None
+ 5234:             or not self.__layoutCache.textSize.isValid()
+ 5234:             or self.__layoutCache.font is not font
+               ):
+11206:             self.__layoutCache.textSize = self.__data.textEngine.textSize(
+ 5603:                 font, self.__data.renderFlags, self.__data.text
+                   )
+ 5603:             self.__layoutCache.font = font
+ 5603:         sz = self.__layoutCache.textSize
+ 5603:         if self.__data.layoutAttributes & self.MinimumLayout:
+ 5343:             (left, right, top, bottom) = self.__data.textEngine.textMargins(font)
+ 5343:             sz -= QSizeF(left + right, top + bottom)
+ 5603:         return sz
+       
+    1:     def draw(self, painter, rect):
+               """
+               Draw a text into a rectangle
+       
+               :param QPainter painter: Painter
+               :param QRectF rect: Rectangle
+               """
+  630:         if self.__data.paintAttributes & self.PaintBackground:
+                   if (
+                       self.__data.borderPen != Qt.NoPen
+                       or self.__data.backgroundBrush != Qt.NoBrush
+                   ):
+                       painter.save()
+                       painter.setPen(self.__data.borderPen)
+                       painter.setBrush(self.__data.backgroundBrush)
+                       if self.__data.borderRadius == 0:
+                           painter.drawRect(rect)
+                       else:
+                           painter.setRenderHint(QPainter.Antialiasing, True)
+                           painter.drawRoundedRect(
+                               rect, self.__data.borderRadius, self.__data.borderRadius
+                           )
+                       painter.restore()
+  630:         painter.save()
+  630:         if self.__data.paintAttributes & self.PaintUsingTextFont:
+   36:             painter.setFont(self.__data.font)
+  630:         if self.__data.paintAttributes & self.PaintUsingTextColor:
+                   if self.__data.color.isValid():
+                       painter.setPen(self.__data.color)
+  630:         expandedRect = rect
+  630:         if self.__data.layoutAttributes & self.MinimumLayout:
+  334:             font = QFont(painter.font())
+  334:             (left, right, top, bottom) = self.__data.textEngine.textMargins(font)
+  334:             expandedRect.setTop(rect.top() - top)
+  334:             expandedRect.setBottom(rect.bottom() + bottom)
+  334:             expandedRect.setLeft(rect.left() - left)
+  334:             expandedRect.setRight(rect.right() + right)
+ 1260:         self.__data.textEngine.draw(
+  630:             painter, expandedRect, self.__data.renderFlags, self.__data.text
+               )
+  630:         painter.restore()
+       
+    1:     def textEngine(self, text=None, format_=None):
+               """
+               Find the text engine for a text format
+       
+               In case of `QwtText.AutoText` the first text engine
+               (beside `QwtPlainTextEngine`) is returned, where
+               `QwtTextEngine.mightRender` returns true.
+               If there is none `QwtPlainTextEngine` is returned.
+       
+               If no text engine is registered for the format `QwtPlainTextEngine`
+               is returned.
+       
+               :param str text: Text, needed in case of AutoText
+               :param int format: Text format
+               :return: Corresponding text engine
+               """
+ 1259:         if text is None:
+                   return self.__map.get(format_)
+ 1259:         elif format_ is not None:
+ 1259:             if format_ == QwtText.AutoText:
+ 3777:                 for key, engine in list(self.__map.items()):
+ 2518:                     if key != QwtText.PlainText:
+ 1259:                         if engine and engine.mightRender(text):
+                                   return engine
+ 1259:             engine = self.__map.get(format_)
+ 1259:             if engine is not None:
+                       return engine
+ 1259:             return self.__map[QwtText.PlainText]
+               else:
+                   raise TypeError(
+                       "%s().textEngine() takes 1 or 2 argument(s) (none"
+                       " given)" % self.__class__.__name__
+                   )
+       
+    1:     def setTextEngine(self, format_, engine):
+               """
+               Assign/Replace a text engine for a text format
+       
+               With setTextEngine it is possible to extend `PythonQwt` with
+               other types of text formats.
+       
+               For `QwtText.PlainText` it is not allowed to assign a engine to None.
+       
+               :param int format_: Text format
+               :param qwt.text.QwtTextEngine engine: Text engine
+       
+               .. seealso::
+       
+                   :py:meth:`setPaintAttribute()`
+       
+               .. warning::
+       
+                   Using `QwtText.AutoText` does nothing.
+               """
+               if format_ == QwtText.AutoText:
+                   return
+               if format_ == QwtText.PlainText and engine is None:
+                   return
+               self.__map.setdefault(format_, engine)
+       
+       
+    2: class QwtTextLabel_PrivateData(QObject):
+    1:     def __init__(self):
+   22:         QObject.__init__(self)
+       
+   22:         self.indent = 4
+   22:         self.margin = 0
+   22:         self.text = QwtText()
+       
+       
+    2: class QwtTextLabel(QFrame):
+    1:     """
+           A Widget which displays a QwtText
+       
+           .. py:class:: QwtTextLabel(parent)
+       
+               :param QWidget parent: Parent widget
+       
+           .. py:class:: QwtTextLabel([text=None], [parent=None])
+               :noindex:
+       
+               :param str text: Text
+               :param QWidget parent: Parent widget
+           """
+       
+    1:     def __init__(self, *args):
+   22:         if len(args) == 0:
+                   text, parent = None, None
+   22:         elif len(args) == 1:
+   22:             if isinstance(args[0], QWidget):
+   22:                 text = None
+   22:                 (parent,) = args
+                   else:
+                       parent = None
+                       (text,) = args
+               elif len(args) == 2:
+                   text, parent = args
+               else:
+                   raise TypeError(
+                       "%s() takes 0, 1 or 2 argument(s) (%s given)"
+                       % (self.__class__.__name__, len(args))
+                   )
+   22:         super(QwtTextLabel, self).__init__(parent)
+   22:         self.init()
+   22:         if text is not None:
+                   self.__data.text = text
+       
+    1:     def init(self):
+   22:         self.__data = QwtTextLabel_PrivateData()
+   22:         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+       
+    1:     def setPlainText(self, text):
+               """
+               Interface for the designer plugin - does the same as setText()
+       
+               :param str text: Text
+       
+               .. seealso::
+       
+                   :py:meth:`plainText()`
+               """
+               self.setText(QwtText(text))
+       
+    1:     def plainText(self):
+               """
+               Interface for the designer plugin
+       
+               :return: Text as plain text
+       
+               .. seealso::
+       
+                   :py:meth:`setPlainText()`
+               """
+               return self.__data.text.text()
+       
+    1:     def setText(self, text, textFormat=QwtText.AutoText):
+               """
+               Change the label's text, keeping all other QwtText attributes
+       
+               :param text: New text
+               :type text: qwt.text.QwtText or str
+               :param int textFormat: Format of text
+       
+               .. seealso::
+       
+                   :py:meth:`text()`
+               """
+   22:         if isinstance(text, QwtText):
+   22:             self.__data.text = text
+               else:
+                   self.__data.text.setText(text, textFormat)
+   22:         self.update()
+   22:         self.updateGeometry()
+       
+    1:     def text(self):
+               """
+               :return: Return the text
+       
+               .. seealso::
+       
+                   :py:meth:`setText()`
+               """
+ 1102:         return self.__data.text
+       
+    1:     def clear(self):
+               """
+               Clear the text and all `QwtText` attributes
+               """
+               self.__data.text = QwtText()
+               self.update()
+               self.updateGeometry()
+       
+    1:     def indent(self):
+               """
+               :return: Label's text indent in pixels
+       
+               .. seealso::
+       
+                   :py:meth:`setIndent()`
+               """
+               return self.__data.indent
+       
+    1:     def setIndent(self, indent):
+               """
+               Set label's text indent in pixels
+       
+               :param int indent: Indentation in pixels
+       
+               .. seealso::
+       
+                   :py:meth:`indent()`
+               """
+               if indent < 0:
+                   indent = 0
+               self.__data.indent = indent
+               self.update()
+               self.updateGeometry()
+       
+    1:     def margin(self):
+               """
+               :return: Label's text indent in pixels
+       
+               .. seealso::
+       
+                   :py:meth:`setMargin()`
+               """
+               return self.__data.margin
+       
+    1:     def setMargin(self, margin):
+               """
+               Set label's margin in pixels
+       
+               :param int margin: Margin in pixels
+       
+               .. seealso::
+       
+                   :py:meth:`margin()`
+               """
+               self.__data.margin = margin
+               self.update()
+               self.updateGeometry()
+       
+    1:     def sizeHint(self):
+               """
+               Return a size hint
+               """
+               return self.minimumSizeHint()
+       
+    1:     def minimumSizeHint(self):
+               """
+               Return a minimum size hint
+               """
+               sz = self.__data.text.textSize(self.font())
+               mw = 2 * (self.frameWidth() + self.__data.margin)
+               mh = mw
+               indent = self.__data.indent
+               if indent <= 0:
+                   indent = self.defaultIndent()
+               if indent > 0:
+                   align = self.__data.text.renderFlags()
+                   if align & Qt.AlignLeft or align & Qt.AlignRight:
+                       mw += self.__data.indent
+                   elif align & Qt.AlignTop or align & Qt.AlignBottom:
+                       mh += self.__data.indent
+               sz += QSizeF(mw, mh)
+               return QSize(math.ceil(sz.width()), math.ceil(sz.height()))
+       
+    1:     def heightForWidth(self, width):
+               """
+               :param int width: Width
+               :return: Preferred height for this widget, given the width.
+               """
+   20:         renderFlags = self.__data.text.renderFlags()
+   20:         indent = self.__data.indent
+   20:         if indent <= 0:
+                   indent = self.defaultIndent()
+   20:         width -= 2 * self.frameWidth()
+   20:         if renderFlags & Qt.AlignLeft or renderFlags & Qt.AlignRight:
+                   width -= indent
+   20:         height = math.ceil(self.__data.text.heightForWidth(width, self.font()))
+   20:         if renderFlags & Qt.AlignTop or renderFlags & Qt.AlignBottom:
+                   height += indent
+   20:         height += 2 * self.frameWidth()
+   20:         return height
+       
+    1:     def paintEvent(self, event):
+    8:         painter = QPainter(self)
+    8:         if not self.contentsRect().contains(event.rect()):
+                   painter.save()
+                   painter.setClipRegion(event.region() & self.frameRect())
+                   self.drawFrame(painter)
+                   painter.restore()
+    8:         painter.setClipRegion(event.region() & self.contentsRect())
+    8:         self.drawContents(painter)
+       
+    1:     def drawContents(self, painter):
+               """
+               Redraw the text and focus indicator
+       
+               :param QPainter painter: Painter
+               """
+    8:         r = self.textRect()
+    8:         if r.isEmpty():
+                   return
+    8:         painter.setFont(self.font())
+    8:         painter.setPen(self.palette().color(QPalette.Active, QPalette.Text))
+    8:         self.drawText(painter, QRectF(r))
+    8:         if self.hasFocus():
+                   m = 2
+                   focusRect = self.contentsRect().adjusted(m, m, -m + 1, -m + 1)
+                   QwtPainter.drawFocusRect(painter, self, focusRect)
+       
+    1:     def drawText(self, painter, textRect):
+               """
+               Redraw the text
+       
+               :param QPainter painter: Painter
+               :param QRectF textRect: Text rectangle
+               """
+    8:         self.__data.text.draw(painter, textRect)
+       
+    1:     def textRect(self):
+               """
+               Calculate geometry for the text in widget coordinates
+       
+               :return: Geometry for the text
+               """
+    8:         r = self.contentsRect()
+    8:         if not r.isEmpty() and self.__data.margin > 0:
+                   r.setRect(
+                       r.x() + self.__data.margin,
+                       r.y() + self.__data.margin,
+                       r.width() - 2 * self.__data.margin,
+                       r.height() - 2 * self.__data.margin,
+                   )
+    8:         if not r.isEmpty():
+    8:             indent = self.__data.indent
+    8:             if indent <= 0:
+                       indent = self.defaultIndent()
+    8:             if indent > 0:
+    8:                 renderFlags = self.__data.text.renderFlags()
+    8:                 if renderFlags & Qt.AlignLeft:
+                           r.setX(r.x() + indent)
+    8:                 elif renderFlags & Qt.AlignRight:
+                           r.setWidth(r.width() - indent)
+    8:                 elif renderFlags & Qt.AlignTop:
+                           r.setY(r.y() + indent)
+    8:                 elif renderFlags & Qt.AlignBottom:
+                           r.setHeight(r.height() - indent)
+    8:         return r
+       
+    1:     def defaultIndent(self):
+               if self.frameWidth() <= 0:
+                   return 0
+               if self.__data.text.testPaintAttribute(QwtText.PaintUsingTextFont):
+                   fnt = self.__data.text.font()
+               else:
+                   fnt = self.font()
+               return QFontMetrics(fnt).boundingRect("x").width() / 2

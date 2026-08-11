@@ -1,0 +1,1054 @@
+       # -*- coding: utf-8 -*-
+       #
+       # Licensed under the terms of the Qwt License
+       # Copyright (c) 2002 Uwe Rathmann, for the original C++ code
+       # Copyright (c) 2015 Pierre Raybaut, for the Python translation/optimization
+       # (see LICENSE file for more details)
+       
+    1: """
+       QwtPlotCurve
+       ------------
+       
+       .. autoclass:: QwtPlotCurve
+          :members:
+       """
+       
+    1: import math
+    1: import os
+       
+    1: import numpy as np
+    1: from qtpy.QtCore import QLineF, QPointF, QRectF, QSize, Qt
+    1: from qtpy.QtGui import QBrush, QColor, QPainter, QPen, QPolygonF
+       
+    1: from qwt._math import qwtSqr
+    1: from qwt.graphic import QwtGraphic
+    1: from qwt.plot import QwtPlot, QwtPlotItem, QwtPlotItem_PrivateData
+    1: from qwt.plot_directpainter import QwtPlotDirectPainter
+    1: from qwt.plot_series import (
+           QwtPlotSeriesItem,
+           QwtPointArrayData,
+           QwtSeriesData,
+           QwtSeriesStore,
+       )
+    1: from qwt.qthelpers import qcolor_from_str
+    1: from qwt.symbol import QwtSymbol
+    1: from qwt.text import QwtText
+       
+    1: QT_API = os.environ["QT_API"]
+       
+    1: if QT_API == "pyside6":
+           import ctypes
+       
+           import shiboken6 as shiboken
+       
+       
+    1: def qwtUpdateLegendIconSize(curve):
+   16:     if curve.symbol() and curve.testLegendAttribute(QwtPlotCurve.LegendShowSymbol):
+               sz = curve.symbol().boundingRect().size()
+               sz += QSize(2, 2)
+               if curve.testLegendAttribute(QwtPlotCurve.LegendShowLine):
+                   w = math.ceil(1.5 * sz.width())
+                   if w % 2:
+                       w += 1
+                   sz.setWidth(max([8, w]))
+               curve.setLegendIconSize(sz)
+       
+       
+    1: def qwtVerifyRange(size, i1, i2):
+  185:     if size < 1:
+               return 0
+  185:     i1 = max([0, min([i1, size - 1])])
+  185:     i2 = max([0, min([i2, size - 1])])
+  185:     if i1 > i2:
+               i1, i2 = i2, i1
+  185:     return i2 - i1 + 1
+       
+       
+    1: def array2d_to_qpolygonf(xdata, ydata):
+           """
+           Utility function to convert two 1D-NumPy arrays representing curve data
+           (X-axis, Y-axis data) into a single polyline (QtGui.PolygonF object).
+           This feature is compatible with PyQt5 and PySide6 (requires QtPy).
+       
+           License/copyright: MIT License © Pierre Raybaut 2020-2021.
+       
+           :param numpy.ndarray xdata: 1D-NumPy array
+           :param numpy.ndarray ydata: 1D-NumPy array
+           :return: Polyline
+           :rtype: QtGui.QPolygonF
+           """
+  179:     if not (xdata.size == ydata.size == xdata.shape[0] == ydata.shape[0]):
+               raise ValueError("Arguments must be 1D NumPy arrays with same size")
+  179:     size = xdata.size
+  179:     if QT_API.startswith("pyside"):  # PySide (obviously...)
+               polyline = QPolygonF()
+               polyline.resize(size)
+               address = shiboken.getCppPointer(polyline.data())[0]
+               buffer = (ctypes.c_double * 2 * size).from_address(address)
+           else:  # PyQt
+  179:         if QT_API == "pyqt6":
+                   polyline = QPolygonF([QPointF(0, 0)] * size)
+               else:
+  179:             polyline = QPolygonF(size)
+  179:         buffer = polyline.data()
+  179:         buffer.setsize(16 * size)  # 16 bytes per point: 8 bytes per X,Y value (float64)
+  179:     memory = np.frombuffer(buffer, np.float64)
+  179:     memory[: (size - 1) * 2 + 1 : 2] = np.asarray(xdata, dtype=np.float64)
+  179:     memory[1 : (size - 1) * 2 + 2 : 2] = np.asarray(ydata, dtype=np.float64)
+  179:     return polyline
+       
+       
+    1: def series_to_polyline(xMap, yMap, series, from_, to):
+           """
+           Convert series data to QPolygon(F) polyline
+           """
+  179:     xdata = xMap.transform(series.xData()[from_ : to + 1])
+  179:     ydata = yMap.transform(series.yData()[from_ : to + 1])
+  179:     return array2d_to_qpolygonf(xdata, ydata)
+       
+       
+    2: class QwtPlotCurve_PrivateData(QwtPlotItem_PrivateData):
+    1:     def __init__(self):
+   29:         QwtPlotItem_PrivateData.__init__(self)
+   29:         self.style = QwtPlotCurve.Lines
+   29:         self.baseline = 0.0
+   29:         self.symbol = None
+   29:         self.attributes = 0
+   29:         self.legendAttributes = QwtPlotCurve.LegendShowLine
+   29:         self.pen = QPen(Qt.black)
+   29:         self.brush = QBrush()
+       
+       
+    2: class QwtPlotCurve(QwtPlotSeriesItem, QwtSeriesStore):
+    1:     """
+           A plot item, that represents a series of points
+       
+           A curve is the representation of a series of points in the x-y plane.
+           It supports different display styles and symbols.
+       
+           .. seealso::
+       
+               :py:class:`qwt.symbol.QwtSymbol()`,
+               :py:class:`qwt.scale_map.QwtScaleMap()`
+       
+           Curve styles:
+       
+             * `QwtPlotCurve.NoCurve`:
+       
+               Don't draw a curve. Note: This doesn't affect the symbols.
+       
+             * `QwtPlotCurve.Lines`:
+       
+               Connect the points with straight lines.
+       
+             * `QwtPlotCurve.Sticks`:
+       
+               Draw vertical or horizontal sticks ( depending on the
+               orientation() ) from a baseline which is defined by setBaseline().
+       
+             * `QwtPlotCurve.Steps`:
+       
+               Connect the points with a step function. The step function
+               is drawn from the left to the right or vice versa,
+               depending on the QwtPlotCurve::Inverted attribute.
+       
+             * `QwtPlotCurve.Dots`:
+       
+               Draw dots at the locations of the data points. Note:
+               This is different from a dotted line (see setPen()), and faster
+               as a curve in QwtPlotCurve::NoStyle style and a symbol
+               painting a point.
+       
+             * `QwtPlotCurve.UserCurve`:
+       
+               Styles >= QwtPlotCurve.UserCurve are reserved for derived
+               classes of QwtPlotCurve that overload drawCurve() with
+               additional application specific curve types.
+       
+           Curve attributes:
+       
+             * `QwtPlotCurve.Inverted`:
+       
+               For `QwtPlotCurve.Steps` only.
+               Draws a step function from the right to the left.
+       
+           Legend attributes:
+       
+             * `QwtPlotCurve.LegendNoAttribute`:
+       
+               `QwtPlotCurve` tries to find a color representing the curve
+               and paints a rectangle with it.
+       
+             * `QwtPlotCurve.LegendShowLine`:
+       
+               If the style() is not `QwtPlotCurve.NoCurve` a line
+               is painted with the curve pen().
+       
+             * `QwtPlotCurve.LegendShowSymbol`:
+       
+               If the curve has a valid symbol it is painted.
+       
+             * `QwtPlotCurve.LegendShowBrush`:
+       
+               If the curve has a brush a rectangle filled with the
+               curve brush() is painted.
+       
+       
+           .. py:class:: QwtPlotCurve([title=None])
+       
+               Constructor
+       
+               :param title: Curve title
+               :type title: qwt.text.QwtText or str or None
+           """
+       
+           # enum CurveStyle
+    1:     NoCurve = -1
+    1:     Lines, Sticks, Steps, Dots = list(range(4))
+    1:     UserCurve = 100
+       
+           # enum CurveAttribute
+    1:     Inverted = 0x01
+       
+           # enum LegendAttribute
+    1:     LegendNoAttribute = 0x00
+    1:     LegendShowLine = 0x01
+    1:     LegendShowSymbol = 0x02
+    1:     LegendShowBrush = 0x04
+       
+    1:     def __init__(self, title=None):
+   29:         if title is None:
+   27:             title = QwtText("")
+   29:         if not isinstance(title, QwtText):
+    2:             title = QwtText(title)
+   29:         self.__data = None
+   29:         QwtPlotSeriesItem.__init__(self, title)
+   29:         QwtSeriesStore.__init__(self)
+   29:         self.init()
+       
+    1:     @classmethod
+    1:     def make(
+               cls,
+               xdata=None,
+               ydata=None,
+               title=None,
+               plot=None,
+               z=None,
+               x_axis=None,
+               y_axis=None,
+               style=None,
+               symbol=None,
+               linecolor=None,
+               linewidth=None,
+               linestyle=None,
+               antialiased=False,
+               size=None,
+               finite=None,
+           ):
+               """
+               Create and setup a new `QwtPlotCurve` object (convenience function).
+       
+               :param xdata: List/array of x values
+               :param ydata: List/array of y values
+               :param title: Curve title
+               :type title: qwt.text.QwtText or str or None
+               :param plot: Plot to attach the curve to
+               :type plot: qwt.plot.QwtPlot or None
+               :param z: Z-value
+               :type z: float or None
+               :param x_axis: curve X-axis (default: QwtPlot.yLeft)
+               :type x_axis: int or None
+               :param y_axis: curve Y-axis (default: QwtPlot.xBottom)
+               :type y_axis: int or None
+               :param style: curve style (`QwtPlotCurve.NoCurve`, `QwtPlotCurve.Lines`, `QwtPlotCurve.Sticks`, `QwtPlotCurve.Steps`, `QwtPlotCurve.Dots`, `QwtPlotCurve.UserCurve`)
+               :type style: int or None
+               :param symbol: curve symbol
+               :type symbol: qwt.symbol.QwtSymbol or None
+               :param linecolor: curve line color
+               :type linecolor: QColor or str or None
+               :param linewidth: curve line width
+               :type linewidth: float or None
+               :param linestyle: curve pen style
+               :type linestyle: Qt.PenStyle or None
+               :param bool antialiased: if True, enable antialiasing rendering
+               :param size: size of xData and yData
+               :type size: int or None
+               :param bool finite: if True, keep only finite array elements (remove all infinity and not a number values), otherwise do not filter array elements
+       
+               .. seealso::
+       
+                   :py:meth:`setData()`, :py:meth:`setPen()`, :py:meth:`attach()`
+               """
+   26:         item = cls(title)
+   26:         if z is not None:
+                   item.setZ(z)
+   26:         if xdata is not None or ydata is not None:
+   26:             if xdata is None:
+                       raise ValueError("Missing xdata parameter")
+   26:             if ydata is None:
+                       raise ValueError("Missing ydata parameter")
+   26:             item.setData(xdata, ydata, size=size, finite=finite)
+   26:         x_axis = QwtPlot.xBottom if x_axis is None else x_axis
+   26:         y_axis = QwtPlot.yLeft if y_axis is None else y_axis
+   26:         item.setAxes(x_axis, y_axis)
+   26:         if style is not None:
+                   item.setStyle(style)
+   26:         if symbol is not None:
+   16:             item.setSymbol(symbol)
+   26:         linecolor = qcolor_from_str(linecolor, Qt.black)
+   26:         linewidth = 1.0 if linewidth is None else linewidth
+   26:         linestyle = Qt.SolidLine if linestyle is None else linestyle
+   26:         item.setPen(QPen(linecolor, linewidth, linestyle))
+   26:         item.setRenderHint(cls.RenderAntialiased, antialiased)
+   26:         if plot is not None:
+   26:             item.attach(plot)
+   26:         return item
+       
+    1:     def init(self):
+               """Initialize internal members"""
+   29:         self.__data = QwtPlotCurve_PrivateData()
+   29:         self.setItemAttribute(QwtPlotItem.Legend)
+   29:         self.setItemAttribute(QwtPlotItem.AutoScale)
+   29:         self.setData(QwtPointArrayData())
+   29:         self.setZ(20.0)
+       
+    1:     def rtti(self):
+               """:return: `QwtPlotItem.Rtti_PlotCurve`"""
+               return QwtPlotItem.Rtti_PlotCurve
+       
+    1:     def setLegendAttribute(self, attribute, on=True):
+               """
+               Specify an attribute how to draw the legend icon
+       
+               Legend attributes:
+       
+                   * `QwtPlotCurve.LegendNoAttribute`
+                   * `QwtPlotCurve.LegendShowLine`
+                   * `QwtPlotCurve.LegendShowSymbol`
+                   * `QwtPlotCurve.LegendShowBrush`
+       
+               :param int attribute: Legend attribute
+               :param bool on: On/Off
+       
+               .. seealso::
+       
+                   :py:meth:`testLegendAttribute()`, :py:meth:`legendIcon()`
+               """
+               if on != self.testLegendAttribute(attribute):
+                   if on:
+                       self.__data.legendAttributes |= attribute
+                   else:
+                       self.__data.legendAttributes &= ~attribute
+                   qwtUpdateLegendIconSize(self)
+                   self.legendChanged()
+       
+    1:     def testLegendAttribute(self, attribute):
+               """
+               :param int attribute: Legend attribute
+               :return: True, when attribute is enabled
+       
+               .. seealso::
+       
+                   :py:meth:`setLegendAttribute()`
+               """
+   16:         return self.__data.legendAttributes & attribute
+       
+    1:     def setStyle(self, style):
+               """
+               Set the curve's drawing style
+       
+               Valid curve styles:
+       
+                   * `QwtPlotCurve.NoCurve`
+                   * `QwtPlotCurve.Lines`
+                   * `QwtPlotCurve.Sticks`
+                   * `QwtPlotCurve.Steps`
+                   * `QwtPlotCurve.Dots`
+                   * `QwtPlotCurve.UserCurve`
+       
+               :param int style: Curve style
+       
+               .. seealso::
+       
+                   :py:meth:`style()`
+               """
+   19:         if style != self.__data.style:
+   19:             self.__data.style = style
+   19:             self.legendChanged()
+   19:             self.itemChanged()
+       
+    1:     def style(self):
+               """
+               :return: Style of the curve
+       
+               .. seealso::
+       
+                   :py:meth:`setStyle()`
+               """
+               return self.__data.style
+       
+    1:     def setSymbol(self, symbol):
+               """
+               Assign a symbol
+       
+               The curve will take the ownership of the symbol, hence the previously
+               set symbol will be delete by setting a new one. If symbol is None no
+               symbol will be drawn.
+       
+               :param qwt.symbol.QwtSymbol symbol: Symbol
+       
+               .. seealso::
+       
+                   :py:meth:`symbol()`
+               """
+   16:         if symbol != self.__data.symbol:
+   16:             self.__data.symbol = symbol
+   16:             qwtUpdateLegendIconSize(self)
+   16:             self.legendChanged()
+   16:             self.itemChanged()
+       
+    1:     def symbol(self):
+               """
+               :return: Current symbol or None, when no symbol has been assigned
+       
+               .. seealso::
+       
+                   :py:meth:`setSymbol()`
+               """
+   16:         return self.__data.symbol
+       
+    1:     def setPen(self, *args):
+               """
+               Build and/or assign a pen, depending on the arguments.
+       
+               .. py:method:: setPen(color, width, style)
+                   :noindex:
+       
+                   Build and assign a pen
+       
+                   In Qt5 the default pen width is 1.0 ( 0.0 in Qt4 ) what makes it
+                   non cosmetic (see `QPen.isCosmetic()`). This method signature has
+                   been introduced to hide this incompatibility.
+       
+                   :param QColor color: Pen color
+                   :param float width: Pen width
+                   :param Qt.PenStyle style: Pen style
+       
+               .. py:method:: setPen(pen)
+                   :noindex:
+       
+                   Assign a pen
+       
+                   :param QPen pen: New pen
+       
+               .. seealso::
+       
+                   :py:meth:`pen()`, :py:meth:`brush()`
+               """
+   29:         if len(args) == 3:
+    3:             color, width, style = args
+    3:             pen = QPen(color, width, style)
+   26:         elif len(args) == 1:
+   26:             (pen,) = args
+               else:
+                   raise TypeError(
+                       "%s().setPen() takes 1 or 3 argument(s) (%s given)"
+                       % (self.__class__.__name__, len(args))
+                   )
+   29:         if pen != self.__data.pen:
+   29:             if isinstance(pen, QColor):
+                       pen = QPen(pen)
+                   else:
+   29:                 assert isinstance(pen, QPen)
+   29:             self.__data.pen = pen
+   29:             self.legendChanged()
+   29:             self.itemChanged()
+       
+    1:     def pen(self):
+               """
+               :return: Pen used to draw the lines
+       
+               .. seealso::
+       
+                   :py:meth:`setPen()`, :py:meth:`brush()`
+               """
+  106:         return self.__data.pen
+       
+    1:     def setBrush(self, brush):
+               """
+               Assign a brush.
+       
+               In case of `brush.style() != QBrush.NoBrush`
+               and `style() != QwtPlotCurve.Sticks`
+               the area between the curve and the baseline will be filled.
+       
+               In case `not brush.color().isValid()` the area will be filled by
+               `pen.color()`. The fill algorithm simply connects the first and the
+               last curve point to the baseline. So the curve data has to be sorted
+               (ascending or descending).
+       
+               :param brush: New brush
+               :type brush: QBrush or QColor
+       
+               .. seealso::
+       
+                   :py:meth:`brush()`, :py:meth:`setBaseline()`, :py:meth:`baseline()`
+               """
+    8:         if isinstance(brush, QColor):
+                   brush = QBrush(brush)
+               else:
+    8:             assert isinstance(brush, QBrush)
+    8:         if brush != self.__data.brush:
+    8:             self.__data.brush = brush
+    8:             self.legendChanged()
+    8:             self.itemChanged()
+       
+    1:     def brush(self):
+               """
+               :return: Brush used to fill the area between lines and the baseline
+       
+               .. seealso::
+       
+                   :py:meth:`setBrush()`, :py:meth:`setBaseline()`,
+                   :py:meth:`baseline()`
+               """
+               return self.__data.brush
+       
+    1:     def directPaint(self, from_, to):
+               """
+               When observing a measurement while it is running, new points have
+               to be added to an existing seriesItem. This method can be used to
+               display them avoiding a complete redraw of the canvas.
+       
+               Setting `plot().canvas().setAttribute(Qt.WA_PaintOutsidePaintEvent, True)`
+               will result in faster painting, if the paint engine of the canvas
+               widget supports this feature.
+       
+               :param int from_: Index of the first point to be painted
+               :param int to: Index of the last point to be painted
+       
+               .. seealso::
+       
+                   :py:meth:`drawSeries()`
+               """
+               directPainter = QwtPlotDirectPainter(self.plot())
+               directPainter.drawSeries(self, from_, to)
+       
+    1:     def drawSeries(self, painter, xMap, yMap, canvasRect, from_, to):
+               """
+               Draw an interval of the curve
+       
+               :param QPainter painter: Painter
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QRectF canvasRect: Contents rectangle of the canvas
+               :param int from_: Index of the first point to be painted
+               :param int to: Index of the last point to be painted. If to < 0 the curve will be painted to its last point.
+       
+               .. seealso::
+       
+                   :py:meth:`drawCurve()`, :py:meth:`drawSymbols()`
+               """
+  224:         numSamples = self.dataSize()
+  224:         if not painter or numSamples <= 0:
+   39:             return
+  185:         if to < 0:
+  185:             to = numSamples - 1
+  185:         if qwtVerifyRange(numSamples, from_, to) > 0:
+  185:             painter.save()
+  185:             painter.setPen(self.__data.pen)
+  370:             self.drawCurve(
+  185:                 painter, self.__data.style, xMap, yMap, canvasRect, from_, to
+                   )
+  185:             painter.restore()
+  185:             if self.__data.symbol and self.__data.symbol.style() != QwtSymbol.NoSymbol:
+   97:                 painter.save()
+  194:                 self.drawSymbols(
+   97:                     painter, self.__data.symbol, xMap, yMap, canvasRect, from_, to
+                       )
+   97:                 painter.restore()
+       
+    1:     def drawCurve(self, painter, style, xMap, yMap, canvasRect, from_, to):
+               """
+               Draw the line part (without symbols) of a curve interval.
+       
+               :param QPainter painter: Painter
+               :param int style: curve style, see `QwtPlotCurve.CurveStyle`
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QRectF canvasRect: Contents rectangle of the canvas
+               :param int from_: Index of the first point to be painted
+               :param int to: Index of the last point to be painted. If to < 0 the curve will be painted to its last point.
+       
+               .. seealso::
+       
+                   :py:meth:`draw()`, :py:meth:`drawDots()`, :py:meth:`drawLines()`,
+                   :py:meth:`drawSteps()`, :py:meth:`drawSticks()`
+               """
+  185:         if style == self.Lines:
+   76:             self.drawLines(painter, xMap, yMap, canvasRect, from_, to)
+  109:         elif style == self.Sticks:
+   12:             self.drawSticks(painter, xMap, yMap, canvasRect, from_, to)
+   97:         elif style == self.Steps:
+                   self.drawSteps(painter, xMap, yMap, canvasRect, from_, to)
+   97:         elif style == self.Dots:
+                   self.drawDots(painter, xMap, yMap, canvasRect, from_, to)
+       
+    1:     def drawLines(self, painter, xMap, yMap, canvasRect, from_, to):
+               """
+               Draw lines
+       
+               :param QPainter painter: Painter
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QRectF canvasRect: Contents rectangle of the canvas
+               :param int from_: Index of the first point to be painted
+               :param int to: Index of the last point to be painted. If to < 0 the curve will be painted to its last point.
+       
+               .. seealso::
+       
+                   :py:meth:`draw()`, :py:meth:`drawDots()`,
+                   :py:meth:`drawSteps()`, :py:meth:`drawSticks()`
+               """
+   76:         if from_ > to:
+                   return
+   76:         doFill = (
+   76:             self.__data.brush.style() != Qt.NoBrush
+   68:             and self.__data.brush.color().alpha() > 0
+               )
+   76:         polyline = series_to_polyline(xMap, yMap, self.data(), from_, to)
+   76:         painter.drawPolyline(polyline)
+   76:         if doFill:
+   68:             self.fillCurve(painter, xMap, yMap, canvasRect, polyline)
+       
+    1:     def drawSticks(self, painter, xMap, yMap, canvasRect, from_, to):
+               """
+               Draw sticks
+       
+               :param QPainter painter: Painter
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QRectF canvasRect: Contents rectangle of the canvas
+               :param int from_: Index of the first point to be painted
+               :param int to: Index of the last point to be painted. If to < 0 the curve will be painted to its last point.
+       
+               .. seealso::
+       
+                   :py:meth:`draw()`, :py:meth:`drawDots()`,
+                   :py:meth:`drawSteps()`, :py:meth:`drawLines()`
+               """
+   12:         painter.save()
+   12:         painter.setRenderHint(QPainter.Antialiasing, False)
+   12:         x0 = xMap.transform(self.__data.baseline)
+   12:         y0 = yMap.transform(self.__data.baseline)
+   12:         o = self.orientation()
+   12:         series = self.data()
+   24:         for i in range(from_, to + 1):
+   12:             sample = series.sample(i)
+   12:             xi = xMap.transform(sample.x())
+   12:             yi = yMap.transform(sample.y())
+   12:             if o == Qt.Horizontal:
+   12:                 painter.drawLine(QLineF(xi, y0, xi, yi))
+                   else:
+                       painter.drawLine(QLineF(x0, yi, xi, yi))
+   12:         painter.restore()
+       
+    1:     def drawDots(self, painter, xMap, yMap, canvasRect, from_, to):
+               """
+               Draw dots
+       
+               :param QPainter painter: Painter
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QRectF canvasRect: Contents rectangle of the canvas
+               :param int from_: Index of the first point to be painted
+               :param int to: Index of the last point to be painted. If to < 0 the curve will be painted to its last point.
+       
+               .. seealso::
+       
+                   :py:meth:`draw()`, :py:meth:`drawSticks()`,
+                   :py:meth:`drawSteps()`, :py:meth:`drawLines()`
+               """
+               doFill = (
+                   self.__data.brush.style() != Qt.NoBrush
+                   and self.__data.brush.color().alpha() > 0
+               )
+               polyline = series_to_polyline(xMap, yMap, self.data(), from_, to)
+               painter.drawPoints(polyline)
+               if doFill:
+                   self.fillCurve(painter, xMap, yMap, canvasRect, polyline)
+       
+    1:     def drawSteps(self, painter, xMap, yMap, canvasRect, from_, to):
+               """
+               Draw steps
+       
+               :param QPainter painter: Painter
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QRectF canvasRect: Contents rectangle of the canvas
+               :param int from_: Index of the first point to be painted
+               :param int to: Index of the last point to be painted. If to < 0 the curve will be painted to its last point.
+       
+               .. seealso::
+       
+                   :py:meth:`draw()`, :py:meth:`drawSticks()`,
+                   :py:meth:`drawDots()`, :py:meth:`drawLines()`
+               """
+               size = 2 * (to - from_) + 1
+               if QT_API == "pyside6":
+                   polygon = QPolygonF()
+                   polygon.resize(size)
+               elif QT_API == "pyqt6":
+                   polygon = QPolygonF([QPointF(0, 0)] * size)
+               else:
+                   polygon = QPolygonF(size)
+               inverted = self.orientation() == Qt.Vertical
+               if self.__data.attributes & self.Inverted:
+                   inverted = not inverted
+               series = self.data()
+               ip = 0
+               for i in range(from_, to + 1):
+                   sample = series.sample(i)
+                   xi = xMap.transform(sample.x())
+                   yi = yMap.transform(sample.y())
+                   if ip > 0:
+                       p0 = polygon[ip - 2]
+                       if inverted:
+                           polygon[ip - 1] = QPointF(p0.x(), yi)
+                       else:
+                           polygon[ip - 1] = QPointF(xi, p0.y())
+                   polygon[ip] = QPointF(xi, yi)
+                   ip += 2
+               painter.drawPolyline(polygon)
+               if self.__data.brush.style() != Qt.NoBrush:
+                   self.fillCurve(painter, xMap, yMap, canvasRect, polygon)
+       
+    1:     def setCurveAttribute(self, attribute, on=True):
+               """
+               Specify an attribute for drawing the curve
+       
+               Supported curve attributes:
+       
+                   * `QwtPlotCurve.Inverted`
+       
+               :param int attribute: Curve attribute
+               :param bool on: On/Off
+       
+               .. seealso::
+       
+                   :py:meth:`testCurveAttribute()`
+               """
+               if (self.__data.attributes & attribute) == on:
+                   return
+               if on:
+                   self.__data.attributes |= attribute
+               else:
+                   self.__data.attributes &= ~attribute
+               self.itemChanged()
+       
+    1:     def testCurveAttribute(self, attribute):
+               """
+               :return: True, if attribute is enabled
+       
+               .. seealso::
+       
+                   :py:meth:`setCurveAttribute()`
+               """
+               return self.__data.attributes & attribute
+       
+    1:     def fillCurve(self, painter, xMap, yMap, canvasRect, polygon):
+               """
+               Fill the area between the curve and the baseline with
+               the curve brush
+       
+               :param QPainter painter: Painter
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QRectF canvasRect: Contents rectangle of the canvas
+               :param QPolygonF polygon: Polygon - will be modified !
+       
+               .. seealso::
+       
+                   :py:meth:`setBrush()`, :py:meth:`setBaseline()`,
+                   :py:meth:`setStyle()`
+               """
+   68:         if self.__data.brush.style() == Qt.NoBrush:
+                   return
+   68:         self.closePolyline(painter, xMap, yMap, polygon)
+   68:         if polygon.count() <= 2:
+                   return
+   68:         brush = self.__data.brush
+   68:         if not brush.color().isValid():
+                   brush.setColor(self.__data.pen.color())
+   68:         painter.save()
+   68:         painter.setPen(Qt.NoPen)
+   68:         painter.setBrush(brush)
+   68:         painter.drawPolygon(polygon)
+   68:         painter.restore()
+       
+    1:     def closePolyline(self, painter, xMap, yMap, polygon):
+               """
+               Complete a polygon to be a closed polygon including the
+               area between the original polygon and the baseline.
+       
+               :param QPainter painter: Painter
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QPolygonF polygon: Polygon to be completed
+               """
+   68:         if polygon.size() < 2:
+                   return
+   68:         baseline = self.__data.baseline
+   68:         if self.orientation() == Qt.Horizontal:
+   68:             if yMap.transformation():
+                       baseline = yMap.transformation().bounded(baseline)
+   68:             refY = yMap.transform(baseline)
+   68:             polygon.append(QPointF(polygon.last().x(), refY))
+   68:             polygon.append(QPointF(polygon.first().x(), refY))
+               else:
+                   if xMap.transformation():
+                       baseline = xMap.transformation().bounded(baseline)
+                   refX = xMap.transform(baseline)
+                   polygon.append(QPointF(refX, polygon.last().y()))
+                   polygon.append(QPointF(refX, polygon.first().y()))
+       
+    1:     def drawSymbols(self, painter, symbol, xMap, yMap, canvasRect, from_, to):
+               """
+               Draw symbols
+       
+               :param QPainter painter: Painter
+               :param qwt.symbol.QwtSymbol symbol: Curve symbol
+               :param qwt.scale_map.QwtScaleMap xMap: Maps x-values into pixel coordinates.
+               :param qwt.scale_map.QwtScaleMap yMap: Maps y-values into pixel coordinates.
+               :param QRectF canvasRect: Contents rectangle of the canvas
+               :param int from_: Index of the first point to be painted
+               :param int to: Index of the last point to be painted. If to < 0 the curve will be painted to its last point.
+       
+               .. seealso::
+       
+                   :py:meth:`setSymbol()`, :py:meth:`drawSeries()`,
+                   :py:meth:`drawCurve()`
+               """
+   97:         chunkSize = 500
+  200:         for i in range(from_, to + 1, chunkSize):
+  103:             n = min([chunkSize, to - i + 1])
+  103:             points = series_to_polyline(xMap, yMap, self.data(), i, i + n - 1)
+  103:             if points.size() > 0:
+  103:                 symbol.drawSymbols(painter, points)
+       
+    1:     def setBaseline(self, value):
+               """
+               Set the value of the baseline
+       
+               The baseline is needed for filling the curve with a brush or
+               the Sticks drawing style.
+       
+               The interpretation of the baseline depends on the `orientation()`.
+               With `Qt.Horizontal`, the baseline is interpreted as a horizontal line
+               at y = baseline(), with `Qt.Vertical`, it is interpreted as a vertical
+               line at x = baseline().
+       
+               The default value is 0.0.
+       
+               :param float value: Value of the baseline
+       
+               .. seealso::
+       
+                   :py:meth:`baseline()`, :py:meth:`setBrush()`,
+                   :py:meth:`setStyle()`
+               """
+    3:         if self.__data.baseline != value:
+    3:             self.__data.baseline = value
+    3:             self.itemChanged()
+       
+    1:     def baseline(self):
+               """
+               :return: Value of the baseline
+       
+               .. seealso::
+       
+                   :py:meth:`setBaseline()`
+               """
+               return self.__data.baseline
+       
+    1:     def closestPoint(self, pos):
+               """
+               Find the closest curve point for a specific position
+       
+               :param QPoint pos: Position, where to look for the closest curve point
+               :return: tuple `(index, dist)`
+       
+               `dist` is the distance between the position and the closest curve
+               point. `index` is the index of the closest curve point, or -1 if
+               none can be found ( f.e when the curve has no points ).
+       
+               .. note::
+       
+                   `closestPoint()` implements a dumb algorithm, that iterates
+                   over all points
+               """
+               numSamples = self.dataSize()
+               if self.plot() is None or numSamples <= 0:
+                   return -1
+               series = self.data()
+               xMap = self.plot().canvasMap(self.xAxis())
+               yMap = self.plot().canvasMap(self.yAxis())
+               index = -1
+               dmin = 1.0e10
+               for i in range(numSamples):
+                   sample = series.sample(i)
+                   cx = xMap.transform(sample.x()) - pos.x()
+                   cy = yMap.transform(sample.y()) - pos.y()
+                   f = qwtSqr(cx) + qwtSqr(cy)
+                   if f < dmin:
+                       index = i
+                       dmin = f
+               dist = math.sqrt(dmin)
+               return index, dist
+       
+    1:     def legendIcon(self, index, size):
+               """
+               :param int index: Index of the legend entry (ignored as there is only one)
+               :param QSizeF size: Icon size
+               :return: Icon representing the curve on the legend
+       
+               .. seealso::
+       
+                   :py:meth:`qwt.plot.QwtPlotItem.setLegendIconSize()`,
+                   :py:meth:`qwt.plot.QwtPlotItem.legendData()`
+               """
+   53:         if size.isEmpty():
+                   return QwtGraphic()
+   53:         graphic = QwtGraphic()
+   53:         graphic.setDefaultSize(size)
+   53:         graphic.setRenderHint(QwtGraphic.RenderPensUnscaled, True)
+   53:         painter = QPainter(graphic)
+  106:         painter.setRenderHint(
+   53:             QPainter.Antialiasing, self.testRenderHint(QwtPlotItem.RenderAntialiased)
+               )
+  106:         if self.__data.legendAttributes == 0 or (
+   53:             self.__data.legendAttributes & QwtPlotCurve.LegendShowBrush
+               ):
+                   brush = self.__data.brush
+                   if brush.style() == Qt.NoBrush and self.__data.legendAttributes == 0:
+                       if self.style() != QwtPlotCurve.NoCurve:
+                           brush = QBrush(self.pen().color())
+                       elif (
+                           self.__data.symbol
+                           and self.__data.symbol.style() != QwtSymbol.NoSymbol
+                       ):
+                           brush = QBrush(self.__data.symbol.pen().color())
+                   if brush.style() != Qt.NoBrush:
+                       r = QRectF(0, 0, size.width(), size.height())
+                       painter.fillRect(r, brush)
+   53:         if self.__data.legendAttributes & QwtPlotCurve.LegendShowLine:
+   53:             if self.pen() != Qt.NoPen:
+   53:                 painter.setPen(self.pen())
+   53:                 y = size.height() // 2
+   53:                 painter.drawLine(QLineF(0, y, size.width(), y))
+   53:         if self.__data.legendAttributes & QwtPlotCurve.LegendShowSymbol:
+                   if self.__data.symbol:
+                       r = QRectF(0, 0, size.width(), size.height())
+                       self.__data.symbol.drawSymbol(painter, r)
+   53:         return graphic
+       
+    1:     def setData(self, *args, **kwargs):
+               """
+               Initialize data with a series data object or an array of points.
+       
+               .. py:method:: setData(data):
+       
+                   :param data: Series data (e.g. `QwtPointArrayData` instance)
+                   :type data: .plot_series.QwtSeriesData
+       
+               .. py:method:: setData(xData, yData, [size=None], [finite=True]):
+       
+                   Initialize data with `x` and `y` arrays.
+       
+                   This signature was removed in Qwt6 and is temporarily maintained here to ensure compatibility with Qwt5.
+       
+                   Same as `setSamples(x, y, [size=None], [finite=True])`
+       
+                   :param x: List/array of x values
+                   :param y: List/array of y values
+                   :param size: size of xData and yData
+                   :type size: int or None
+                   :param bool finite: if True, keep only finite array elements (remove all infinity and not a number values), otherwise do not filter array elements
+       
+               .. seealso::
+       
+                   :py:meth:`setSamples()`
+               """
+  595:         if len(args) == 1 and not kwargs:
+  312:             super(QwtPlotCurve, self).setData(*args)
+  283:         elif len(args) in (2, 3, 4):
+  283:             self.setSamples(*args, **kwargs)
+               else:
+                   raise TypeError(
+                       "%s().setData() takes 1, 2, 3 or 4 argument(s) (%s given)"
+                       % (self.__class__.__name__, len(args))
+                   )
+       
+    1:     def setSamples(self, *args, **kwargs):
+               """
+               Initialize data with an array of points.
+       
+               .. py:method:: setSamples(data):
+       
+                   :param data: Series data (e.g. `QwtPointArrayData` instance)
+                   :type data: .plot_series.QwtSeriesData
+       
+       
+               .. py:method:: setSamples(samples):
+       
+                   Same as `setData(QwtPointArrayData(samples))`
+       
+                   :param samples: List/array of points
+       
+               .. py:method:: setSamples(xData, yData, [size=None], [finite=True]):
+       
+                   Same as `setData(QwtPointArrayData(xData, yData, [size=None]))`
+       
+                   :param xData: List/array of x values
+                   :param yData: List/array of y values
+                   :param size: size of xData and yData
+                   :type size: int or None
+                   :param bool finite: if True, keep only finite array elements (remove all infinity and not a number values), otherwise do not filter array elements
+       
+               .. seealso::
+       
+                   :py:class:`.plot_series.QwtPointArrayData`
+               """
+  283:         if len(args) == 1 and not kwargs:
+                   (samples,) = args
+                   if isinstance(samples, QwtSeriesData):
+                       self.setData(samples)
+                   else:
+                       self.setData(QwtPointArrayData(samples))
+  283:         elif len(args) >= 2:
+  283:             xData, yData = args[:2]
+  283:             try:
+  283:                 size = kwargs.pop("size")
+  257:             except KeyError:
+  257:                 size = None
+  283:             try:
+  283:                 finite = kwargs.pop("finite")
+  257:             except KeyError:
+  257:                 finite = None
+  283:             if kwargs:
+                       raise TypeError(
+                           "%s().setSamples(): unknown %s keyword "
+                           "argument(s)"
+                           % (self.__class__.__name__, ", ".join(list(kwargs.keys())))
+                       )
+  283:             for arg in args[2:]:
+                       if isinstance(arg, bool):
+                           finite = arg
+                       elif isinstance(arg, int):
+                           size = arg
+  283:             self.setData(QwtPointArrayData(xData, yData, size=size, finite=finite))
+               else:
+                   raise TypeError(
+                       "%s().setSamples() takes 1, 2 or 3 argument(s) "
+                       "(%s given)" % (self.__class__.__name__, len(args))
+                   )

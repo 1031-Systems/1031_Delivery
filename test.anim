@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<Animatronics starttime="0.000000" csvUploadFile="/sd/anims/test.csv" audioUploadFile="/sd/anims/test.wav">
+<Control rate="50.000000"/>
+<Audio file="/home/john/QtProjects/1031_Delivery/demo/chan0.wav">
+    <Start time="0.000000"/>
+</Audio>
+<Channel name="D" minLimit="0.000000" maxLimit="1.000000" type="Digital">
+    <Point time="0.299892">
+        0.000000
+    </Point>
+    <Point time="0.398913">
+        1.000000
+    </Point>
+    <Point time="0.497934">
+        0.000000
+    </Point>
+</Channel>
+<Channel name="D_1" minLimit="0.000000" maxLimit="1.000000" type="Digital">
+</Channel>
+<Channel name="D_2" minLimit="0.000000" maxLimit="1.000000" type="Digital">
+</Channel>
+<Channel name="D_3" minLimit="0.000000" maxLimit="1.000000" type="Digital">
+</Channel>
+<Channel name="D_4" minLimit="0.000000" maxLimit="1.000000" type="Digital">
+</Channel>
+</Animatronics>

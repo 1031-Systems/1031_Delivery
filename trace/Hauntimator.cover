@@ -1,0 +1,151 @@
+       #!/usr/bin/env python
+       # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+       
+       #**********************************
+       # Program Hauntimator.py
+       # Created by John R. Wright
+       # Created Tue Jun 13 17:35:31 PDT 2023
+       #*********************************/
+    1: '''
+       This software is made available for use under the GNU General Public License (GPL).
+       A copy of this license is available within the repository for this software and is
+       included herein by reference.
+       '''
+       
+       #/* Import block */
+    1: import os
+    1: import sys
+       
+    1: import Animatronics
+    1: import MainWindow
+       
+       # Utilize XML to read/write animatronics files
+    1: import xml.etree.ElementTree as ET
+       
+    1: usedPyQt = None
+       
+    1: try:
+           # PyQt5 import block for all widgets
+    1:     from PyQt5.QtCore import *
+    1:     from PyQt5.QtGui import *
+    1:     from PyQt5.QtWidgets import *
+    1:     from PyQt5 import QtMultimedia as qm
+    1:     usedPyQt = 5
+       except:
+           try:
+               # PyQt6 import block for all widgets
+               from PyQt6.QtCore import *
+               from PyQt6.QtGui import *
+               from PyQt6.QtWidgets import *
+               from PyQt6 import QtMultimedia as qm
+               usedPyQt = 6
+           except:
+               sys.stderr.write('Whoops - Unable to find PyQt5 or PyQt6 - Quitting\n')
+               exit(10)
+       
+    1: import importlib
+    1: import importlib.metadata
+       # print('Version:', importlib.metadata.version('Hauntimator'))
+       
+       #/* Define block */
+    1: verbosity = False
+       
+       #/* Usage method */
+    1: def print_usage(name):
+           """
+           The method print_usage prints the standard usage message.
+           Parameters
+           ----------
+           name : str
+               The name of the application from argv[0]
+           """
+           sys.stderr.write("\nUsage: %s [-/-h/-help] [-f/-file infilename]\n")
+           sys.stderr.write("Create and edit animatronics control channels.\n");
+           sys.stderr.write("-/-h/-help             :show this information\n");
+           sys.stderr.write("-V/-version            :print version information and exit\n")
+           sys.stderr.write("-f/-file infilename    :Input anim file\n")
+           sys.stderr.write("\n\n");
+       
+    1: def print_module_version(module_name):
+           try:
+               import importlib
+               import importlib.metadata
+               version = importlib.metadata.version(module_name)
+               print(module_name + ':', version)
+               exitcode = 0
+           except:
+               print('Version information not available')
+               exitcode = 1
+           return exitcode
+       
+       #/* Main */
+    1: def doAnimatronics():
+           """
+           The method doAnimatronics is the main function of the application.
+           It parses the command line arguments, handles them, and then opens
+           the main window and proceeds.
+           """
+       
+           # Local Variables to support parsing an Animatronics file specified
+           # on the command line
+    1:     infilename = None
+    1:     exitcode = 0
+       
+           # Parse arguments
+    1:     i = 1
+    2:     while i < len(sys.argv):
+    1:         if sys.argv[i] == '-' or sys.argv[i] == '-h' or sys.argv[i] == '-help':
+                   print_usage(sys.argv[0]);
+                   sys.exit(exitcode);
+    1:         elif sys.argv[i] == '-V' or sys.argv[i] == '-version':
+                   exitcode = print_module_version('Hauntimator')
+                   sys.exit(exitcode)
+    1:         elif sys.argv[i] == '-f' or sys.argv[i] == '-file':
+    1:             i += 1
+    1:             if i < len(sys.argv):
+    1:                 infilename = sys.argv[i]
+               else:
+                   sys.stderr.write("\nWhoops - Unrecognized argument: %s\n" % sys.argv[i]);
+                   print_usage(sys.argv[0]);
+                   sys.exit(10);
+       
+    1:         i += 1
+       
+           # Create the global main window
+    1:     app = QApplication(sys.argv)
+           # For Mac, preferences need to be read before creating main window
+    1:     MainWindow.PreferencesWidget.readPreferences()
+    1:     main_win = MainWindow.MainWindow()
+       
+           # Start with empty animation by default but AFTER Preferences have been read
+    1:     animation = Animatronics.Animatronics()
+       
+           # If an input file was specified, parse it or die trying
+    1:     if infilename is not None:
+    1:         if os.path.isfile(infilename):
+                   # Do not update state if we read here
+    1:             main_win.saveStateOkay = False
+    1:             try:
+    1:                 animation.parseXML(infilename, uploadpath=MainWindow.SystemPreferences['UploadPath'])
+       
+                   except Exception as e:
+                       sys.stderr.write("\nWhoops - Error reading input file %s\n" % infilename)
+                       sys.stderr.write("Message: %s\n" % e)
+                       sys.exit(11)
+       
+    1:             main_win.saveStateOkay = True
+               elif not os.path.exists(infilename):
+                   animation.filename = infilename
+               else:
+                   sys.stderr.write("\nWhoops - Unable to use %s as a file\n" % infilename)
+                   sys.exit(11)
+       
+           # Open the main window and process events
+    1:     main_win.setAnimatronics(animation)
+    1:     main_win.show()
+    1:     app.exec_()
+       
+       
+    1: if __name__ == "__main__":
+    1:     doAnimatronics()
+       

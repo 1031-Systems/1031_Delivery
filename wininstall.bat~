@@ -50,6 +50,12 @@ pip uninstall -y pyreadline
 pip install pyreadline3
 
 echo.
+<<<<<<< HEAD
+pushd src\plugins
+rmdir /s /q "Phoneme_data"
+del /F "Phonemes*"
+popd
+=======
 set /p "CREATE_SHORTCUT=Do you want to install phoneme-based speech recognition tools? (y/N): "
 if /i "%CREATE_SHORTCUT%"=="y" (
     echo Installing vosk python module
@@ -78,6 +84,8 @@ if /i "%CREATE_SHORTCUT%"=="y" (
     del /F "Phonemes*"
 )
 
+>>>>>>> de18a8b (Added pause after crash to review errors)
+
 REM Set VIRTUAL_ENV path for use in wrapper scripts below
 set VIRTUAL_ENV=%SCRIPTPATH%\.venv
 
@@ -88,10 +96,16 @@ REM --- Hauntimator ---
     echo @echo off
     echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\src\Hauntimator.py" %%*
     echo if errorlevel 1 ^(
+<<<<<<< HEAD
     echo     echo Whoops - Hauntimator terminated unnaturally
     echo     echo Check for error messages, take a screenshot, or
     echo     echo copy the output, if any, and submit it with a bug report.
     echo     pause
+=======
+    echo "    echo Whoops - Hauntimator terminated unnaturally"
+    echo "    echo Check for error messages"
+    echo "    pause"
+>>>>>>> de18a8b (Added pause after crash to review errors)
     echo ^)
 ) > "%SCRIPTPATH%\Hauntimator.bat"
 

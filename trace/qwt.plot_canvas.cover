@@ -1,0 +1,851 @@
+       # -*- coding: utf-8 -*-
+       #
+       # Licensed under the terms of the Qwt License
+       # Copyright (c) 2002 Uwe Rathmann, for the original C++ code
+       # Copyright (c) 2015 Pierre Raybaut, for the Python translation/optimization
+       # (see LICENSE file for more details)
+       
+    1: """
+       QwtPlotCanvas
+       -------------
+       
+       .. autoclass:: QwtPlotCanvas
+          :members:
+       """
+       
+    1: import os
+       
+    1: from qtpy.QtCore import QEvent, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt
+    1: from qtpy.QtGui import (
+           QBrush,
+           QGradient,
+           QImage,
+           QPaintEngine,
+           QPainter,
+           QPainterPath,
+           QPen,
+           QPixmap,
+           QPolygonF,
+           QRegion,
+           qAlpha,
+       )
+    1: from qtpy.QtWidgets import QFrame, QStyle, QStyleOption, QStyleOptionFrame
+       
+    1: from qwt.null_paintdevice import QwtNullPaintDevice
+    1: from qwt.painter import QwtPainter
+       
+    1: QT_API = os.environ["QT_API"]
+       
+       
+    2: class Border(object):
+    1:     def __init__(self):
+               self.pathlist = []
+               self.rectList = []
+               self.clipRegion = QRegion()
+       
+       
+    2: class Background(object):
+    1:     def __init__(self):
+               self.path = QPainterPath()
+               self.brush = QBrush()
+               self.origin = QPointF()
+       
+       
+    2: class QwtStyleSheetRecorder(QwtNullPaintDevice):
+    1:     def __init__(self, size):
+               super(QwtStyleSheetRecorder, self).__init__()
+               self.__size = size
+               self.__pen = QPen()
+               self.__brush = QBrush()
+               self.__origin = QPointF()
+               self.clipRects = []
+               self.border = Border()
+               self.background = Background()
+       
+    1:     def updateState(self, state):
+               if state.state() & QPaintEngine.DirtyPen:
+                   self.__pen = state.pen()
+               if state.state() & QPaintEngine.DirtyBrush:
+                   self.__brush = state.brush()
+               if state.state() & QPaintEngine.DirtyBrushOrigin:
+                   self.__origin = state.brushOrigin()
+       
+    1:     def drawRects(self, rects, count):
+               if QT_API.startswith("pyside"):
+                   # Pyside
+                   if isinstance(rects, (QRect, QRectF)):
+                       self.border.list = [rects]
+                   else:
+                       for i in range(count):
+                           self.border.rectList += [rects.getRect().index(i)]
+               else:
+                   # PyQt
+                   for i in range(count):
+                       self.border.rectList += [rects[i]]
+       
+    1:     def drawPath(self, path):
+               rect = QRectF(QPointF(0.0, 0.0), self.__size)
+               if path.controlPointRect().contains(rect.center()):
+                   self.setCornerRects(path)
+                   self.alignCornerRects(rect)
+                   self.background.path = path
+                   self.background.brush = self.__brush
+                   self.background.origin = self.__origin
+               else:
+                   self.border.pathlist += [path]
+       
+    1:     def setCornerRects(self, path):
+               pos = QPointF(0.0, 0.0)
+               for i in range(path.elementCount()):
+                   el = path.elementAt(i)
+                   if el.type in (QPainterPath.MoveToElement, QPainterPath.LineToElement):
+                       pos.setX(el.x)
+                       pos.setY(el.y)
+                   elif el.type == QPainterPath.CurveToElement:
+                       r = QRectF(pos, QPointF(el.x, el.y))
+                       self.clipRects += [r.normalized()]
+                       pos.setX(el.x)
+                       pos.setY(el.y)
+                   elif el.type == QPainterPath.CurveToDataElement:
+                       if self.clipRects:
+                           r = self.clipRects[-1]
+                           r.setCoords(
+                               min([r.left(), el.x]),
+                               min([r.top(), el.y]),
+                               max([r.right(), el.x]),
+                               max([r.bottom(), el.y]),
+                           )
+                           self.clipRects[-1] = r.normalized()
+       
+    1:     def sizeMetrics(self):
+               return self.__size
+       
+    1:     def alignCornerRects(self, rect):
+               for r in self.clipRects:
+                   if r.center().x() < rect.center().x():
+                       r.setLeft(rect.left())
+                   else:
+                       r.setRight(rect.right())
+                   if r.center().y() < rect.center().y():
+                       r.setTop(rect.top())
+                   else:
+                       r.setBottom(rect.bottom())
+       
+       
+    1: def qwtDrawBackground(painter, canvas):
+   80:     painter.save()
+   80:     borderClip = canvas.borderPath(canvas.rect())
+   80:     if not borderClip.isEmpty():
+               painter.setClipPath(borderClip, Qt.IntersectClip)
+   80:     brush = canvas.palette().brush(canvas.backgroundRole())
+   80:     if brush.style() == Qt.TexturePattern:
+               pm = QPixmap(canvas.size())
+               QwtPainter.fillPixmap(canvas, pm)
+               painter.drawPixmap(0, 0, pm)
+   80:     elif brush.gradient():
+   24:         rects = []
+   24:         if brush.gradient().coordinateMode() == QGradient.ObjectBoundingMode:
+                   rects += [canvas.rect()]
+               else:
+   24:             rects += [painter.clipRegion().boundingRect()]
+   24:         useRaster = False
+   24:         if painter.paintEngine().type() == QPaintEngine.X11:
+                   useRaster = True
+   24:         if useRaster:
+                   format_ = QImage.Format_RGB32
+                   stops = brush.gradient().stops()
+                   for stop in stops:
+                       if stop.second.alpha() != 255:
+                           format_ = QImage.Format_ARGB32
+                           break
+                   image = QImage(canvas.size(), format_)
+                   pntr = QPainter(image)
+                   pntr.setPen(Qt.NoPen)
+                   pntr.setBrush(brush)
+                   for rect in rects:
+                       pntr.drawRect(rect)
+                   pntr.end()
+                   painter.drawImage(0, 0, image)
+               else:
+   24:             painter.setPen(Qt.NoPen)
+   24:             painter.setBrush(brush)
+   48:             for rect in rects:
+   24:                 painter.drawRect(rect)
+           else:
+   56:         painter.setPen(Qt.NoPen)
+   56:         painter.setBrush(brush)
+   56:         painter.drawRect(painter.clipRegion().boundingRect())
+       
+   80:     painter.restore()
+       
+       
+    1: def qwtRevertPath(path):
+           if path.elementCount() == 4:
+               el0 = path.elementAt(0)
+               el3 = path.elementAt(3)
+               path.setElementPositionAt(0, el3.x, el3.y)
+               path.setElementPositionAt(3, el0.x, el0.y)
+       
+       
+    1: def qwtCombinePathList(rect, pathList):
+           if not pathList:
+               return QPainterPath()
+       
+           ordered = [None] * 8
+           for subPath in pathList:
+               index = -1
+               br = subPath.controlPointRect()
+               if br.center().x() < rect.center().x():
+                   if br.center().y() < rect.center().y():
+                       if abs(br.top() - rect.top()) < abs(br.left() - rect.left()):
+                           index = 1
+                       else:
+                           index = 0
+                   else:
+                       if abs(br.bottom() - rect.bottom) < abs(br.left() - rect.left()):
+                           index = 6
+                       else:
+                           index = 7
+                   if subPath.currentPosition().y() > br.center().y():
+                       qwtRevertPath(subPath)
+               else:
+                   if br.center().y() < rect.center().y():
+                       if abs(br.top() - rect.top()) < abs(br.right() - rect.right()):
+                           index = 2
+                       else:
+                           index = 3
+                   else:
+                       if abs(br.bottom() - rect.bottom()) < abs(br.right() - rect.right()):
+                           index = 5
+                       else:
+                           index = 4
+                   if subPath.currentPosition().y() < br.center().y():
+                       qwtRevertPath(subPath)
+               ordered[index] = subPath
+           for i in range(4):
+               if ordered[2 * i].isEmpty() != ordered[2 * i + 1].isEmpty():
+                   return QPainterPath()
+           corners = QPolygonF(rect)
+           path = QPainterPath()
+           for i in range(4):
+               if ordered[2 * i].isEmpty():
+                   path.lineTo(corners[i])
+               else:
+                   path.connectPath(ordered[2 * i])
+                   path.connectPath(ordered[2 * i + 1])
+           path.closeSubpath()
+           return path
+       
+       
+    1: def qwtDrawStyledBackground(w, painter):
+           opt = QStyleOption()
+           opt.initFrom(w)
+           w.style().drawPrimitive(QStyle.PE_Widget, opt, painter, w)
+       
+       
+    1: def qwtBackgroundWidget(w):
+           if w.parentWidget() is None:
+               return w
+           if w.autoFillBackground():
+               brush = w.palette().brush(w.backgroundRole())
+               if brush.color().alpha() > 0:
+                   return w
+           if w.testAttribute(Qt.WA_StyledBackground):
+               image = QImage(1, 1, QImage.Format_ARGB32)
+               image.fill(Qt.transparent)
+               painter = QPainter(image)
+               painter.translate(-w.rect().center())
+               qwtDrawStyledBackground(w, painter)
+               painter.end()
+               if qAlpha(image.pixel(0, 0)) != 0:
+                   return w
+           return qwtBackgroundWidget(w.parentWidget())
+       
+       
+    1: def qwtFillBackground(*args):
+  160:     if len(args) == 2:
+   80:         painter, canvas = args
+       
+   80:         rects = []
+   80:         if canvas.testAttribute(Qt.WA_StyledBackground):
+                   recorder = QwtStyleSheetRecorder(canvas.size())
+                   p = QPainter(recorder)
+                   qwtDrawStyledBackground(canvas, p)
+                   p.end()
+                   if recorder.background.brush.isOpaque():
+                       rects = recorder.clipRects
+                   else:
+                       rects += [canvas.rect()]
+               else:
+   80:             r = canvas.rect()
+   80:             radius = canvas.borderRadius()
+   80:             if radius > 0.0:
+                       sz = QSize(radius, radius)
+                       rects += [
+                           QRect(r.topLeft(), sz),
+                           QRect(r.topRight() - QPoint(radius, 0), sz),
+                           QRect(r.bottomRight() - QPoint(radius, radius), sz),
+                           QRect(r.bottomLeft() - QPoint(0, radius), sz),
+                       ]
+       
+   80:         qwtFillBackground(painter, canvas, rects)
+       
+   80:     elif len(args) == 3:
+   80:         painter, widget, fillRects = args
+       
+   80:         if not fillRects:
+   80:             return
+               if painter.hasClipping():
+                   clipRegion = painter.transform().map(painter.clipRegion())
+               else:
+                   clipRegion = widget.contentsRect()
+               bgWidget = qwtBackgroundWidget(widget.parentWidget())
+               for rect in fillRects:
+                   if clipRegion.intersects(rect):
+                       pm = QPixmap(rect.size())
+                       QwtPainter.fillPixmap(
+                           bgWidget, pm, widget.mapTo(bgWidget, rect.topLeft())
+                       )
+                       painter.drawPixmap(rect, pm)
+       
+           else:
+               raise TypeError(
+                   "%s() takes 2 or 3 argument(s) (%s given)"
+                   % ("qwtFillBackground", len(args))
+               )
+       
+       
+    2: class StyleSheetBackground(object):
+    1:     def __init__(self):
+   11:         self.brush = QBrush()
+   11:         self.origin = QPointF()
+       
+       
+    2: class StyleSheet(object):
+    1:     def __init__(self):
+   11:         self.hasBorder = False
+   11:         self.borderPath = QPainterPath()
+   11:         self.cornerRects = []
+   11:         self.background = StyleSheetBackground()
+       
+       
+    2: class QwtPlotCanvas_PrivateData(QObject):
+    1:     def __init__(self):
+   11:         QObject.__init__(self)
+       
+   11:         self.focusIndicator = QwtPlotCanvas.NoFocusIndicator
+   11:         self.borderRadius = 0
+   11:         self.paintAttributes = 0
+   11:         self.backingStore = None
+   11:         self.styleSheet = StyleSheet()
+   11:         self.styleSheet.hasBorder = False
+       
+       
+    2: class QwtPlotCanvas(QFrame):
+    1:     """
+           Canvas of a QwtPlot.
+       
+           Canvas is the widget where all plot items are displayed
+       
+           .. seealso::
+       
+               :py:meth:`qwt.plot.QwtPlot.setCanvas()`
+       
+           Paint attributes:
+       
+               * `QwtPlotCanvas.BackingStore`:
+       
+                   Paint double buffered reusing the content of the pixmap buffer
+                   when possible.
+       
+                   Using a backing store might improve the performance significantly,
+                   when working with widget overlays (like rubber bands).
+                   Disabling the cache might improve the performance for
+                   incremental paints
+                   (using :py:class:`qwt.plot_directpainter.QwtPlotDirectPainter`).
+       
+               * `QwtPlotCanvas.Opaque`:
+       
+                   Try to fill the complete contents rectangle of the plot canvas
+       
+                   When using styled backgrounds Qt assumes, that the canvas doesn't
+                   fill its area completely (f.e because of rounded borders) and
+                   fills the area below the canvas. When this is done with gradients
+                   it might result in a serious performance bottleneck - depending on
+                   the size.
+       
+                   When the Opaque attribute is enabled the canvas tries to
+                   identify the gaps with some heuristics and to fill those only.
+       
+                   .. warning::
+       
+                       Will not work for semitransparent backgrounds
+       
+               * `QwtPlotCanvas.HackStyledBackground`:
+       
+                   Try to improve painting of styled backgrounds
+       
+                   `QwtPlotCanvas` supports the box model attributes for
+                   customizing the layout with style sheets. Unfortunately
+                   the design of Qt style sheets has no concept how to
+                   handle backgrounds with rounded corners - beside of padding.
+       
+                   When HackStyledBackground is enabled the plot canvas tries
+                   to separate the background from the background border
+                   by reverse engineering to paint the background before and
+                   the border after the plot items. In this order the border
+                   gets perfectly antialiased and you can avoid some pixel
+                   artifacts in the corners.
+       
+               * `QwtPlotCanvas.ImmediatePaint`:
+       
+                   When ImmediatePaint is set replot() calls repaint()
+                   instead of update().
+       
+                   .. seealso::
+       
+                       :py:meth:`replot()`, :py:meth:`QWidget.repaint()`,
+                       :py:meth:`QWidget.update()`
+       
+           Focus indicators:
+       
+               * `QwtPlotCanvas.NoFocusIndicator`:
+       
+                   Don't paint a focus indicator
+       
+               * `QwtPlotCanvas.CanvasFocusIndicator`:
+       
+                   The focus is related to the complete canvas.
+                   Paint the focus indicator using paintFocus()
+       
+               * `QwtPlotCanvas.ItemFocusIndicator`:
+       
+                   The focus is related to an item (curve, point, ...) on
+                   the canvas. It is up to the application to display a
+                   focus indication using f.e. highlighting.
+       
+           .. py:class:: QwtPlotCanvas([plot=None])
+       
+               Constructor
+       
+               :param qwt.plot.QwtPlot plot: Parent plot widget
+       
+               .. seealso::
+       
+                   :py:meth:`qwt.plot.QwtPlot.setCanvas()`
+           """
+       
+           # enum PaintAttribute
+    1:     BackingStore = 1
+    1:     Opaque = 2
+    1:     HackStyledBackground = 4
+    1:     ImmediatePaint = 8
+       
+           # enum FocusIndicator
+    1:     NoFocusIndicator, CanvasFocusIndicator, ItemFocusIndicator = list(range(3))
+       
+    1:     def __init__(self, plot=None):
+   11:         super(QwtPlotCanvas, self).__init__(plot)
+   11:         self.__plot = plot
+   11:         self.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+   11:         self.setLineWidth(2)
+   11:         self.__data = QwtPlotCanvas_PrivateData()
+   11:         self.setCursor(Qt.CrossCursor)
+   11:         self.setAutoFillBackground(True)
+   11:         self.setPaintAttribute(QwtPlotCanvas.BackingStore, False)
+   11:         self.setPaintAttribute(QwtPlotCanvas.Opaque, True)
+   11:         self.setPaintAttribute(QwtPlotCanvas.HackStyledBackground, True)
+       
+    1:     def plot(self):
+               """
+               :return: Parent plot widget
+               """
+   80:         return self.__plot
+       
+    1:     def setPaintAttribute(self, attribute, on=True):
+               """
+               Changing the paint attributes
+       
+               Paint attributes:
+       
+                   * `QwtPlotCanvas.BackingStore`
+                   * `QwtPlotCanvas.Opaque`
+                   * `QwtPlotCanvas.HackStyledBackground`
+                   * `QwtPlotCanvas.ImmediatePaint`
+       
+               :param int attribute: Paint attribute
+               :param bool on: On/Off
+       
+               .. seealso::
+       
+                   :py:meth:`testPaintAttribute()`, :py:meth:`backingStore()`
+               """
+   33:         if bool(self.__data.paintAttributes & attribute) == on:
+   11:             return
+   22:         if on:
+   22:             self.__data.paintAttributes |= attribute
+               else:
+                   self.__data.paintAttributes &= ~attribute
+   22:         if attribute == self.BackingStore:
+                   if on:
+                       if self.__data.backingStore is None:
+                           self.__data.backingStore = QPixmap()
+                       if self.isVisible():
+                           self.__data.backingStore = self.grab(self.rect())
+                   else:
+                       self.__data.backingStore = None
+   22:         elif attribute == self.Opaque:
+   11:             if on:
+   11:                 self.setAttribute(Qt.WA_OpaquePaintEvent, True)
+   11:         elif attribute in (self.HackStyledBackground, self.ImmediatePaint):
+   22:             pass
+       
+    1:     def testPaintAttribute(self, attribute):
+               """
+               Test whether a paint attribute is enabled
+       
+               :param int attribute: Paint attribute
+               :return: True, when attribute is enabled
+       
+               .. seealso::
+       
+                   :py:meth:`setPaintAttribute()`
+               """
+  224:         return self.__data.paintAttributes & attribute
+       
+    1:     def backingStore(self):
+               """
+               :return: Backing store, might be None
+               """
+               return self.__data.backingStore
+       
+    1:     def invalidateBackingStore(self):
+               """Invalidate the internal backing store"""
+  133:         if self.__data.backingStore:
+                   self.__data.backingStore = QPixmap()
+       
+    1:     def setFocusIndicator(self, focusIndicator):
+               """
+               Set the focus indicator
+       
+               Focus indicators:
+       
+                   * `QwtPlotCanvas.NoFocusIndicator`
+                   * `QwtPlotCanvas.CanvasFocusIndicator`
+                   * `QwtPlotCanvas.ItemFocusIndicator`
+       
+               :param int focusIndicator: Focus indicator
+       
+               .. seealso::
+       
+                   :py:meth:`focusIndicator()`
+               """
+               self.__data.focusIndicator = focusIndicator
+       
+    1:     def focusIndicator(self):
+               """
+               :return: Focus indicator
+       
+               .. seealso::
+       
+                   :py:meth:`setFocusIndicator()`
+               """
+               return self.__data.focusIndicator
+       
+    1:     def setBorderRadius(self, radius):
+               """
+               Set the radius for the corners of the border frame
+       
+               :param float radius: Radius of a rounded corner
+       
+               .. seealso::
+       
+                   :py:meth:`borderRadius()`
+               """
+               self.__data.borderRadius = max([0.0, radius])
+       
+    1:     def borderRadius(self):
+               """
+               :return: Radius for the corners of the border frame
+       
+               .. seealso::
+       
+                   :py:meth:`setBorderRadius()`
+               """
+   80:         return self.__data.borderRadius
+       
+    1:     def event(self, event):
+  403:         if event.type() == QEvent.PolishRequest:
+   11:             if self.testPaintAttribute(self.Opaque):
+   11:                 self.setAttribute(Qt.WA_OpaquePaintEvent, True)
+  403:         if event.type() in (QEvent.PolishRequest, QEvent.StyleChange):
+   11:             self.updateStyleSheetInfo()
+  403:         return QFrame.event(self, event)
+       
+    1:     def paintEvent(self, event):
+   80:         painter = QPainter(self)
+   80:         painter.setClipRegion(event.region())
+   80:         if (
+   80:             self.testPaintAttribute(self.BackingStore)
+                   and self.__data.backingStore is not None
+                   and not self.__data.backingStore.isNull()
+               ):
+                   bs = self.__data.backingStore
+                   pixelRatio = bs.devicePixelRatio()
+                   if bs.size() != self.size() * pixelRatio:
+                       bs = QwtPainter.backingStore(self, self.size())
+                       if self.testAttribute(Qt.WA_StyledBackground):
+                           p = QPainter(bs)
+                           qwtFillBackground(p, self)
+                           self.drawCanvas(p, True)
+                       else:
+                           p = QPainter()
+                           if self.__data.borderRadius <= 0.0:
+                               #                        print('**DEBUG: QwtPlotCanvas.paintEvent')
+                               QwtPainter.fillPixmap(self, bs)
+                               p.begin(bs)
+                               self.drawCanvas(p, False)
+                           else:
+                               p.begin(bs)
+                               qwtFillBackground(p, self)
+                               self.drawCanvas(p, True)
+                           if self.frameWidth() > 0:
+                               self.drawBorder(p)
+                           p.end()
+                   painter.drawPixmap(0, 0, self.__data.backingStore)
+               else:
+   80:             if self.testAttribute(Qt.WA_StyledBackground):
+                       if self.testAttribute(Qt.WA_OpaquePaintEvent):
+                           qwtFillBackground(painter, self)
+                           self.drawCanvas(painter, True)
+                       else:
+                           self.drawCanvas(painter, False)
+                   else:
+   80:                 if self.testAttribute(Qt.WA_OpaquePaintEvent):
+   80:                     if self.autoFillBackground():
+   80:                         qwtFillBackground(painter, self)
+   80:                         qwtDrawBackground(painter, self)
+                       else:
+                           if self.borderRadius() > 0.0:
+                               clipPath = QPainterPath()
+                               clipPath.addRect(self.rect())
+                               clipPath = clipPath.subtracted(self.borderPath(self.rect()))
+                               painter.save()
+                               painter.setClipPath(clipPath, Qt.IntersectClip)
+                               qwtFillBackground(painter, self)
+                               qwtDrawBackground(painter, self)
+                               painter.restore()
+   80:                 self.drawCanvas(painter, False)
+   80:                 if self.frameWidth() > 0:
+                           self.drawBorder(painter)
+   80:         if self.hasFocus() and self.focusIndicator() == self.CanvasFocusIndicator:
+                   self.drawFocusIndicator(painter)
+       
+    1:     def drawCanvas(self, painter, withBackground):
+   80:         hackStyledBackground = False
+   80:         if (
+   80:             withBackground
+                   and self.testAttribute(Qt.WA_StyledBackground)
+                   and self.testPaintAttribute(self.HackStyledBackground)
+               ):
+                   #  Antialiasing rounded borders is done by
+                   #  inserting pixels with colors between the
+                   #  border color and the color on the canvas,
+                   #  When the border is painted before the plot items
+                   #  these colors are interpolated for the canvas
+                   #  and the plot items need to be clipped excluding
+                   #  the anialiased pixels. In situations, where
+                   #  the plot items fill the area at the rounded
+                   #  borders this is noticeable.
+                   #  The only way to avoid these annoying "artefacts"
+                   #  is to paint the border on top of the plot items.
+                   if (
+                       self.__data.styleSheet.hasBorder
+                       and not self.__data.styleSheet.borderPath.isEmpty()
+                   ):
+                       #  We have a border with at least one rounded corner
+                       hackStyledBackground = True
+   80:         if withBackground:
+                   painter.save()
+                   if self.testAttribute(Qt.WA_StyledBackground):
+                       if hackStyledBackground:
+                           #  paint background without border
+                           painter.setPen(Qt.NoPen)
+                           painter.setBrush(self.__data.styleSheet.background.brush)
+                           painter.setBrushOrigin(self.__data.styleSheet.background.origin)
+                           painter.setClipPath(self.__data.styleSheet.borderPath)
+                           painter.drawRect(self.contentsRect())
+                       else:
+                           qwtDrawStyledBackground(self, painter)
+                   elif self.autoFillBackground():
+                       painter.setPen(Qt.NoPen)
+                       painter.setBrush(self.palette().brush(self.backgroundRole()))
+                       if self.__data.borderRadius > 0.0 and self.rect() == self.frameRect():
+                           if self.frameWidth() > 0:
+                               painter.setClipPath(self.borderPath(self.rect()))
+                               painter.drawRect(self.rect())
+                           else:
+                               painter.setRenderHint(QPainter.Antialiasing, True)
+                               painter.drawPath(self.borderPath(self.rect()))
+                       else:
+                           painter.drawRect(self.rect())
+                   painter.restore()
+   80:         painter.save()
+   80:         if not self.__data.styleSheet.borderPath.isEmpty():
+                   painter.setClipPath(self.__data.styleSheet.borderPath, Qt.IntersectClip)
+               else:
+   80:             if self.__data.borderRadius > 0.0:
+                       painter.setClipPath(self.borderPath(self.frameRect()), Qt.IntersectClip)
+                   else:
+                       #                print('**DEBUG: QwtPlotCanvas.drawCanvas')
+   80:                 painter.setClipRect(self.contentsRect(), Qt.IntersectClip)
+   80:         self.plot().drawCanvas(painter)
+   80:         painter.restore()
+   80:         if withBackground and hackStyledBackground:
+                   #  Now paint the border on top
+                   opt = QStyleOptionFrame()
+                   opt.initFrom(self)
+                   self.style().drawPrimitive(QStyle.PE_Frame, opt, painter, self)
+       
+    1:     def drawBorder(self, painter):
+               """
+               Draw the border of the plot canvas
+       
+               :param QPainter painter: Painter
+       
+               .. seealso::
+       
+                   :py:meth:`setBorderRadius()`
+               """
+               if self.__data.borderRadius > 0:
+                   if self.frameWidth() > 0:
+                       QwtPainter.drawRoundedFrame(
+                           painter,
+                           QRectF(self.frameRect()),
+                           self.__data.borderRadius,
+                           self.__data.borderRadius,
+                           self.palette(),
+                           self.frameWidth(),
+                           self.frameStyle(),
+                       )
+               else:
+                   opt = QStyleOptionFrame()
+                   opt.initFrom(self)
+                   try:
+                       shape_mask = QFrame.Shape_Mask.value
+                       shadow_mask = QFrame.Shadow_Mask.value
+                   except AttributeError:
+                       shape_mask = QFrame.Shape_Mask
+                       shadow_mask = QFrame.Shadow_Mask
+                   frameShape = self.frameStyle() & shape_mask
+                   frameShadow = self.frameStyle() & shadow_mask
+                   opt.frameShape = QFrame.Shape(int(opt.frameShape) | frameShape)
+                   if frameShape in (
+                       QFrame.Box,
+                       QFrame.HLine,
+                       QFrame.VLine,
+                       QFrame.StyledPanel,
+                       QFrame.Panel,
+                   ):
+                       opt.lineWidth = self.lineWidth()
+                       opt.midLineWidth = self.midLineWidth()
+                   else:
+                       opt.lineWidth = self.frameWidth()
+                   if frameShadow == QFrame.Sunken:
+                       opt.state |= QStyle.State_Sunken
+                   elif frameShadow == QFrame.Raised:
+                       opt.state |= QStyle.State_Raised
+                   self.style().drawControl(QStyle.CE_ShapedFrame, opt, painter, self)
+       
+    1:     def resizeEvent(self, event):
+   36:         QFrame.resizeEvent(self, event)
+   36:         self.updateStyleSheetInfo()
+       
+    1:     def drawFocusIndicator(self, painter):
+               """
+               Draw the focus indication
+       
+               :param QPainter painter: Painter
+               """
+               margin = 1
+               focusRect = self.contentsRect()
+               focusRect.setRect(
+                   focusRect.x() + margin,
+                   focusRect.y() + margin,
+                   focusRect.width() - 2 * margin,
+                   focusRect.height() - 2 * margin,
+               )
+               QwtPainter.drawFocusRect(painter, self, focusRect)
+       
+    1:     def replot(self):
+               """
+               Invalidate the paint cache and repaint the canvas
+               """
+  133:         self.invalidateBackingStore()
+  133:         if self.testPaintAttribute(self.ImmediatePaint):
+                   self.repaint(self.contentsRect())
+               else:
+  133:             self.update(self.contentsRect())
+       
+    1:     def invalidatePaintCache(self):
+               import warnings
+       
+               warnings.warn(
+                   "`invalidatePaintCache` has been removed: " "please use `replot` instead",
+                   RuntimeWarning,
+               )
+               self.replot()
+       
+    1:     def updateStyleSheetInfo(self):
+               """
+               Update the cached information about the current style sheet
+               """
+   47:         if not self.testAttribute(Qt.WA_StyledBackground):
+   47:             return
+               recorder = QwtStyleSheetRecorder(self.size())
+               painter = QPainter(recorder)
+               opt = QStyleOption()
+               opt.initFrom(self)
+               self.style().drawPrimitive(QStyle.PE_Widget, opt, painter, self)
+               painter.end()
+               self.__data.styleSheet.hasBorder = len(recorder.border.rectList) > 0
+               self.__data.styleSheet.cornerRects = recorder.clipRects
+               if recorder.background.path.isEmpty():
+                   if self.__data.styleSheet.hasBorder:
+                       self.__data.styleSheet.borderPath = qwtCombinePathList(
+                           self.rect(), recorder.border.pathlist
+                       )
+               else:
+                   self.__data.styleSheet.borderPath = recorder.background.path
+                   self.__data.styleSheet.background.brush = recorder.background.brush
+                   self.__data.styleSheet.background.origin = recorder.background.origin
+       
+    1:     def borderPath(self, rect):
+               """
+               Calculate the painter path for a styled or rounded border
+       
+               When the canvas has no styled background or rounded borders
+               the painter path is empty.
+       
+               :param QRect rect: Bounding rectangle of the canvas
+               :return: Painter path, that can be used for clipping
+               """
+   80:         if self.testAttribute(Qt.WA_StyledBackground):
+                   recorder = QwtStyleSheetRecorder(rect.size())
+                   painter = QPainter(recorder)
+                   opt = QStyleOption()
+                   opt.initFrom(self)
+                   opt.rect = rect
+                   self.style().drawPrimitive(QStyle.PE_Widget, opt, painter, self)
+                   painter.end()
+                   if not recorder.background.path.isEmpty():
+                       return recorder.background.path
+                   if len(recorder.border.rectList) > 0:
+                       return qwtCombinePathList(rect, recorder.border.pathlist)
+   80:         elif self.__data.borderRadius > 0.0:
+                   fw2 = self.frameWidth() * 0.5
+                   r = QRectF(rect).adjusted(fw2, fw2, -fw2, -fw2)
+                   path = QPainterPath()
+                   path.addRoundedRect(r, self.__data.borderRadius, self.__data.borderRadius)
+                   return path
+   80:         return QPainterPath()

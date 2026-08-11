@@ -1,0 +1,104 @@
+    1: '''
+       This software is made available for use under the GNU General Public License (GPL).
+       A copy of this license is available within the repository for this software and is
+       included herein by reference.
+       '''
+       
+    1: import select
+    1: import sys
+       
+    1: inpoll = select.poll()
+    1: inpoll.register(sys.stdin.buffer, select.POLLIN)
+       
+       # This is a stub version of the Pico machine library
+    2: class Pin:
+    1:     IN = 1
+    1:     OUT = 2
+    1:     PULL_DOWN = 21
+    1:     PULL_UP = 22
+       
+    1:     pinID = -1  # ID of last pin to be set
+       
+    1:     def __init__(self, pinNum, inorout, pull=None):
+           
+    2:         self.pinNumber = int(pinNum)
+    2:         self.inorout = inorout
+    2:         self.pull = pull
+    2:         self.state = False
+       
+    1:     def toggle(self):
+               self.state = not self.state
+               print('Pin', self.pinNumber, 'State is now:', self.state)
+       
+    1:     def off(self):
+               self.state = False
+               print('Pin', self.pinNumber, 'State is now:', self.state)
+       
+    1:     def on(self):
+               self.state = True
+               print('Pin', self.pinNumber, 'State is now:', self.state)
+       
+    1:     def value(self, value=None):
+               if value is not None:
+                   print('Setting Pin ', self.pinNumber, 'to state of:', value)
+                   self.state = value
+                   return(self.state)
+               else:
+                   # Check for keyboard input as to which pin is activated
+                   result = inpoll.poll(0)
+                   if len(result) > 0:
+                       line = input()
+                       if len(line) > 1:
+                           Pin.pinID = int(line)
+                       else:
+                           Pin.pinID = 0
+                   if self.pinNumber == Pin.pinID:
+                       print('Matches pinNumber:', self.pinNumber)
+                       return False
+                   else:
+                       return True
+       
+    2: class PWM:
+    1:     def __init__(self, inPin):
+               self._pin = inPin
+               self._hz = 0
+               self._duty = 0
+       
+    1:     def freq(self, hz):
+               if hz is not None:
+                   self._hz = hz
+               return self._hz
+       
+    1:     def duty_u16(self, duty):
+               if duty is not None:
+                   self._duty = duty
+               return self._duty
+       
+    1:     def deinit(self):
+               pass
+       
+    2: class I2S:
+    1:     TX = 1
+    1:     MONO = 1
+    1:     STEREO = 2
+       
+    2:     def __init__(self, in1, sck=1, sd=1, ws=1, mode=TX, bits=16,
+    1:         format=MONO, rate=44100, ibuf=512):
+               pass
+       
+    1:     def write(buffer):
+               pass
+       
+    2: class I2C:
+    1:     def __init__(self, id, *, scl, sda, freq=400000, timeout=50000):
+    1:         pass
+       
+    1:     def writeto_mem(self, address, add2, data):
+    5:         pass
+       
+    1:     def readfrom_mem(self, address, add2, count):
+    1:         return [0]*count
+       
+    2: class UART:
+    1:     def __init__(self, id, baudrate=115200, tx=None, rx=None):
+               pass

@@ -1,0 +1,203 @@
+       # -*- coding: utf-8 -*-
+       #
+       # Licensed under the terms of the Qwt License
+       # Copyright (c) 2002 Uwe Rathmann, for the original C++ code
+       # Copyright (c) 2015 Pierre Raybaut, for the Python translation/optimization
+       # (see LICENSE file for more details)
+       
+    1: """
+       QwtPainterCommand
+       -----------------
+       
+       .. autoclass:: QwtPainterCommand
+          :members:
+       """
+       
+    1: import copy
+       
+    1: from qtpy.QtGui import QPaintEngine, QPainterPath
+       
+       
+    2: class PixmapData(object):
+    1:     def __init__(self):
+               self.rect = None
+               self.pixmap = None
+               self.subRect = None
+       
+       
+    2: class ImageData(object):
+    1:     def __init__(self):
+               self.rect = None
+               self.image = None
+               self.subRect = None
+               self.flags = None
+       
+       
+    2: class StateData(object):
+    1:     def __init__(self):
+   53:         self.flags = None
+   53:         self.pen = None
+   53:         self.brush = None
+   53:         self.brushOrigin = None
+   53:         self.backgroundBrush = None
+   53:         self.backgroundMode = None
+   53:         self.font = None
+   53:         self.matrix = None
+   53:         self.transform = None
+   53:         self.clipOperation = None
+   53:         self.clipRegion = None
+   53:         self.clipPath = None
+   53:         self.isClipEnabled = None
+   53:         self.renderHints = None
+   53:         self.compositionMode = None
+   53:         self.opacity = None
+       
+       
+    2: class QwtPainterCommand(object):
+    1:     """
+           `QwtPainterCommand` represents the attributes of a paint operation
+           how it is used between `QPainter` and `QPaintDevice`
+       
+           It is used by :py:class:`qwt.graphic.QwtGraphic` to record and replay
+           paint operations
+       
+           .. seealso::
+       
+               :py:meth:`qwt.graphic.QwtGraphic.commands()`
+       
+       
+           .. py:class:: QwtPainterCommand()
+       
+               Construct an invalid command
+       
+           .. py:class:: QwtPainterCommand(path)
+               :noindex:
+       
+               Copy constructor
+       
+               :param QPainterPath path: Source
+       
+           .. py:class:: QwtPainterCommand(rect, pixmap, subRect)
+               :noindex:
+       
+               Constructor for Pixmap paint operation
+       
+               :param QRectF rect: Target rectangle
+               :param QPixmap pixmap: Pixmap
+               :param QRectF subRect: Rectangle inside the pixmap
+       
+           .. py:class:: QwtPainterCommand(rect, image, subRect, flags)
+               :noindex:
+       
+               Constructor for Image paint operation
+       
+               :param QRectF rect: Target rectangle
+               :param QImage image: Image
+               :param QRectF subRect: Rectangle inside the image
+               :param Qt.ImageConversionFlags flags: Conversion flags
+       
+           .. py:class:: QwtPainterCommand(state)
+               :noindex:
+       
+               Constructor for State paint operation
+       
+               :param QPaintEngineState state: Paint engine state
+           """
+       
+           # enum Type
+    1:     Invalid = -1
+    1:     Path, Pixmap, Image, State = list(range(4))
+       
+    1:     def __init__(self, *args):
+  106:         if len(args) == 0:
+                   self.__type = self.Invalid
+  106:         elif len(args) == 1:
+  106:             (arg,) = args
+  106:             if isinstance(arg, QPainterPath):
+   53:                 path = arg
+   53:                 self.__type = self.Path
+   53:                 self.__path = QPainterPath(path)
+   53:             elif isinstance(arg, QwtPainterCommand):
+                       other = arg
+                       self.copy(other)
+                   else:
+   53:                 state = arg
+   53:                 self.__type = self.State
+   53:                 self.__stateData = StateData()
+   53:                 self.__stateData.flags = state.state()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyPen:
+   53:                     self.__stateData.pen = state.pen()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyBrush:
+                           self.__stateData.brush = state.brush()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyBrushOrigin:
+                           self.__stateData.brushOrigin = state.brushOrigin()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyFont:
+                           self.__stateData.font = state.font()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyBackground:
+                           self.__stateData.backgroundMode = state.backgroundMode()
+                           self.__stateData.backgroundBrush = state.backgroundBrush()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyTransform:
+                           self.__stateData.transform = state.transform()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyClipEnabled:
+                           self.__stateData.isClipEnabled = state.isClipEnabled()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyClipRegion:
+                           self.__stateData.clipRegion = state.clipRegion()
+                           self.__stateData.clipOperation = state.clipOperation()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyClipPath:
+                           self.__stateData.clipPath = state.clipPath()
+                           self.__stateData.clipOperation = state.clipOperation()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyHints:
+   53:                     self.__stateData.renderHints = state.renderHints()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyCompositionMode:
+                           self.__stateData.compositionMode = state.compositionMode()
+   53:                 if self.__stateData.flags & QPaintEngine.DirtyOpacity:
+                           self.__stateData.opacity = state.opacity()
+               elif len(args) == 3:
+                   rect, pixmap, subRect = args
+                   self.__type = self.Pixmap
+                   self.__pixmapData = PixmapData()
+                   self.__pixmapData.rect = rect
+                   self.__pixmapData.pixmap = pixmap
+                   self.__pixmapData.subRect = subRect
+               elif len(args) == 4:
+                   rect, image, subRect, flags = args
+                   self.__type = self.Image
+                   self.__imageData = ImageData()
+                   self.__imageData.rect = rect
+                   self.__imageData.image = image
+                   self.__imageData.subRect = subRect
+                   self.__imageData.flags = flags
+               else:
+                   raise TypeError(
+                       "%s() takes 0, 1, 3 or 4 argument(s) (%s given)"
+                       % (self.__class__.__name__, len(args))
+                   )
+       
+    1:     def copy(self, other):
+               self.__type = other.__type
+               if other.__type == self.Path:
+                   self.__path = QPainterPath(other.__path)
+               elif other.__type == self.Pixmap:
+                   self.__pixmapData = copy.deepcopy(other.__pixmapData)
+               elif other.__type == self.Image:
+                   self.__imageData = copy.deepcopy(other.__imageData)
+               elif other.__type == self.State:
+                   self.__stateData == copy.deepcopy(other.__stateData)
+       
+    1:     def reset(self):
+               self.__type = self.Invalid
+       
+    1:     def type(self):
+               return self.__type
+       
+    1:     def path(self):
+               return self.__path
+       
+    1:     def pixmapData(self):
+               return self.__pixmapData
+       
+    1:     def imageData(self):
+               return self.__imageData
+       
+    1:     def stateData(self):
+               return self.__stateData

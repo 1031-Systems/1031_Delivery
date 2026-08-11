@@ -1,0 +1,49 @@
+# This software is made available for use under the GNU General Public License (GPL).
+# A copy of this license is available within the repository for this software and is
+# included herein by reference.
+
+############## tabledefs ###############################################################
+#   This tabledefs file is for defining the available sets of Digital and PWM ports
+# that may be used in your system.  In general, ports should be defined in blocks
+# via convenience functions.
+#
+#
+#   Since it is quite possible to make mistakes here, there is a test function available
+# in main in tables.py.  Simply running "python tables.py -r" will run all the checks to
+# validate the configuration herein.  Adding the "-v" option will output all the port
+# assignments for additional verification.
+############## Define your configuration here ##########################################
+#
+# These examples show how to specify six PWM ports, six digital ports, and the three
+# primary inputs.
+
+# PWM Port Definitions
+# Configure Maestro Pins 6-11 as servo ports 0-5
+configureMaestroPWM(boardid=12, firstport=0, count=6, firstchannel=6)
+
+# Digital Port Definitions
+# Configure Maestro Pins 12-17 as digital ports 0-5
+configureMaestroDigital(boardid=12, firstport=0, firstchannel=12, count=6)
+
+# Digital Input Definitions
+######## NOTE - Only uncomment these if these pins are connected.  If floating,
+######## then they may be interpreted as pressed at all times.
+# Example - Reset Input on Maestro channel 0 of board 12 activated with Low input
+# configureMaestroRunInput(boardid=12, firstchannel=0)
+
+# Example - Main Input on Maestro channel 1 of board 12 activated with Low input
+# configureMaestroMainInput(boardid=12, firstchannel=1)
+
+# Example - Trigger Input on Maestro channel 2 of board 12 activated with High input
+# configureMaestroTriggerInput(boardid=12, firstchannel=2, level=True)
+
+
+setPreferBinary(False)      # Leave False for standalone Maestro applications
+
+
+
+
+
+
+
+
