@@ -1,9 +1,10 @@
 <!-- john Fri Dec 17 17:35:16 PDT 2023 -->
 # 1031_Delivery
 
-This repo contains code and scripts for working with robotic
+This repo contains code and scripts for working with servo and digital
 control data for animatronics.  It is designed to work with
-board designs created by Bill Douglas and available for
+board designs created by Bill Douglas and installed software/firmware
+created by John Wright, both available for
 download with this repo at [Pico/Hardware](Pico/Hardware/).
 As an alternative to hardware fabrication, Maestro animation
 controllers from Pololu are also supported.
@@ -28,7 +29,7 @@ The general procedure for working with animatronics is to
 create control channels that may be synced to an audio stream.
 The channels may act as step functions, linear paths, and
 smoothed or spline paths.  Each channel is linked to a single
-control on a controller.
+control channel on a controller.
 
 ![Hauntimator Main Window](docs/images/allpanes.png)
 
@@ -47,7 +48,7 @@ we have tried to use AV-friendly methods.  If you have problems you may either
 disable your AV software or run the steps below manually.  bitdefender, at least,
 seems to have no problems when everything is run manually but sometimes complains
 on the quick install methods.  Or you can disable first and then install.  Your
-choice.
+choice.  We recommend disabling your AV software during the install.
 
 These tools require python3 and the python venv module for setting up and using
 virtual environments.  Generally, venv comes with python but on some systems
@@ -90,6 +91,10 @@ install script is the easiest way to get going:
 | Windows 11 | Pico | 1031_Hauntimator\\winquickinstall_Pico.bat |
 | Windows 11 | Pololu | 1031_Hauntimator\\winquickinstall_Pololu.bat |
 
+In general, all the above quick install scripts may be run from the command line
+or by double-clicking from a file browser such as File Explorer on Windows.  Just
+remember that where the unzipped directory is located is the install location.
+It cannot be moved later and still have the desktop icons work.
 
 To support multiple hardware types from
 the same system, simply unzip the zip file again and run another quickinstall
