@@ -3790,6 +3790,10 @@ class MainWindow(QMainWindow):
         shortcut = QShortcut(QKeySequence("Ctrl+Shift+P"), self._mainarea)
         shortcut.activated.connect(self._hardwareplay)
 
+        # Create shortcut for testing failures
+        shortcut = QShortcut(QKeySequence("Ctrl+Shift+B"), self._mainarea)
+        shortcut.activated.connect(self._abort)
+
         self._plotarea = QWidget()
         tlayout.addWidget(self._plotarea)
 
@@ -4103,6 +4107,16 @@ class MainWindow(QMainWindow):
                     self.plots[name].deselect()
                     self.plots[name].redrawme()
             pass
+
+    def _abort(zelf):
+        """
+        The method _abort simply exits with a nonzero exit status.
+        Its purpose is to test external recovery and reporting.
+        """
+        sys.stderr.write("\nCongratulations\n")
+        sys.stderr.write("\nYou have found the magic abort key sequence Ctrl-Shift-B\n")
+        sys.stderr.write("Do not use it if you want to exit cleanly!!\n\n")
+        sys.exit(10)
 
     def _hardwareplay(self):
         """

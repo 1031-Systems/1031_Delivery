@@ -73,8 +73,11 @@ cat << EOF > ${SCRIPTPATH}/Hauntimator
 cd ~
 
 ${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/Hauntimator.py "\$@"
-if [ $? - ne 0 ]; then
+if [ \$? -ne 0 ]; then
     echo Whoops - Hauntimator pulled an error
+    echo Since this should NEVER happen, you might want to take a screenshot
+    echo or copy the output, if any, and submit it with a bug report.
+    echo
     read -n 1 -s -r -p "Press any key to continue..."
 fi
 EOF
