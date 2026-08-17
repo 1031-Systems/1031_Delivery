@@ -4630,7 +4630,7 @@ class MainWindow(QMainWindow):
             self.writeCSVFile(fileName)
 
             # Always see if commlib will write any binary files as well
-            if COMMLIB_ENABLED:
+            if COMMLIB_AVAILABLE:
                 commlib.csvToBin(fileName)
 
     def writeCSVFile(self, fileName, integers=True):
@@ -5750,7 +5750,7 @@ class MainWindow(QMainWindow):
         text = '~~~\nDigital Ports                         Numeric Ports\n'
         DigitalPorts = None
         PWMPorts = None
-        if COMMLIB_ENABLED:
+        if COMMLIB_AVAILABLE:
             DigitalPorts = commlib.getConfiguredDigitalPorts()
             PWMPorts = commlib.getConfiguredPWMPorts()
         if DigitalPorts is None:
