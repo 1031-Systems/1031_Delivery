@@ -65,8 +65,6 @@ sys.path.append(_Path)
 # Now import tables from our extended path
 import tables
 
-import transcomm
-
 # Read port id from local cache file
 portRoot = '/dev/ttyACM'    # May be set by Hauntimator prior to comms
 cachefile = os.path.join(_Dir, '.portid')
@@ -79,11 +77,6 @@ sys.path.remove(_Path)
 
 # Name the Pololu controller to be used
 controller = None
-
-commdev = transcomm.FIFOComm(
-    outputFIFOName = '/tmp/fifo.commtocontrol',
-    inputFIFOName = '/tmp/fifo.controltocomm'
-)
 
 ################# Serial Comm Code #########################
 
@@ -115,8 +108,6 @@ def toPico(ser, instring):
 
 def stringToPico(instring):
     if verbosity: print('Sending instring:', instring)
-    if commdev.isReady():
-        commdev.writeline(instring)
     return
 
 def lineFromPico():
@@ -129,16 +120,13 @@ def lineFromPico():
 
 #################### Status Request Functions #################
 def isReady():
-    if commdev.isReady():
-        return True
-    else:
-        # Should probably check something here but for now we are assuming
-        # that we can always talk via the tables directly.  May not be true.
-        return True
+    # Should probably check something here but for now we are assuming
+    # that we can always talk via the tables directly.  May not be true.
+    return True
 
 def cleanup():
-    # Pololu uses FIFOs to communicate with Hauntimator so careful cleanup is needed
-    commdev.cleanup()
+    # Should probably do something here but nothing comes to mind yet
+    pass
 
 def getBinarySizes():
     line = ''
@@ -215,9 +203,6 @@ def getConfiguredDigitalPorts():
 ##### File Transfers
 def xferFileToController(filename, dest='', progressbar=None):
     # Transfer any type of file to the Pico
-    ser = commdev
-    if ser is None:
-        return True # It is True that an error has occurred
 
     if os.path.isfile(filename):
         tf = open(filename, 'rb')
@@ -310,21 +295,13 @@ def playOnce():
     stringToPico('a\n')
 
 def setServo(channel, cyclefrac):
-    if commdev.isReady():
-        outstring = 's %d %d\n' % (channel, cyclefrac)
-        stringToPico(outstring)
-    else:
-        setServoValue(channel, cyclefrac, True)
+    setServoValue(channel, cyclefrac, True)
 
 def releaseServo(channel):
     setServo(channel, 0)
 
 def setDigitalChannel(channel, value):
-    if commdev.isReady():
-        outstring = 'd %d %d\n' % (channel, value)
-        stringToPico(outstring)
-    else:
-        setDigitalValue(channel, value, True)
+    setDigitalValue(channel, value, True)
 
 ##### Methods to bypass FIFOs as needed for Windows
 def setServoValue(channel, value, push=False):

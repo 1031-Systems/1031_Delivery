@@ -33,7 +33,6 @@ sys.path.append(_Path)
 
 # Now import stuff from our extended path
 import tables
-import transcomm
 
 # Remove path so other code can't accidentally get to it
 sys.path.remove(_Path)
@@ -46,7 +45,6 @@ verbosity = False
 
 animPlayer = None
 animList = None
-commdev = None
 printer = None
 
 # This is a simple class that will help us print to the screen.
@@ -230,8 +228,6 @@ def mainEventLoop():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYUP and event.key == pygame.K_q):
                     pygame.quit()
-                    if commdev is not None and commdev.isReady():
-                        commdev.cleanup()
                     sys.exit(0)
                 elif (event.type == pygame.KEYDOWN and event.key == pygame.K_m):
                     # Note press of trigger to see if held down for 5 seconds
@@ -315,41 +311,6 @@ def mainEventLoop():
                 trigger = pygame.event.Event(pygame.KEYUP, {'key':pygame.K_r})
                 pygame.event.post(trigger)
 
-            # Now deal with fifo input
-            if commdev and commdev.isReady():
-                while commdev.isThereInput():
-                    inline = commdev.readline()
-                    if len(inline) < 2: continue
-                    #print('Got line:', inline)
-                    if inline[0] == 'a':
-                        # Trigger one playback
-                        trigger = pygame.event.Event(pygame.KEYDOWN, {'key':pygame.K_m})
-                        pygame.event.post(trigger)
-                        trigger = pygame.event.Event(pygame.KEYUP, {'key':pygame.K_m})
-                        pygame.event.post(trigger)
-                    elif inline[0] == 'x':
-                        # Reset everything
-                        trigger = pygame.event.Event(pygame.KEYUP, {'key':pygame.K_r})
-                        pygame.event.post(trigger)
-                    elif inline[0] == 'd':
-                        # Set an individual digital port
-                        try:
-                            vals = inline.split()
-                            channel = int(vals[1]) # - MaxTotalServos # Move down
-                            value = int(vals[2])
-                            setDigital(channel, value, push=True)
-                        except:
-                            pass
-                    elif inline[0] == 's':
-                        # Set an individual servo
-                        try:
-                            vals = inline.split()
-                            channel = int(vals[1])
-                            value = int(vals[2])
-                            setServo(channel, value, push=True)
-                        except:
-                            pass
-
             time.sleep(0.001)
             currTime = time.monotonic() - startTime
 
@@ -410,7 +371,6 @@ def mainEventLoop():
 def signal_handler(signum, frame):
     signal.signal(signum, signal.SIG_IGN) # ignore additional signals
     pygame.quit()
-    if commdev is not None: commdev.cleanup()
     sys.stdout.write('\n')
     sys.stdout.flush()
     sys.exit(0)
@@ -499,20 +459,6 @@ if __name__ == "__main__":
     display = None
     if head: display = pygame.display.set_mode((maxWidth, 100))
     printer = TextPrint(display)
-
-    # FIFOs
-    try:
-        # FIFOs are optional connection to Hauntimator
-        # Windows Python does not support them
-        commdev = transcomm.FIFOComm(
-            inputFIFOName = '/tmp/fifo.commtocontrol',
-            outputFIFOName = '/tmp/fifo.controltocomm'
-        )
-    except:
-        # Can still play without FIFOs
-        pass
-
-    # Maestro
 
     # Start the main loop
     mainEventLoop()

@@ -24,7 +24,7 @@
 - Ctrl-N - New animation
 - Ctrl-O - Open animation file
 - Ctrl-P - Insert a New PWM channel
-- Ctrl-Shift-P - Send Play command to Hardware
+- Ctrl-Shift-P - Send Play command to Hardware (Pico only)
 - Ctrl-Q - Quit
 - Ctrl-R - Restore channel under cursor display range to default
 - Ctrl-S - Save animation file
