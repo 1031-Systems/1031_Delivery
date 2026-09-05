@@ -699,10 +699,10 @@ class Channel:
         nextkeyindex = 1
         values = []
         while currTime <= endTime:
-            if currTime < keys[0]:
+            if currTime <= keys[0]:
                 if self.type == self.LINEAR or self.type == self.STEP or self.type == self.DIGITAL:
                     values.append(self.knots[keys[0]])
-            elif currTime > keys[-1]:
+            elif currTime >= keys[-1]:
                 if self.type == self.LINEAR or self.type == self.STEP or self.type == self.DIGITAL:
                     values.append(self.knots[keys[-1]])
             else:
