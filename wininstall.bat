@@ -50,34 +50,10 @@ pip uninstall -y pyreadline
 pip install pyreadline3
 
 echo.
-set /p "CREATE_SHORTCUT=Do you want to install phoneme-based speech recognition tools? (y/N): "
-if /i "%CREATE_SHORTCUT%"=="y" (
-    echo Installing vosk python module
-    pip install vosk
-
-    REM Go to the directory where data files live
-    pushd src\plugins\Phoneme_data
-
-    echo.
-    echo Installing vosk American English language model
-    curl https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o "%USERPROFILE%/Downloads/vosk-model-small-en-us-0.15.zip"
-    tar -xvf "%USERPROFILE%/Downloads/vosk-model-small-en-us-0.15.zip"
-    rd vosk-model 2>null
-    mklink /J "vosk-model" "vosk-model-small-en-us-0.15"
-
-    echo.
-    echo Installing CMU Phoneme dictionary
-    curl https://svn.code.sf.net/p/cmusphinx/code/trunk/cmudict/sphinxdict/cmudict_SPHINX_40 -O
-    del dictionary 2>null
-    mklink /H "dictionary" "cmudict_SPHINX_40"
-
-    popd
-) else (
-    pushd src\plugins
-    rmdir /s /q "Phoneme_data"
-    del /F "Phonemes*"
-)
-
+pushd src\plugins
+rmdir /s /q "Phoneme_data"
+del /F "Phonemes*"
+popd
 
 REM Set VIRTUAL_ENV path for use in wrapper scripts below
 set VIRTUAL_ENV=%SCRIPTPATH%\.venv
