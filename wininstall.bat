@@ -40,7 +40,6 @@ if errorlevel 1 (
 pip install -U PythonQwt
 pip install -U pygame-ce
 pip install -U rshell
-REM pip install -U pocketsphinx
 
 REM Installing rshell seems to install pyreadline2 as a dependency.
 REM That messes up python which gives a bunch of errors and causes
@@ -49,6 +48,36 @@ REM rshell to not even run.  Needs pyreadline3.
 REM Clean up pyreadline from rshell
 pip uninstall -y pyreadline
 pip install pyreadline3
+
+echo.
+set /p "CREATE_SHORTCUT=Do you want to install phoneme-based speech recognition tools? (y/N): "
+if /i "%CREATE_SHORTCUT%"=="y" (
+    echo Installing vosk python module
+    pip install vosk
+
+    REM Go to the directory where data files live
+    pushd src\plugins\Phoneme_data
+
+    echo.
+    echo Installing vosk American English language model
+    curl https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o "%USERPROFILE%/Downloads/vosk-model-small-en-us-0.15.zip"
+    tar -xvf "%USERPROFILE%/Downloads/vosk-model-small-en-us-0.15.zip"
+    rd vosk-model 2>null
+    mklink /J "vosk-model" "vosk-model-small-en-us-0.15"
+
+    echo.
+    echo Installing CMU Phoneme dictionary
+    curl https://svn.code.sf.net/p/cmusphinx/code/trunk/cmudict/sphinxdict/cmudict_SPHINX_40 -O
+    del dictionary 2>null
+    mklink /H "dictionary" "cmudict_SPHINX_40"
+
+    popd
+) else (
+    pushd src\plugins
+    rmdir /s /q "Phoneme_data"
+    del /F "Phonemes*"
+)
+
 
 REM Set VIRTUAL_ENV path for use in wrapper scripts below
 set VIRTUAL_ENV=%SCRIPTPATH%\.venv
@@ -59,6 +88,12 @@ REM --- Hauntimator ---
 (
     echo @echo off
     echo "%VIRTUAL_ENV%\Scripts\python.exe" "%SCRIPTPATH%\src\Hauntimator.py" %%*
+    echo if errorlevel 1 ^(
+    echo     echo Whoops - Hauntimator terminated unnaturally
+    echo     echo Check for error messages, take a screenshot, or
+    echo     echo copy the output, if any, and submit it with a bug report.
+    echo     pause
+    echo ^)
 ) > "%SCRIPTPATH%\Hauntimator.bat"
 
 REM --- joysticking ---
