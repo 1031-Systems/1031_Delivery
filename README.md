@@ -1,9 +1,14 @@
 <!-- john Fri Jul 10 17:35:16 PDT 2026 -->
-# Animatronics
+
+# Announcements and News
 
 We are pleased to announce that the tools in this repo are now available
 for Windows 11.  In general, the Python code always worked but the
 installation scripts were lacking.  That has changed.
+
+***
+
+# Animatronics
 
 This repo contains code and scripts for working with robotic
 control data for animatronics.  It is designed to work with
@@ -259,10 +264,6 @@ that operate on channels.  Hauntimator checks all the .py files in the
 plugins directory and incorporates any that follow the protocol.  See
 the README in the plugins folder for more details.
 
-This software is made available for use under the GNU General Public License (GPL).
-A copy of this license is available within the repository for this software and is
-included herein by reference.
-
 ## Uninstallation
 
 Yes, it is possible that you may decide that this is not for you.  To
@@ -276,7 +277,23 @@ Or on Windows do:
 
 These will delete any desktop icons referencing this installation and everything
 in it.  Since it does delete everything from the installation directory on down,
-do not put your animation files here unless you want them deleted as well.
+do not put your animation files here unless you want them deleted as well.  Note
+that doing a quickinstall does an uninstall first so it will not preserve
+animations stored in the installation tree either.
+
+***
+
+## Upcoming Development
+
+The next planned release will be replacing the phoneme library pocketsphinx
+with vosk.  Pocketsphinx was originally selected because it had been used
+before, or at least sphinx had, and it was known to be able to produce phoneme
+timings.  Turns out that the phoneme alignment process was pretty iffy and
+that it was better to use word alignment and then replace the words with their
+constituent phonemes.  That can be done with word alignment from other speech
+recognition packages as well.  When pocketsphinx proved a pain to install on
+Windows 11, vosk was selected as a replacement.  Expected release date is 
+October 1, 2026.
 
 ***
 
@@ -318,4 +335,8 @@ via USB.
 
 ***
 
-Copyright 2025 John R. Wright, William R. Douglas - 1031_Systems
+This software is made available for use under the GNU General Public License (GPL).
+A copy of this license is available within the repository for this software and is
+included herein by reference.
+
+Copyright 2026 John R. Wright, William R. Douglas - 1031_Systems
