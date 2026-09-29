@@ -6,6 +6,16 @@ We are pleased to announce that the tools in this repo are now available
 for Windows 11.  In general, the Python code always worked but the
 installation scripts were lacking.  That has changed.
 
+Fully supporting Windows required replacing the phoneme library pocketsphinx
+with vosk.  Pocketsphinx was originally selected because it had been used
+before, or at least sphinx had, and it was known to be able to produce phoneme
+timings.  Turns out that the phoneme alignment process was pretty iffy and
+that it was better to use word alignment and then replace the words with their
+constituent phonemes.  That can be done with word alignment from other speech
+recognition packages as well.  When pocketsphinx proved a pain to install on
+Windows 11, vosk was selected as a replacement.  This support was released
+immediately after the first Windows release.
+
 ***
 
 # Animatronics
@@ -142,7 +152,7 @@ python3 -m venv '.venv'
 source .venv/bin/activate.$SHELL
 pip install --upgrade pip
 pip install -r ${OSTYPE}-requirements.txt
-pip install pocketsphinx    # To support phonemes plugin
+pip install vosk    # To support phonemes plugin
 python ./Hauntimator.py
 
 ~~~
@@ -161,7 +171,7 @@ pip install PyQt5 # (or PyQt6==6.5, whichever will actually install)
 pip install PythonQwt
 pip install pygame-ce
 pip install rshell
-pip install pocketsphinx    # To support phonemes plugin (NOT available on Windows)
+pip install vosk    # To support phonemes plugin
 pip freeze -l > ${OSTYPE}-requirements.txt # To save your own config
 
 ~~~
@@ -284,16 +294,6 @@ animations stored in the installation tree either.
 ***
 
 ## Upcoming Development
-
-The next planned release will be replacing the phoneme library pocketsphinx
-with vosk.  Pocketsphinx was originally selected because it had been used
-before, or at least sphinx had, and it was known to be able to produce phoneme
-timings.  Turns out that the phoneme alignment process was pretty iffy and
-that it was better to use word alignment and then replace the words with their
-constituent phonemes.  That can be done with word alignment from other speech
-recognition packages as well.  When pocketsphinx proved a pain to install on
-Windows 11, vosk was selected as a replacement.  Expected release date is 
-October 1, 2026.
 
 ***
 

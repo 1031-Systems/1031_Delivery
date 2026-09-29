@@ -79,16 +79,27 @@ Other functions in the plugin are TBD.
 ### Phonemes.py
 
 The Phonemes.py plugin is a helper intended to aid in aligning movement
-with voice audio.  It uses pocketsphinx, from Carnegie-Mellon, to
+with voice audio.  It uses vosk plus data from Carnegie-Mellon, to
 analyze speech and generate phonemes with timing and then generates channels
-to match the phonemes.  It requires pocketsphinx to be installed in your
-virtual environment via:
+to match the phonemes.  It requires vosk to be installed in your
+virtual environment as well as a vosk language model and phoneme dictionary
+via:
 
 ~~~
 
-pip install pocketsphinx
+pip install vosk
+pushd $SCRIPTPATH/src/plugins/Phoneme_data
+curl https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip -o ~/Downloads/vosk-model-small-en-us-0.15.zip
+unzip ~/Downloads/vosk-model-small-en-us-0.15.zip
+rm -f vosk-model
+ln -s vosk-model-small-en-us-0.15 vosk-model
+curl https://svn.code.sf.net/p/cmusphinx/code/trunk/cmudict/sphinxdict/cmudict_SPHINX_40 -O
+ln -s cmudict_SPHINX_40 dictionary
 
 ~~~
+
+The quickinstall scripts perform all of the above steps for your
+operating system so it is recommended using those.
 
 There is an accompanying data file named phonemes.csv that serves as a
 translator between phonemes and channel values.  For example, the jaw
@@ -109,7 +120,7 @@ of the jaw while slow, enunciated speech can support larger movements.
 Users can adjust for this by changing the minimum and/or maximum values
 for the channel they are populating.
 
-One other issue with pocketsphinx in particular is that it requires an
+One other issue with vosk in particular is that it requires an
 audio file sampled at 16 kHz, 16 bits per sample, mono to work correctly.
 If the audio file contains singing with music, or any sound other than
 speech, the recognition is crappy.  One way around this problem is to

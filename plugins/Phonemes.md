@@ -11,7 +11,7 @@
 
 The Phonemes plugin is a module for aiding in the creation of control
 channels within Hauntimator that are synchronized with a voice audio.
-It utilizes pocketsphinx, a voice recognition tool from Carnegie
+It utilizes vosk, as well as data from Carnegie
 Mellon University, for analyzing speech and producing a phoneme
 string that resembles the vocal track.
 
@@ -19,7 +19,7 @@ string that resembles the vocal track.
 
 Using the Phonemes plugin requires some work outside of Hauntimator
 prior to generating the control channels within Hauntimator.  The
-underlying pocketsphinx process requires the audio file to be
+underlying vosk process requires the audio file to be
 analyzed to be voice-only (no music, single speaker) and be recorded
 at 16kHz, 16 bits per sample, in mono.  Preparing this file must be
 done outside of Hauntimator prior to running the plugin.
@@ -53,7 +53,7 @@ converts to PCM (.wav) with 16 bit samples.  The "-ar 16000" option
 converts to 16000 samples per second (16kHz).  The -af "pan=mono|FC=FL"
 says to use the Left channel only.  Change FL to FR to use the Right
 channel only.  This command will produce a file that can be processed
-by pocketsphinx to produce a stream of phonemes.
+by vosk to produce a stream of phonemes.
 
 The second likely case is converting a music audio with singing or
 something similar to a voice-only recording.  The simplest method for
@@ -68,7 +68,7 @@ aplay infile & ; arecord -f S16_LE -r 16 outfile.wav
 The aplay command plays the existing audio in the background while the
 arecord command records the user's voice.  The "-f S16_LE" causes the
 recording to be PCM (.wav) 16-bit while the "-r 16" causes 16kHz
-recording.  The output file will be suitable for pocketsphinx to 
+recording.  The output file will be suitable for vosk to 
 process.  Some practice may be required to get the recorded voice to
 be synced well with the original audio.
 
@@ -84,12 +84,12 @@ plugins/Phonemes.py -f outfile.wav
 ```
 This will evaluate the recording parameters to make sure that you have everything
 set up correctly.  It will also attempt to run the audio file through
-pocketsphinx and display the text it finds.
+vosk and display the text it finds.
 If the text is a poor match for what is in the audio, you can try
 rerecording it while speaking more clearly or something.  I am not sure how
 to really make sure everything works great.  Sphinx used to have a way to
 provide a transcript of what was said so it only had to line things up.
-This made it more accurate but I have not found that method in pocketsphinx.
+This made it more accurate but I have not found that method in vosk.
 
 ## Preparing the Conversion File
 
@@ -104,7 +104,7 @@ for each type of channel.  For example, when saying "mama", the first
 "m" phoneme will have the jaw closed at 0%.  Then the "a" will have the
 jaw fairly wide open at 100%.  Then the jaw closes back to 0% at the
 next "m" and back to 100% for the last "a".  The conversion file must
-include the percentages for all possible phonemes that pocketsphinx
+include the percentages for all possible phonemes that vosk
 can identify.  Fortunately, this is only 40, including silence, so it is
 not too hard to populate the table.
 
@@ -161,7 +161,7 @@ column names with the first three being Phoneme, Example,and Translation.
 The remaining column names identify the type of control channels to be
 generated, Jaw in the example file.
 
-The first column contains the text string that pocketsphinx uses to
+The first column contains the text string that vosk uses to
 identify each of the 40 different phonemes.  To help the user know what
 each phoneme really sounds like, the second column contains a word that
 contains the phoneme and the third column lists all the phonemes in the
@@ -242,13 +242,17 @@ audio.
 
 Transcripts can often be found online for various songs and speeches.  The
 [Sphinx website](http://www.speech.cs.cmu.edu/tools/lmtool-new.html)
-has tools for generating language models and dictionaries
-from a transcript.  Dictionaries may even be generated automatically for a 
-transcript without the language model or using the website.
+had tools for generating language models and dictionaries
+from a transcript and vosk does also.  vosk also has a variety of models
+for different languages.  To use them it is necessary to download the
+model from the [vosk website](https://alphacephei.com/vosk/models) and then
+find a phoneme dictionary for that language.  We use the American English
+phoneme dictionary from CMU, normally used with pocketsphinx, with our vosk
+installation.  I have no idea where to find dictionaries for other languages.
 
-The Sphinx website has more details on using pocketsphinx.  Other, perhaps AI-based,
+The vosk website has more details on using vosk.  Other, perhaps AI-based,
 tools are out there for converting speech to text and may be applied here
-but pocketsphinx provides timing data that is needed.  If users find this useful
+but vosk does what is needed.  If users find this useful
 and want more information, I can probably update this with additional stuff.
 I know I had more notes on how I did all this but can't find it now, dang it!
 
