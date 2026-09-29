@@ -658,7 +658,7 @@ plugins directory.  Each entry in the Plugins menu refers to one Python file in 
 and the dropdown menus then access the individual functions provided.  There is one standard set of
 plugins provided in the Stock entry.  This implements some useful tools that might be considered
 standard to Hauntimator.  There is also a Phonemes plugin provided that is activated if the
-pocketsphinx module is installed.  Users may develop or download other plugins at their
+vosk module is installed.  Users may develop or download other plugins at their
 convenience.  If Hauntimator does not find a plugins directory or does not find any suitable Python
 files within the plugins directory, the Plugins menu will not appear.
 
@@ -894,7 +894,7 @@ the specific Help for the Phonemes plugin for more information.
 ## Requirements
 
 Hauntimator uses PyQt and PythonQwt libraries for its graphical user elements.
-Use of the Phonemes plugin requires installation of pocketsphinx.  
+Use of the Phonemes plugin requires installation of vosk.  
 
 I like to use rshell
 and generally install it with Hauntimator but it is not required.  It or thonny may also
