@@ -182,6 +182,8 @@ sed "s/__VERSION__/$vnum/g" install > ${DeliveryRepo}/install
 chmod +x ${DeliveryRepo}/install
 sed "s/__VERSION__/$vnum/g" wininstall.bat > ${DeliveryRepo}/wininstall.bat
 chmod +x ${DeliveryRepo}/wininstall.bat
+sed "s/__VERSION__/$vnum/g" install_headless > ${DeliveryRepo}/install_headless
+chmod +x ${DeliveryRepo}/install_headless
 
 
 # Zip up the delivery
@@ -269,7 +271,7 @@ zip -qry Hauntimator_LinuxMac_${vnum}.zip \
     $DeliveryRepo/Pico \
     $DeliveryRepo/Pololu \
     $DeliveryRepo/*install* \
-    -x "$DeliveryRepo/win*" "$DeliveryRepo/Pico/win*" "$DeliveryRepo/Pololu/win*"
+    -x "$DeliveryRepo/win*" "$DeliveryRepo/Pico/win*" "$DeliveryRepo/Pololu/win*" 
 
 rm -f Hauntimator_Windows_${vnum}.zip
 zip -qry Hauntimator_Windows_${vnum}.zip \
@@ -279,7 +281,7 @@ zip -qry Hauntimator_Windows_${vnum}.zip \
     $DeliveryRepo/Pico \
     $DeliveryRepo/Pololu \
     $DeliveryRepo/*install* \
-    -x "$DeliveryRepo/quick*" "$DeliveryRepo/install" "$DeliveryRepo/uninstall" \
+    -x "$DeliveryRepo/quick*" "$DeliveryRepo/install*" "$DeliveryRepo/uninstall" \
     "$DeliveryRepo/Pico/do_*" "$DeliveryRepo/Pico/Pico_install" "$DeliveryRepo/Pico/usePico" \
     "$DeliveryRepo/Pololu/do_*" "$DeliveryRepo/Pololu/Pololu_install" "$DeliveryRepo/Pololu/usePololu"
 

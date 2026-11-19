@@ -9,18 +9,15 @@
 
 #/* Import block */
 import os
-import stat
-import select
-import shutil
-import glob
-import re
 import sys
-import math
-import random
-import serial
 import signal
-import binascii
 import time
+
+# Check for nohead in the argument list
+noHead = False
+if "-nohead" in sys.argv:
+    os.environ["SDL_VIDEODRIVER"] = "dummy"
+    noHead = True
 
 # Use pygame for audio playback and control
 import pygame
@@ -52,7 +49,8 @@ printer = None
 # information.
 class TextPrint:
     def __init__(self, screen=None):
-        self.font = pygame.font.Font(None, 25)
+        if screen is not None:
+            self.font = pygame.font.Font(None, 25)
         self.screen = screen
         self.reset()
 
@@ -61,6 +59,8 @@ class TextPrint:
             text_bitmap = self.font.render(text, True, (0, 0, 0))
             self.screen.blit(text_bitmap, (self.x, self.y))
             self.y += self.line_height
+        else:
+            print(text)
 
     def reset(self):
         self.x = 10
@@ -78,7 +78,7 @@ class TextPrint:
     def flip(self):
         if self.screen is not None:
             pygame.display.flip()
-            self.reset()
+        self.reset()
 
 
 class AnimPlayer():
@@ -219,6 +219,14 @@ def mainEventLoop():
         else:
             return False
 
+    # System modes
+    STOP = 0
+    IDLE = 1
+    PLAY = 2
+
+    currMode = STOP
+    prevMode = -1
+
     triggerTime = 0.0
     prevTime = 0.0
     startTime = time.monotonic()
@@ -236,8 +244,7 @@ def mainEventLoop():
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_r:
                         # Reset everything
-                        playMode = False
-                        idleMode = False
+                        currMode = STOP
                         continuousMode = False
                         lastInput = None
                         triggerTime = 0.0
@@ -252,29 +259,31 @@ def mainEventLoop():
                         # Enter or exit play mode
                         if continuousMode:
                             print('In continuous mode:', continuousMode)
-                            playMode = True
-                            idleMode = False
+                            currMode = PLAY
                         else:
-                            playMode = not playMode
+                            if currMode == PLAY:
+                                currMode = STOP
+                            else:
+                                currMode = PLAY
                         animPlayer.stop()
-                        if playMode:
+                        if currMode == PLAY:
                             # Go to next animation and start it
                             startTime = time.monotonic()
                             currTime = time.monotonic() - startTime
                             prevTime = currTime
                             nextAnim = animList.getNextAnim()
                             animPlayer.play(nextAnim)
-                        else:
+                        elif currMode == STOP:
                             # Stop the current animation and maybe go to idle animation
                             nextAnim = animList.getIdleAnim()
                             if nextAnim is not None:
-                                idleMode = True
+                                currMode = IDLE
                                 animPlayer.play(nextAnim)
                         pass
                     elif event.key == pygame.K_t:
-                        # Opto-isolated trigger button
-                        if not playMode:
-                            playMode = True
+                        # Trigger button
+                        if not currMode == PLAY:
+                            currMode = PLAY
                             # Go to next animation and start it
                             startTime = time.monotonic()
                             currTime = time.monotonic() - startTime
@@ -324,25 +333,22 @@ def mainEventLoop():
                 startTime = time.monotonic()
                 if continuousMode:
                     # start next animation
-                    idleMode = False
-                    playMode = True
+                    currMode = PLAY
                     startTime = time.monotonic()
                     currTime = time.monotonic() - startTime
                     prevTime = currTime
                     nextAnim = animList.getNextAnim()
                     animPlayer.play(nextAnim)
                 elif animList.getIdleAnim() is not None:
-                    playMode = False
-                    idleMode = True
+                    currMode = IDLE
                     startTime = time.monotonic()
                     currTime = time.monotonic() - startTime
                     prevTime = currTime
                     nextAnim = animList.getIdleAnim()
                     animPlayer.play(nextAnim)
                 else:
-                    playMode = False
-                    idleMode = False
-        if playMode:
+                    currMode = STOP
+        if currMode == PLAY and currMode != prevMode:
             printer.tprint('Mode: Play')
             animtext = 'Animation:'
             if nextAnim[0] is not None: animtext += nextAnim[0]
@@ -350,7 +356,7 @@ def mainEventLoop():
             if nextAnim[1] is not None: audiotext += nextAnim[1]
             printer.tprint(animtext)
             printer.tprint(audiotext)
-        elif idleMode:
+        elif currMode == IDLE and currMode != prevMode:
             printer.tprint('Mode: Idle')
             animtext = 'Animation:'
             if nextAnim[0] is not None: animtext += nextAnim[0]
@@ -358,15 +364,17 @@ def mainEventLoop():
             if nextAnim[1] is not None: audiotext += nextAnim[1]
             printer.tprint(animtext)
             printer.tprint(audiotext)
-        else:
+        elif currMode != prevMode:
             printer.tprint('Mode: Stopped')
             animtext = 'Animation:'
             audiotext = 'Audio:'
-            printer.tprint(animtext)
-            printer.tprint(audiotext)
-        printer.tprint('')
-        printer.tprint('R:Reset   M:Main   T:Trigger   Q: Quit')
-        printer.flip()
+            # printer.tprint(animtext)
+            # printer.tprint(audiotext)
+        if not noHead and currMode != prevMode:
+            printer.tprint('')
+            printer.tprint('R:Reset   M:Main   T:Trigger   Q: Quit')
+            printer.flip()
+        prevMode = currMode
 
 def signal_handler(signum, frame):
     signal.signal(signum, signal.SIG_IGN) # ignore additional signals

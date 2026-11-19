@@ -1,0 +1,13 @@
+[Unit]
+Description=Raspberry Pi GPIO Power Off Button
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 SCRIPTPATH/src/shutdown_button.py
+Restart=on-failure
+RestartSec=5s
+User=root
+
+[Install]
+WantedBy=multi-user.target

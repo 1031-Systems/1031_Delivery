@@ -9,6 +9,10 @@ download with this repo at [Pico/Hardware](Pico/Hardware/).
 As an alternative to hardware fabrication, Maestro animation
 controllers from Pololu are also supported.
 
+If you are interested in using COTS (Commercial Off-The-Shelf)
+components to make a standalone prop controller, scroll down to the
+Headless section.
+
 This codebase contains an application, Hauntimator, for creating control
 channel data for directing the animatronics and code for
 executing on a Raspberry Pi Pico for performing the animations.
@@ -340,6 +344,27 @@ desktop application source code is available (in the src directory)
 but there is no mechanism for pushing changes back to the repo.  If
 you wish to do this, follow the Developers instructions on the repo's
 README.
+
+## Headless Prop Controllers
+
+As of late 2026, we have implemented and tested a version of our
+Maestro_Animator controller software that runs on a headless Raspberry
+Pi Zero with a Pololu Maestro animation controller.  All equipment is
+available off the shelf.  This provides the capability to set up and
+test animations from a PC, install the animations on the Pi Zero, and
+then run them standalone with no external interface needed.  We expect
+the same functionality to work as-is on other versions of the Pi Zero 
+as well as on other Raspberry Pi processors running Raspberry Pi OS
+(that excludes Picos).  To install the headless version, after downloading
+and unzipping the release, simply navigate to the 1031_Hauntimator
+directory created when the zip file was expanded and run:
+
+install_headless
+
+instead of any of the quickinstall methods.  For more details on what
+headless is and how to use it, see the README in Pololu/headless.
+
+***
 
 New team members are welcome.
 Drop me a line at SW dot 1031 dot Systems at gmail dot com.  Note that I am generally

@@ -1,0 +1,13 @@
+[Unit]
+Description=Maestro Animator Prop Controller
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=SCRIPTPATH/src/Animator.bash
+Restart=on-failure
+RestartSec=5s
+User=root
+
+[Install]
+WantedBy=multi-user.target
