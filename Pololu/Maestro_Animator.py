@@ -173,8 +173,6 @@ def setDigital(channel, value, push=False):
 def mainEventLoop():
     global animList
 
-    playMode = False        # Indicates we are playing an animation other than idle
-    idleMode = False        # Indicates we are playing the idle animation
     continuousMode = False  # Indicates we are playing all nonidle animations continuously
     prevMain = False
     lastMain = False
@@ -258,7 +256,6 @@ def mainEventLoop():
                         continuousMode = (currTime - triggerTime) > 5.0    # Continuous play mode when held 5 seconds
                         # Enter or exit play mode
                         if continuousMode:
-                            print('In continuous mode:', continuousMode)
                             currMode = PLAY
                         else:
                             if currMode == PLAY:
@@ -326,7 +323,7 @@ def mainEventLoop():
         prevTime = currTime
 
         # Process an animation frame
-        if playMode or idleMode:
+        if currMode == PLAY or currMode == IDLE:
             done = animPlayer.setState(currTime)
             if done:
                 # print('Done with animation:', animPlayer.currAnim)
@@ -430,6 +427,8 @@ if __name__ == "__main__":
     if len(animList.theAnims) > 0:
         tablefile = os.path.join(inDir, 'tabledefs')
         if os.path.isfile(tablefile):
+            if verbosity:
+                print('Reading tabledefs from:', tablefile)
             tables.parsefile(tablefile=tablefile)
     else:
         inDir = os.path.join(path, 'sd/anims')
