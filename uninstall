@@ -27,6 +27,18 @@ for f in ~/Desktop/*.app; do
     done
 done
 
+# In case of a headless installation, check for and remove associated services
+for f in /etc/systemd/system/*.service; do
+    # Check to see if the directory being uninstalled is referenced in the service
+    if grep "$SCRIPTPATH" $f; then
+        svcname=$(basename $f .service)
+        echo Shutting down $svcname service
+        sudo systemctl stop $svcname
+        sudo systemctl disable $svcname
+        sudo rm $f
+    fi
+done
+
 # Delete everything
 cd $SCRIPTPATH/..
 rm -rf $SCRIPTPATH

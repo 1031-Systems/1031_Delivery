@@ -1,0 +1,167 @@
+#!/bin/bash
+
+# Set the installation name
+installName=Pololu_headless
+
+# Get the current user ID for use throughout
+userID=`whoami`
+
+# Get path to this script and thus to the install directory
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+echo Path:$SCRIPTPATH
+
+# Go to directory above the installation
+cd $SCRIPTPATH
+cd ..
+
+# Remove any existing installation of the same name
+if [ -e ./${installName}/uninstall ]; then
+    echo Uninstalling existing installation
+    ./${installName}/uninstall >& /dev/null
+fi
+
+# Rename unzipped directory to be hardware specific
+mv 1031_Hauntimator ${installName}
+
+# Reenter our installation directory
+cd ${installName}
+
+# Set SCRIPTPATH to our new directory name
+SCRIPTPATH=$PWD
+echo New Path:$SCRIPTPATH
+
+# Set up the virtual environment
+python3 -m venv --system-site-packages .venv
+CODE=$?
+if [ $CODE -ne 0 ]; then
+    echo WHOOPS - Need to install venv tools
+    exit $CODE
+fi
+source .venv/bin/activate
+
+# Install and update dependencies
+pip install -U pip
+pip install -U pyserial
+pip install -U pygame-ce
+
+# Remove unused stuff
+pushd src
+rm -rf plugins Widgets.py Hauntimator.* joysticking.* MainWindow.py servotypes Animatronics.py docs
+popd
+rm -rf Pico quickinstall* install 
+
+
+# Use a reasonable tabledefs file
+cd Pololu/lib
+cp tabledefs.basic tabledefs
+
+# Run the Pololu-specific install file
+cd ..
+./do_install
+
+# Create a nice script to run the Animator
+cat << EOF > ${SCRIPTPATH}/Maestro_Animator
+#!$SHELL
+
+export PYTHONPATH=${SCRIPTPATH}/Pololu:${SCRIPTPATH}/Pololu/lib
+
+${VIRTUAL_ENV}/bin/python3 ${SCRIPTPATH}/src/Maestro_Animator.py "\$@"
+EOF
+
+chmod +x ${SCRIPTPATH}/Maestro_Animator
+
+# Now run the script quietly to make sure it works and to 
+# build pycache before root does
+echo
+echo
+if ${SCRIPTPATH}/Maestro_Animator -h &>/dev/null ; then
+    echo Code install appears successful
+else
+    echo Whoops - Something went wrong in the code install
+    exit 10
+fi
+echo
+echo
+
+# Create default directory for animations
+mkdir -p ${HOME}/Animations
+
+
+#####################################################################################
+# Set up services
+
+# Go to the code directory
+pushd headless
+
+# Copy the service executables to the src directory
+sed -e "s%SCRIPTPATH%${SCRIPTPATH}%g" -e "s%HOME%${HOME}%g" Animator.bash > ${SCRIPTPATH}/src/Animator.bash
+chmod +x ${SCRIPTPATH}/src/Animator.bash
+cp shutdown_button.py  ${SCRIPTPATH}/src/shutdown_button.py
+chmod +x ${SCRIPTPATH}/src/shutdown_button.py
+
+sudo systemctl daemon-reload
+
+# Do shutdown button service
+if systemctl is-active --quiet shutdown-button; then
+    # Shutdown the existing service prior to restarting
+    sudo systemctl stop shutdown-button.service
+    sudo systemctl disable shutdown-button.service
+fi
+
+# Copy the service files to systemd whilst updating username in paths
+sed -e "s%SCRIPTPATH%${SCRIPTPATH}%g" shutdown-button.service > t.service
+sudo cp t.service /etc/systemd/system/shutdown-button.service
+rm -f t.service
+
+# Start the shutdown service
+sudo systemctl enable shutdown-button.service
+sudo systemctl start shutdown-button.service
+
+# Do Animator service
+if systemctl is-active --quiet Animator; then
+    # Shutdown the existing service prior to restarting
+    sudo systemctl stop Animator.service
+    sudo systemctl disable Animator.service
+fi
+
+# Copy the service files to systemd whilst updating username in paths
+sed -e "s%SCRIPTPATH%${SCRIPTPATH}%g" Animator.service > t.service
+sudo cp t.service /etc/systemd/system/Animator.service
+rm -f t.service
+
+# Start the Animator service
+sudo systemctl enable Animator.service
+sudo systemctl start Animator.service
+
+# Check the service status
+echo
+echo
+if sudo systemctl is-active --quiet Animator; then
+    if sudo systemctl is-active --quiet shutdown-button; then
+        echo Service installation appears successful
+    else
+        echo shutdown-button service installation failed
+    fi
+else
+    echo Animator service installation failed
+fi
+echo
+echo
+
+# Go back to install directory
+popd
+cd ${SCRIPTPATH}
+
+# Go back where we came from
+cd ${SCRIPTPATH}
+
+# Echo important information
+echo
+echo
+echo '*** Record this important information for later use ***'
+echo 'IP Address: '`hostname -I`
+echo 'hostname  : '`hostname`
+echo 'User name : '$userID
+echo 'Installed : '$SCRIPTPATH
+echo 'Anims dir : '${HOME}/Animations
+echo
