@@ -69,7 +69,6 @@ apt as follows:
 ```
 sudo apt-get install -y libsdl2-2.0-0
 sudo apt-get install -y libsdl2-mixer-2.0-0
-sudo apt-get install -y libsdl2-dev
 ```
 
 Once the above commands complete (many minutes depending on network
