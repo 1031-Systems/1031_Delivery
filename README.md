@@ -2,6 +2,15 @@
 
 # Announcements and News
 
+
+## v0.1.3
+
+We have introduced a headless version of our Maestro_Animator application
+that runs on a Raspberry Pi Zero, using off-the-shelf components, for a
+fully embedded animation control system.  See the [README](Pololu/headless/README.md) for more details.
+
+## v0.1.2
+
 We are pleased to announce that the tools in this repo are now available
 for Windows 11.  In general, the Python code always worked but the
 installation scripts were lacking.  That has changed.
